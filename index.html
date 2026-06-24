@@ -1,0 +1,16 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Central de Chamados TI - Grupo Azuos</title><link rel="stylesheet" href="style.css"></head><body>
+<header class="top-header"><div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div><div class="header-title"><h1>Central de Chamados TI</h1><p>Abra e acompanhe solicitações de suporte técnico</p></div><div class="header-spacer"></div></header>
+<main class="container">
+<section class="card"><h2><span class="title-icon">☰</span> Abrir chamado</h2><form id="ticketForm">
+<div class="grid">
+<label>Nome<input type="text" id="nome" required placeholder="Digite seu nome"></label>
+<label>Departamento<select id="departamento" required><option value="">Selecione</option><option>ANALYZE</option><option>CERTIFICADO</option><option>COMERCIAL</option><option>CONTÁBIL</option><option>CS</option><option>FINANCEIRO</option><option>FISCAL</option><option>INTEGRAÇÃO</option><option>PARALEGAL</option><option>PESSOAL</option><option>RECEPÇÃO</option><option>RH</option></select></label>
+<label>Tipo de problema<select id="tipo" required><option value="">Selecione</option><option>Internet / Rede</option><option>Computador lento</option><option>Impressora</option><option>E-mail</option><option>Sistema interno</option><option>Certificado digital</option><option>Instalação de programa</option><option>AnyDesk / Acesso remoto</option><option>Outro</option></select></label>
+<label>Número do AnyDesk<input type="text" id="anydesk" placeholder="Ex: 123 456 789"></label>
+</div>
+<label>Descrição do problema<textarea id="descricao" required placeholder="Descreva o problema com o máximo de detalhes possível..."></textarea></label>
+<label>Print do erro <span class="optional">(opcional)</span><input type="file" id="print" accept="image/*"></label>
+<button type="submit" id="btnSubmit">➤ Abrir chamado</button></form><div id="message" class="message hidden"></div></section>
+<section class="card"><h2><span class="search-icon">⌕</span> Consultar chamado</h2><div class="search-line"><input type="text" id="searchTicket" placeholder="Ex: CH-0001"><button id="btnSearch" class="secondary">Consultar</button></div><div id="searchResult"></div></section>
+<p class="admin-link">🔒 Acesso restrito: <a href="login.html">Painel do TI</a></p></main><footer class="bottom-bar"></footer>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="app.js"></script></body></html>
