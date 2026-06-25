@@ -21,12 +21,15 @@ document.querySelectorAll(".side-tab").forEach((button) => {
 });
 
 function showTab(tabName) {
+  const selectedPanel = document.getElementById(`tab-${tabName}`);
+  const shouldOpen = selectedPanel && !selectedPanel.classList.contains("active");
+
   document.querySelectorAll(".side-tab").forEach((button) => {
-    button.classList.toggle("active", button.dataset.tab === tabName);
+    button.classList.toggle("active", shouldOpen && button.dataset.tab === tabName);
   });
 
   document.querySelectorAll(".tab-panel").forEach((panel) => {
-    panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+    panel.classList.toggle("active", shouldOpen && panel.id === `tab-${tabName}`);
   });
 }
 

@@ -6,7 +6,7 @@
   <title>Painel do TI - Grupo Azuos</title>
   <link rel="stylesheet" href="style.css">
 </head>
-<body>
+<body class="admin-body">
 <script>
   if (sessionStorage.getItem("ti_logado") !== "sim") {
     window.location.href = "login.html";
@@ -27,12 +27,46 @@
 
 <main class="admin-shell">
   <aside class="admin-sidebar">
-    <button class="side-tab active" data-tab="dashboard"><span>01</span>Dashboard</button>
+    <button class="side-tab" data-tab="dashboard"><span>01</span>Dashboard</button>
     <button class="side-tab" data-tab="inventario"><span>02</span>Inventario</button>
   </aside>
 
   <div class="admin-content">
-  <section id="tab-dashboard" class="card dashboard-card tab-panel active">
+  <section id="chamados-principal" class="card tickets-card">
+    <div class="admin-top">
+      <h2>Chamados</h2>
+      <button id="btnExport" class="secondary">Exportar CSV</button>
+    </div>
+    <div class="filters">
+      <input type="text" id="filterText" placeholder="Buscar por nome, chamado, departamento...">
+      <select id="filterStatus">
+        <option value="">Todos os status</option>
+        <option>Aberto</option>
+        <option>Em atendimento</option>
+        <option>Resolvido</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chamado</th>
+            <th>Data</th>
+            <th>Nome</th>
+            <th>Departamento</th>
+            <th>Tipo</th>
+            <th>AnyDesk</th>
+            <th>Status</th>
+            <th>Descricao</th>
+            <th>Print</th>
+          </tr>
+        </thead>
+        <tbody id="ticketsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tab-dashboard" class="card dashboard-card tab-panel">
     <div class="admin-top">
       <div>
         <h2>Dashboard de integridade</h2>
@@ -129,39 +163,6 @@
     </div>
   </section>
 
-  <section id="chamados-principal" class="card tickets-card">
-    <div class="admin-top">
-      <h2>Chamados</h2>
-      <button id="btnExport" class="secondary">Exportar CSV</button>
-    </div>
-    <div class="filters">
-      <input type="text" id="filterText" placeholder="Buscar por nome, chamado, departamento...">
-      <select id="filterStatus">
-        <option value="">Todos os status</option>
-        <option>Aberto</option>
-        <option>Em atendimento</option>
-        <option>Resolvido</option>
-      </select>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Chamado</th>
-            <th>Data</th>
-            <th>Nome</th>
-            <th>Departamento</th>
-            <th>Tipo</th>
-            <th>AnyDesk</th>
-            <th>Status</th>
-            <th>Descricao</th>
-            <th>Print</th>
-          </tr>
-        </thead>
-        <tbody id="ticketsBody"></tbody>
-      </table>
-    </div>
-  </section>
   </div>
 </main>
 
