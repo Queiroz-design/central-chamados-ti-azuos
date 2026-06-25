@@ -4,6 +4,7 @@ const filterStatus = document.getElementById("filterStatus");
 const assetForm = document.getElementById("assetForm");
 const assetsBody = document.getElementById("assetsBody");
 const assetsKey = "azuos_ti_assets";
+const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 
 let allTickets = [];
 let assets = loadAssets();
@@ -14,6 +15,20 @@ document.getElementById("btnLogout").addEventListener("click", () => {
 });
 
 document.getElementById("btnRefresh").addEventListener("click", loadTickets);
+
+document.querySelectorAll(".side-tab").forEach((button) => {
+  button.addEventListener("click", () => showTab(button.dataset.tab));
+});
+
+function showTab(tabName) {
+  document.querySelectorAll(".side-tab").forEach((button) => {
+    button.classList.toggle("active", button.dataset.tab === tabName);
+  });
+
+  document.querySelectorAll(".tab-panel").forEach((panel) => {
+    panel.classList.toggle("active", panel.id === `tab-${tabName}`);
+  });
+}
 
 function formatTicketNumber(value) {
   return "CH-" + String(value).padStart(4, "0");
@@ -113,8 +128,10 @@ function renderDashboard() {
   document.getElementById("statAlerts").innerText = alerts.length;
 
   renderAlerts(alerts);
-  renderBars("typeChart", topEntries(groupCount(monthTickets, (ticket) => ticket.tipo)));
-  renderBars("deptChart", topEntries(groupCount(monthTickets, (ticket) => ticket.departamento)));
+  const typeEntries = topEntries(groupCount(monthTickets, (ticket) => ticket.tipo), 7);
+  renderProblemDonut(typeEntries);
+  renderBars("typeChart", typeEntries, true);
+  renderBars("deptChart", topEntries(groupCount(monthTickets, (ticket) => ticket.departamento)), true);
 }
 
 function renderAlerts(alerts) {
@@ -133,7 +150,39 @@ function renderAlerts(alerts) {
   `).join("");
 }
 
-function renderBars(targetId, entries) {
+function renderProblemDonut(entries) {
+  const donut = document.getElementById("problemDonut");
+  const legend = document.getElementById("problemLegend");
+
+  if (!entries.length) {
+    donut.style.background = "#e2e8f0";
+    donut.innerHTML = "<strong>0</strong><span>chamados</span>";
+    legend.innerHTML = '<div class="empty-state">Sem chamados neste mes.</div>';
+    return;
+  }
+
+  const total = entries.reduce((sum, entry) => sum + entry[1], 0);
+  let start = 0;
+  const stops = entries.map((entry, index) => {
+    const percent = (entry[1] / total) * 100;
+    const color = chartColors[index % chartColors.length];
+    const segment = `${color} ${start}% ${start + percent}%`;
+    start += percent;
+    return segment;
+  });
+
+  donut.style.background = `conic-gradient(${stops.join(", ")})`;
+  donut.innerHTML = `<strong>${total}</strong><span>chamados</span>`;
+  legend.innerHTML = entries.map(([label, count], index) => `
+    <div class="legend-row">
+      <i style="background:${chartColors[index % chartColors.length]}"></i>
+      <span>${escapeHtml(label)}</span>
+      <strong>${count}</strong>
+    </div>
+  `).join("");
+}
+
+function renderBars(targetId, entries, colorful = false) {
   const target = document.getElementById(targetId);
 
   if (!entries.length) {
@@ -142,15 +191,18 @@ function renderBars(targetId, entries) {
   }
 
   const max = Math.max(...entries.map((entry) => entry[1]), 1);
-  target.innerHTML = entries.map(([label, count]) => `
+  target.innerHTML = entries.map(([label, count], index) => {
+    const color = chartColors[index % chartColors.length];
+    return `
     <div class="bar-row">
       <div class="bar-meta">
         <span>${escapeHtml(label)}</span>
         <strong>${count}</strong>
       </div>
-      <div class="bar-track"><span style="width:${Math.max((count / max) * 100, 8)}%"></span></div>
+      <div class="bar-track"><span style="width:${Math.max((count / max) * 100, 8)}%;${colorful ? `background:${color}` : ""}"></span></div>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function getAssetSignals(ownerName) {

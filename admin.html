@@ -25,8 +25,15 @@
   </div>
 </header>
 
-<main class="container wide">
-  <section class="card dashboard-card">
+<main class="admin-shell">
+  <aside class="admin-sidebar">
+    <button class="side-tab active" data-tab="dashboard"><span>01</span>Dashboard</button>
+    <button class="side-tab" data-tab="inventario"><span>02</span>Inventario</button>
+    <button class="side-tab" data-tab="chamados"><span>03</span>Chamados</button>
+  </aside>
+
+  <div class="admin-content">
+  <section id="tab-dashboard" class="card dashboard-card tab-panel active">
     <div class="admin-top">
       <div>
         <h2>Dashboard de integridade</h2>
@@ -54,11 +61,21 @@
       </div>
     </div>
 
-    <div class="dashboard-grid">
+    <div class="dashboard-main-grid">
+      <section class="panel problem-panel">
+        <h3>Mapa dos maiores problemas</h3>
+        <div class="problem-chart-wrap">
+          <div id="problemDonut" class="problem-donut" aria-label="Grafico de problemas por tipo"></div>
+          <div id="problemLegend" class="problem-legend"></div>
+        </div>
+      </section>
       <section class="panel">
         <h3>Alertas do mes</h3>
         <div id="alertsList" class="alert-list"></div>
       </section>
+    </div>
+
+    <div class="dashboard-grid">
       <section class="panel">
         <h3>Problemas por tipo</h3>
         <div id="typeChart" class="bar-list"></div>
@@ -70,7 +87,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section id="tab-inventario" class="card tab-panel">
     <div class="admin-top">
       <div>
         <h2>Inventario de computadores</h2>
@@ -113,7 +130,7 @@
     </div>
   </section>
 
-  <section class="card">
+  <section id="tab-chamados" class="card tab-panel">
     <div class="admin-top">
       <h2>Chamados</h2>
       <button id="btnExport" class="secondary">Exportar CSV</button>
@@ -146,6 +163,7 @@
       </table>
     </div>
   </section>
+  </div>
 </main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
