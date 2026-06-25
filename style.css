@@ -121,3 +121,15 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .admin-body .alert-item{background:#2b1218;border-left-color:#fb7185}
 .admin-body .alert-item strong{color:#fecdd3}
 .admin-body .tickets-card{border-top-color:#38bdf8}
+.public-dark{background:#0b1220;color:#e5edf8}
+.public-dark .top-header{background:#101827;border-bottom-color:#38bdf8;box-shadow:0 2px 22px rgba(0,0,0,.28)}
+.public-dark .header-title h1,.public-dark h2{color:#f8fafc}
+.public-dark .header-title p,.public-dark .admin-link{color:#94a3b8}
+.public-dark .card,.public-dark .ticket-card{background:#111827;border-color:#243244;box-shadow:0 18px 44px rgba(0,0,0,.24)}
+.public-dark label{color:#dbeafe}
+.public-dark input,.public-dark select,.public-dark textarea{background:#0b1220;color:#e5edf8;border-color:#334155}
+.public-dark input::placeholder,.public-dark textarea::placeholder{color:#64748b}
+.public-dark .secondary{background:#172033;color:#e5edf8;border-color:#3a4a61}
+.public-dark .title-icon{background:#0ea5e9}
+.public-dark .search-icon,.public-dark .admin-link a,.public-dark .back-link a{color:#7dd3fc}
+.public-dark .bottom-bar{background:linear-gradient(90deg,#0b1220,#0ea5e9)}
