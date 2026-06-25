@@ -1,4 +1,155 @@
-<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Painel do TI - Grupo Azuos</title><link rel="stylesheet" href="style.css"></head><body><script>if(sessionStorage.getItem("ti_logado")!=="sim"){window.location.href="login.html";}</script>
-<header class="top-header admin-header"><div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div><div class="header-title"><h1>Painel do TI</h1><p>Gerencie os chamados registrados</p></div><div class="header-actions"><a class="btn secondary" href="index.html">Abrir chamado</a><button id="btnLogout" class="danger">Sair</button></div></header>
-<main class="container wide"><section class="card"><div class="admin-top"><h2>Chamados</h2><button id="btnExport" class="secondary">Exportar CSV</button></div><div class="filters"><input type="text" id="filterText" placeholder="Buscar por nome, chamado, departamento..."><select id="filterStatus"><option value="">Todos os status</option><option>Aberto</option><option>Em atendimento</option><option>Resolvido</option></select></div><div class="table-wrap"><table><thead><tr><th>Chamado</th><th>Data</th><th>Nome</th><th>Departamento</th><th>Tipo</th><th>AnyDesk</th><th>Status</th><th>Descrição</th><th>Print</th></tr></thead><tbody id="ticketsBody"></tbody></table></div></section></main>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="config.js"></script><script src="admin.js"></script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel do TI - Grupo Azuos</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script>
+  if (sessionStorage.getItem("ti_logado") !== "sim") {
+    window.location.href = "login.html";
+  }
+</script>
+
+<header class="top-header admin-header">
+  <div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div>
+  <div class="header-title">
+    <h1>Painel do TI</h1>
+    <p>Gerencie chamados, computadores e alertas de recorrencia</p>
+  </div>
+  <div class="header-actions">
+    <a class="btn secondary" href="index.html">Abrir chamado</a>
+    <button id="btnLogout" class="danger">Sair</button>
+  </div>
+</header>
+
+<main class="container wide">
+  <section class="card dashboard-card">
+    <div class="admin-top">
+      <div>
+        <h2>Dashboard de integridade</h2>
+        <p class="section-note">Visao baseada nos chamados registrados e no inventario de computadores.</p>
+      </div>
+      <button id="btnRefresh" class="secondary">Atualizar</button>
+    </div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <span>Chamados no mes</span>
+        <strong id="statMonth">0</strong>
+      </div>
+      <div class="stat-box">
+        <span>Chamados abertos</span>
+        <strong id="statOpen">0</strong>
+      </div>
+      <div class="stat-box">
+        <span>Computadores monitorados</span>
+        <strong id="statDevices">0</strong>
+      </div>
+      <div class="stat-box warning">
+        <span>Alertas de recorrencia</span>
+        <strong id="statAlerts">0</strong>
+      </div>
+    </div>
+
+    <div class="dashboard-grid">
+      <section class="panel">
+        <h3>Alertas do mes</h3>
+        <div id="alertsList" class="alert-list"></div>
+      </section>
+      <section class="panel">
+        <h3>Problemas por tipo</h3>
+        <div id="typeChart" class="bar-list"></div>
+      </section>
+      <section class="panel">
+        <h3>Departamentos com mais chamados</h3>
+        <div id="deptChart" class="bar-list"></div>
+      </section>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="admin-top">
+      <div>
+        <h2>Inventario de computadores</h2>
+        <p class="section-note">Cadastre memoria, SSD e responsavel para cruzar com os chamados.</p>
+      </div>
+    </div>
+    <form id="assetForm" class="asset-form">
+      <input type="hidden" id="assetId">
+      <label>Responsavel<input type="text" id="assetOwner" required placeholder="Ex: Thiago"></label>
+      <label>Departamento<input type="text" id="assetDept" placeholder="Ex: Fiscal"></label>
+      <label>Computador<input type="text" id="assetComputer" required placeholder="Ex: AZUOS-NB-014"></label>
+      <label>Memoria RAM<input type="text" id="assetMemory" placeholder="Ex: 8 GB"></label>
+      <label>SSD / Disco<input type="text" id="assetStorage" placeholder="Ex: SSD 240 GB bom"></label>
+      <label>Integridade
+        <select id="assetHealth">
+          <option>Boa</option>
+          <option>Atencao</option>
+          <option>Critica</option>
+        </select>
+      </label>
+      <button type="submit" id="btnSaveAsset">Salvar computador</button>
+      <button type="button" id="btnCancelAsset" class="secondary hidden">Cancelar edicao</button>
+    </form>
+    <div class="table-wrap">
+      <table class="assets-table">
+        <thead>
+          <tr>
+            <th>Responsavel</th>
+            <th>Computador</th>
+            <th>Memoria</th>
+            <th>SSD / Disco</th>
+            <th>Chamados no mes</th>
+            <th>Problema recorrente</th>
+            <th>Integridade</th>
+            <th>Acoes</th>
+          </tr>
+        </thead>
+        <tbody id="assetsBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="admin-top">
+      <h2>Chamados</h2>
+      <button id="btnExport" class="secondary">Exportar CSV</button>
+    </div>
+    <div class="filters">
+      <input type="text" id="filterText" placeholder="Buscar por nome, chamado, departamento...">
+      <select id="filterStatus">
+        <option value="">Todos os status</option>
+        <option>Aberto</option>
+        <option>Em atendimento</option>
+        <option>Resolvido</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Chamado</th>
+            <th>Data</th>
+            <th>Nome</th>
+            <th>Departamento</th>
+            <th>Tipo</th>
+            <th>AnyDesk</th>
+            <th>Status</th>
+            <th>Descricao</th>
+            <th>Print</th>
+          </tr>
+        </thead>
+        <tbody id="ticketsBody"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
