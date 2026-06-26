@@ -1,3 +1,8 @@
+[CmdletBinding()]
+param(
+  [switch]$Silent
+)
+
 $ErrorActionPreference = "SilentlyContinue"
 
 $SupabaseUrl = "https://fazguvdmaufcohemsqom.supabase.co"
@@ -16,7 +21,7 @@ function Add-WarningItem($list, $message, $severity = "Atencao") {
   }) | Out-Null
 }
 
-Write-Host "Coletando inventario de hardware do Grupo Azuos..." -ForegroundColor Cyan
+if (-not $Silent) { Write-Host "Coletando inventario de hardware do Grupo Azuos..." -ForegroundColor Cyan }
 
 $computer = Get-CimInstance Win32_ComputerSystem
 $bios = Get-CimInstance Win32_BIOS
@@ -178,16 +183,20 @@ $uri = "${Endpoint}?on_conflict=computer_name"
 
 try {
   Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes | Out-Null
-  Write-Host "Inventario enviado com sucesso." -ForegroundColor Green
-  Write-Host "Computador: $($payload.computer_name)"
-  Write-Host "Saude: $healthStatus ($score/100)"
-  if ($warnings.Count -gt 0) {
+  if (-not $Silent) {
+    Write-Host "Inventario enviado com sucesso." -ForegroundColor Green
+    Write-Host "Computador: $($payload.computer_name)"
+    Write-Host "Saude: $healthStatus ($score/100)"
+  }
+  if (-not $Silent -and $warnings.Count -gt 0) {
     Write-Host "Alertas:" -ForegroundColor Yellow
     $warnings | ForEach-Object { Write-Host "- $($_.message)" }
   }
 } catch {
-  Write-Host "Erro ao enviar inventario." -ForegroundColor Red
-  Write-Host $_.Exception.Message
+  if (-not $Silent) {
+    Write-Host "Erro ao enviar inventario." -ForegroundColor Red
+    Write-Host $_.Exception.Message
+  }
   $responseText = $_.ErrorDetails.Message
   if (-not $responseText -and $_.Exception.Response) {
     try {
@@ -196,9 +205,13 @@ try {
       $reader.Close()
     } catch {}
   }
-  if ($responseText) { Write-Host $responseText }
+  if (-not $Silent -and $responseText) { Write-Host $responseText }
+  if ($Silent) { exit 1 }
 }
 
-Write-Host ""
-Write-Host "Pode fechar esta janela." -ForegroundColor Cyan
-Read-Host "Pressione ENTER para sair"
+if (-not $Silent) {
+  Write-Host ""
+  Write-Host "Pode fechar esta janela." -ForegroundColor Cyan
+  Read-Host "Pressione ENTER para sair"
+}
+if ($Silent) { exit 0 }
