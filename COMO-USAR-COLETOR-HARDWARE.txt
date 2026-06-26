@@ -5,15 +5,12 @@ COMO ATIVAR O INVENTARIO AUTOMATICO DE HARDWARE
    supabase-hardware-inventory.sql
 
 3. No Painel do TI, abra Inventario e clique em:
-   Baixar coletor
+   Baixar coletor automatico
 
-4. Envie o arquivo coletor-hardware-azuos.ps1 para o usuario ou execute na maquina dele.
+4. Envie o arquivo executar-coletor-azuos.bat para o usuario ou execute na maquina dele.
 
-5. Na maquina do usuario, clique com o botao direito no arquivo e escolha:
-   Executar com PowerShell
-
-   Se o Windows bloquear script, abra PowerShell como Administrador na pasta do arquivo e rode:
-   powershell -ExecutionPolicy Bypass -File .\coletor-hardware-azuos.ps1
+5. Na maquina do usuario, de dois cliques no arquivo.
+   Nao e necessario abrir PowerShell nem digitar comandos.
 
 O coletor envia para o site:
 - nome do computador;
