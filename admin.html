@@ -123,39 +123,45 @@
   <section id="tab-inventario" class="card tab-panel">
     <div class="admin-top">
       <div>
-        <h2>Inventario de computadores</h2>
-        <p class="section-note">Cadastre memoria, SSD e responsavel para cruzar com os chamados.</p>
+        <h2>Inventario automatico de computadores</h2>
+        <p class="section-note">Dados enviados pelo coletor de hardware executado nas maquinas.</p>
+      </div>
+      <a class="btn secondary" href="coletor-hardware-azuos.ps1" download>Baixar coletor</a>
+    </div>
+
+    <div class="hardware-summary">
+      <div class="stat-box">
+        <span>Maquinas inventariadas</span>
+        <strong id="hwTotal">0</strong>
+      </div>
+      <div class="stat-box">
+        <span>Saude boa</span>
+        <strong id="hwGood">0</strong>
+      </div>
+      <div class="stat-box warning">
+        <span>Em atencao</span>
+        <strong id="hwWarning">0</strong>
+      </div>
+      <div class="stat-box danger-stat">
+        <span>Criticas</span>
+        <strong id="hwCritical">0</strong>
       </div>
     </div>
-    <form id="assetForm" class="asset-form">
-      <input type="hidden" id="assetId">
-      <label>Responsavel<input type="text" id="assetOwner" required placeholder="Ex: Thiago"></label>
-      <label>Departamento<input type="text" id="assetDept" placeholder="Ex: Fiscal"></label>
-      <label>Computador<input type="text" id="assetComputer" required placeholder="Ex: AZUOS-NB-014"></label>
-      <label>Memoria RAM<input type="text" id="assetMemory" placeholder="Ex: 8 GB"></label>
-      <label>SSD / Disco<input type="text" id="assetStorage" placeholder="Ex: SSD 240 GB bom"></label>
-      <label>Integridade
-        <select id="assetHealth">
-          <option>Boa</option>
-          <option>Atencao</option>
-          <option>Critica</option>
-        </select>
-      </label>
-      <button type="submit" id="btnSaveAsset">Salvar computador</button>
-      <button type="button" id="btnCancelAsset" class="secondary hidden">Cancelar edicao</button>
-    </form>
+
+    <div id="hardwareCards" class="hardware-cards"></div>
+
     <div class="table-wrap">
       <table class="assets-table">
         <thead>
           <tr>
-            <th>Responsavel</th>
             <th>Computador</th>
+            <th>Usuario</th>
+            <th>Modelo</th>
             <th>Memoria</th>
-            <th>SSD / Disco</th>
+            <th>Discos</th>
             <th>Chamados no mes</th>
-            <th>Problema recorrente</th>
             <th>Integridade</th>
-            <th>Acoes</th>
+            <th>Ultima coleta</th>
           </tr>
         </thead>
         <tbody id="assetsBody"></tbody>

@@ -74,6 +74,17 @@ button:hover,.btn:hover{filter:brightness(.97);transform:translateY(-1px)}
 .asset-form{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 16px;align-items:end;margin:16px 0 22px}
 .asset-form label{margin-bottom:0}
 .asset-form button{min-height:48px}
+.hardware-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin:22px 0}
+.danger-stat{border-color:#ef4444!important;background:#fff1f2!important}
+.hardware-cards{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:0 0 22px}
+.hardware-card{border:1px solid #e2e8f0;border-radius:8px;padding:16px;background:#f8fafc}
+.hardware-card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.hardware-card-top strong{display:block;color:var(--azul-escuro);font-size:17px}
+.hardware-card-top span{display:block;color:#64748b;margin-top:4px}
+.hardware-card p{margin:10px 0 0;color:#475569;font-size:14px;line-height:1.45}
+.health-meter{height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:16px}
+.health-meter span{display:block;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e);border-radius:99px}
+.hardware-score{margin-top:8px;color:#64748b;font-weight:bold;font-size:13px}
 .assets-table{min-width:1120px}
 .table-actions{display:flex;gap:8px;white-space:nowrap}
 .small{padding:8px 10px;font-size:13px}
@@ -97,8 +108,8 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .login-card h1{text-align:center;color:var(--azul-escuro);margin-top:0}
 .login-card p{text-align:center;color:#6b7280}
 .back-link{text-align:center;margin-bottom:0}
-@media(max-width:1100px){.admin-shell{grid-template-columns:1fr}.admin-sidebar{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.side-tab{margin:0}.stats-grid,.dashboard-main-grid,.dashboard-grid,.asset-form{grid-template-columns:repeat(2,minmax(0,1fr))}.problem-chart-wrap{grid-template-columns:1fr}.problem-donut{margin:0 auto}}
-@media(max-width:850px){.top-header{grid-template-columns:1fr;text-align:center;padding:22px}.brand-logo{margin:0 auto;width:210px}.header-title h1{font-size:30px}.header-actions{justify-content:center}.grid,.filters,.search-line,.stats-grid,.dashboard-main-grid,.dashboard-grid,.asset-form,.admin-sidebar{grid-template-columns:1fr}.container,.admin-shell{width:92%}.admin-top{align-items:flex-start;flex-direction:column}.problem-chart-wrap{min-height:0}.problem-donut{width:220px}.side-tab{justify-content:flex-start}}
+@media(max-width:1100px){.admin-shell{grid-template-columns:1fr}.admin-sidebar{position:static;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.side-tab{margin:0}.stats-grid,.hardware-summary,.dashboard-main-grid,.dashboard-grid,.asset-form,.hardware-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.problem-chart-wrap{grid-template-columns:1fr}.problem-donut{margin:0 auto}}
+@media(max-width:850px){.top-header{grid-template-columns:1fr;text-align:center;padding:22px}.brand-logo{margin:0 auto;width:210px}.header-title h1{font-size:30px}.header-actions{justify-content:center}.grid,.filters,.search-line,.stats-grid,.hardware-summary,.dashboard-main-grid,.dashboard-grid,.asset-form,.hardware-cards,.admin-sidebar{grid-template-columns:1fr}.container,.admin-shell{width:92%}.admin-top{align-items:flex-start;flex-direction:column}.problem-chart-wrap{min-height:0}.problem-donut{width:220px}.side-tab{justify-content:flex-start}}
 .admin-body{background:#0b1220;color:#e5edf8}
 .admin-body .top-header{background:#101827;border-bottom-color:#38bdf8;box-shadow:0 2px 22px rgba(0,0,0,.28)}
 .admin-body .header-title h1,.admin-body h2,.admin-body .panel h3,.admin-body .stat-box strong,.admin-body .legend-row strong{color:#f8fafc}
@@ -116,6 +127,11 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .admin-body td{border-bottom-color:#243244}
 .admin-body .stat-box,.admin-body .legend-row,.admin-body .empty-state{background:#0f172a;border-color:#26364a;color:#cbd5e1}
 .admin-body .stat-box.warning{background:#2a2108;border-color:#f59e0b}
+.admin-body .danger-stat{background:#2b1218!important;border-color:#fb7185!important}
+.admin-body .hardware-card{background:#0f172a;border-color:#26364a}
+.admin-body .hardware-card-top strong{color:#f8fafc}
+.admin-body .hardware-card-top span,.admin-body .hardware-card p,.admin-body .hardware-score{color:#94a3b8}
+.admin-body .health-meter{background:#26364a}
 .admin-body .bar-track{background:#26364a}
 .admin-body .problem-donut:after{background:#111827;box-shadow:0 0 0 1px #26364a}
 .admin-body .alert-item{background:#2b1218;border-left-color:#fb7185}

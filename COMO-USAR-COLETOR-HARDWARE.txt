@@ -1,0 +1,33 @@
+COMO ATIVAR O INVENTARIO AUTOMATICO DE HARDWARE
+
+1. No Supabase, abra SQL Editor.
+2. Cole e execute o conteudo do arquivo:
+   supabase-hardware-inventory.sql
+
+3. No Painel do TI, abra Inventario e clique em:
+   Baixar coletor
+
+4. Envie o arquivo coletor-hardware-azuos.ps1 para o usuario ou execute na maquina dele.
+
+5. Na maquina do usuario, clique com o botao direito no arquivo e escolha:
+   Executar com PowerShell
+
+   Se o Windows bloquear script, abra PowerShell como Administrador na pasta do arquivo e rode:
+   powershell -ExecutionPolicy Bypass -File .\coletor-hardware-azuos.ps1
+
+O coletor envia para o site:
+- nome do computador;
+- usuario logado;
+- fabricante/modelo/serial;
+- Windows e ultimo boot;
+- processador;
+- memoria total;
+- quantidade de pentes de memoria;
+- detalhes dos pentes;
+- discos HD/SSD;
+- saude basica dos discos quando o Windows informar;
+- volumes e espaco livre;
+- score de saude de 0 a 100;
+- alertas de pouca memoria, pouco disco, disco quente ou falha.
+
+Depois de executar, atualize o Painel do TI.

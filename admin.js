@@ -1,13 +1,13 @@
 const body = document.getElementById("ticketsBody");
 const filterText = document.getElementById("filterText");
 const filterStatus = document.getElementById("filterStatus");
-const assetForm = document.getElementById("assetForm");
 const assetsBody = document.getElementById("assetsBody");
-const assetsKey = "azuos_ti_assets";
+const hardwareCards = document.getElementById("hardwareCards");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 
 let allTickets = [];
-let assets = loadAssets();
+let hardwareAssets = [];
+let hardwareLoadError = "";
 
 document.getElementById("btnLogout").addEventListener("click", () => {
   sessionStorage.removeItem("ti_logado");
@@ -68,25 +68,23 @@ function topEntries(counts, limit = 5) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, limit);
 }
 
-function loadAssets() {
-  try {
-    return JSON.parse(localStorage.getItem(assetsKey)) || [];
-  } catch (error) {
-    return [];
-  }
-}
-
-function saveAssets() {
-  localStorage.setItem(assetsKey, JSON.stringify(assets));
-}
-
 async function loadTickets() {
   body.innerHTML = '<tr><td colspan="9">Carregando chamados...</td></tr>';
-  const { data, error } = await client.from("chamados").select("*").order("created_at", { ascending: false });
+  const ticketsRequest = client.from("chamados").select("*").order("created_at", { ascending: false });
+  const hardwareRequest = client.from("hardware_inventory").select("*").order("reported_at", { ascending: false });
+  const [{ data, error }, hardwareResult] = await Promise.all([ticketsRequest, hardwareRequest]);
 
   if (error) {
     body.innerHTML = `<tr><td colspan="9">Erro ao carregar chamados: ${escapeHtml(error.message)}</td></tr>`;
     return;
+  }
+
+  if (hardwareResult.error) {
+    hardwareAssets = [];
+    hardwareLoadError = hardwareResult.error.message;
+  } else {
+    hardwareAssets = hardwareResult.data || [];
+    hardwareLoadError = "";
   }
 
   allTickets = data || [];
@@ -127,7 +125,7 @@ function renderDashboard() {
 
   document.getElementById("statMonth").innerText = monthTickets.length;
   document.getElementById("statOpen").innerText = openTickets.length;
-  document.getElementById("statDevices").innerText = assets.length;
+  document.getElementById("statDevices").innerText = hardwareAssets.length;
   document.getElementById("statAlerts").innerText = alerts.length;
 
   renderAlerts(alerts);
@@ -208,9 +206,13 @@ function renderBars(targetId, entries, colorful = false) {
   }).join("");
 }
 
-function getAssetSignals(ownerName) {
-  const name = normalizeText(ownerName);
-  const monthTickets = allTickets.filter((ticket) => isThisMonth(ticket) && normalizeText(ticket.nome) === name);
+function getAssetSignals(asset) {
+  const user = normalizeText(asset.user_name);
+  const computer = normalizeText(asset.computer_name);
+  const monthTickets = allTickets.filter((ticket) => {
+    const ticketText = `${normalizeText(ticket.nome)} ${normalizeText(ticket.descricao)} ${normalizeText(ticket.anydesk)}`;
+    return isThisMonth(ticket) && ((user && ticketText.includes(user)) || (computer && ticketText.includes(computer)));
+  });
   const byType = topEntries(groupCount(monthTickets, (ticket) => ticket.tipo), 1);
 
   return {
@@ -220,40 +222,104 @@ function getAssetSignals(ownerName) {
 }
 
 function suggestedHealth(asset, monthCount) {
-  if (asset.health === "Critica" || monthCount >= 5) return "Critica";
-  if (asset.health === "Atencao" || monthCount >= 3) return "Atencao";
+  if (asset.health_status === "Critica" || monthCount >= 5) return "Critica";
+  if (asset.health_status === "Atencao" || monthCount >= 3) return "Atencao";
   return "Boa";
 }
 
+function formatDateTime(value) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString("pt-BR");
+}
+
+function formatDisks(disks) {
+  if (!Array.isArray(disks) || !disks.length) return "-";
+  return disks.map((disk) => {
+    const type = disk.media_type && disk.media_type !== "Unspecified" ? disk.media_type : "Disco";
+    return `${escapeHtml(type)} ${escapeHtml(disk.size_gb || "-")} GB (${escapeHtml(disk.health_status || disk.status || "-")})`;
+  }).join("<br>");
+}
+
+function formatWarnings(warnings) {
+  if (!Array.isArray(warnings) || !warnings.length) return "Sem alertas de hardware.";
+  return warnings.slice(0, 3).map((warning) => escapeHtml(warning.message || warning)).join("<br>");
+}
+
 function renderAssets() {
-  if (!assets.length) {
-    assetsBody.innerHTML = '<tr><td colspan="8">Nenhum computador cadastrado ainda.</td></tr>';
+  if (hardwareLoadError) {
+    const message = "Tabela hardware_inventory ainda nao disponivel. Rode o SQL supabase-hardware-inventory.sql no Supabase.";
+    assetsBody.innerHTML = `<tr><td colspan="8">${escapeHtml(message)}</td></tr>`;
+    hardwareCards.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
+    updateHardwareSummary();
     renderDashboard();
     return;
   }
 
-  assetsBody.innerHTML = assets.map((asset) => {
-    const signals = getAssetSignals(asset.owner);
+  updateHardwareSummary();
+
+  if (!hardwareAssets.length) {
+    assetsBody.innerHTML = '<tr><td colspan="8">Nenhuma maquina enviou inventario ainda. Baixe o coletor e execute nos computadores.</td></tr>';
+    hardwareCards.innerHTML = '<div class="empty-state">Aguardando primeira coleta de hardware.</div>';
+    renderDashboard();
+    return;
+  }
+
+  hardwareCards.innerHTML = hardwareAssets.slice(0, 6).map((asset) => {
+    const signals = getAssetSignals(asset);
+    const health = suggestedHealth(asset, signals.monthCount);
+    const score = Number(asset.health_score || 0);
+
+    return `
+      <article class="hardware-card ${health.toLowerCase()}">
+        <div class="hardware-card-top">
+          <div>
+            <strong>${escapeHtml(asset.computer_name)}</strong>
+            <span>${escapeHtml(asset.user_name || "-")} - ${escapeHtml(asset.model || "-")}</span>
+          </div>
+          <span class="health-badge ${health.toLowerCase()}">${health}</span>
+        </div>
+        <div class="health-meter"><span style="width:${Math.max(score, 4)}%"></span></div>
+        <div class="hardware-score">${score}/100</div>
+        <p>${formatWarnings(asset.warnings)}</p>
+      </article>
+    `;
+  }).join("");
+
+  assetsBody.innerHTML = hardwareAssets.map((asset) => {
+    const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
 
     return `
       <tr>
-        <td><strong>${escapeHtml(asset.owner)}</strong><br><span class="muted">${escapeHtml(asset.department || "-")}</span></td>
-        <td>${escapeHtml(asset.computer)}</td>
-        <td>${escapeHtml(asset.memory || "-")}</td>
-        <td>${escapeHtml(asset.storage || "-")}</td>
+        <td><strong>${escapeHtml(asset.computer_name)}</strong><br><span class="muted">${escapeHtml(asset.serial_number || "-")}</span></td>
+        <td>${escapeHtml(asset.user_name || "-")}<br><span class="muted">${escapeHtml(asset.domain_name || "-")}</span></td>
+        <td>${escapeHtml(asset.manufacturer || "-")}<br><span class="muted">${escapeHtml(asset.model || "-")}</span></td>
+        <td>${escapeHtml(asset.memory_total_gb || "-")} GB<br><span class="muted">${escapeHtml(asset.memory_slots || 0)} pente(s)</span></td>
+        <td>${formatDisks(asset.disks)}</td>
         <td>${signals.monthCount}</td>
-        <td>${escapeHtml(signals.recurringType)}</td>
-        <td><span class="health-badge ${health.toLowerCase()}">${health}</span></td>
-        <td class="table-actions">
-          <button class="secondary small" onclick="editAsset('${asset.id}')">Editar</button>
-          <button class="danger small" onclick="deleteAsset('${asset.id}')">Excluir</button>
-        </td>
+        <td><span class="health-badge ${health.toLowerCase()}">${health}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
+        <td>${formatDateTime(asset.reported_at)}</td>
       </tr>
     `;
   }).join("");
 
   renderDashboard();
+}
+
+function updateHardwareSummary() {
+  const summary = hardwareAssets.reduce((acc, asset) => {
+    const health = suggestedHealth(asset, getAssetSignals(asset).monthCount);
+    acc.total += 1;
+    if (health === "Boa") acc.good += 1;
+    if (health === "Atencao") acc.warning += 1;
+    if (health === "Critica") acc.critical += 1;
+    return acc;
+  }, { total: 0, good: 0, warning: 0, critical: 0 });
+
+  document.getElementById("hwTotal").innerText = summary.total;
+  document.getElementById("hwGood").innerText = summary.good;
+  document.getElementById("hwWarning").innerText = summary.warning;
+  document.getElementById("hwCritical").innerText = summary.critical;
 }
 
 function renderTickets() {
@@ -301,59 +367,6 @@ window.changeStatus = async function changeStatus(id, status) {
   await loadTickets();
 };
 
-window.editAsset = function editAsset(id) {
-  const asset = assets.find((item) => item.id === id);
-  if (!asset) return;
-
-  document.getElementById("assetId").value = asset.id;
-  document.getElementById("assetOwner").value = asset.owner;
-  document.getElementById("assetDept").value = asset.department || "";
-  document.getElementById("assetComputer").value = asset.computer;
-  document.getElementById("assetMemory").value = asset.memory || "";
-  document.getElementById("assetStorage").value = asset.storage || "";
-  document.getElementById("assetHealth").value = asset.health || "Boa";
-  document.getElementById("btnSaveAsset").innerText = "Atualizar computador";
-  document.getElementById("btnCancelAsset").classList.remove("hidden");
-};
-
-window.deleteAsset = function deleteAsset(id) {
-  if (!confirm("Excluir este computador do inventario?")) return;
-  assets = assets.filter((item) => item.id !== id);
-  saveAssets();
-  renderAssets();
-};
-
-function resetAssetForm() {
-  assetForm.reset();
-  document.getElementById("assetId").value = "";
-  document.getElementById("btnSaveAsset").innerText = "Salvar computador";
-  document.getElementById("btnCancelAsset").classList.add("hidden");
-}
-
-assetForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  const id = document.getElementById("assetId").value || crypto.randomUUID();
-  const asset = {
-    id,
-    owner: document.getElementById("assetOwner").value.trim(),
-    department: document.getElementById("assetDept").value.trim(),
-    computer: document.getElementById("assetComputer").value.trim(),
-    memory: document.getElementById("assetMemory").value.trim(),
-    storage: document.getElementById("assetStorage").value.trim(),
-    health: document.getElementById("assetHealth").value,
-  };
-
-  assets = assets.some((item) => item.id === id)
-    ? assets.map((item) => item.id === id ? asset : item)
-    : [asset, ...assets];
-
-  saveAssets();
-  resetAssetForm();
-  renderAssets();
-});
-
-document.getElementById("btnCancelAsset").addEventListener("click", resetAssetForm);
 filterText.addEventListener("input", renderTickets);
 filterStatus.addEventListener("change", renderTickets);
 
