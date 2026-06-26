@@ -3,6 +3,8 @@ const filterText = document.getElementById("filterText");
 const filterStatus = document.getElementById("filterStatus");
 const assetsBody = document.getElementById("assetsBody");
 const hardwareCards = document.getElementById("hardwareCards");
+const hardwareEditModal = document.getElementById("hardwareEditModal");
+const hardwareEditForm = document.getElementById("hardwareEditForm");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 
 let allTickets = [];
@@ -273,8 +275,8 @@ function renderAssets() {
       <article class="hardware-card ${health.toLowerCase()}">
         <div class="hardware-card-top">
           <div>
-            <strong>${escapeHtml(asset.computer_name)}</strong>
-            <span>${escapeHtml(asset.user_name || "-")} - ${escapeHtml(asset.model || "-")}</span>
+            <strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong>
+            <span>${escapeHtml(asset.responsible_name || asset.user_name || "-")} - ${escapeHtml(asset.model || "-")}</span>
           </div>
           <span class="health-badge ${health.toLowerCase()}">${health}</span>
         </div>
@@ -291,20 +293,59 @@ function renderAssets() {
 
     return `
       <tr>
-        <td><strong>${escapeHtml(asset.computer_name)}</strong><br><span class="muted">${escapeHtml(asset.serial_number || "-")}</span></td>
-        <td>${escapeHtml(asset.user_name || "-")}<br><span class="muted">${escapeHtml(asset.domain_name || "-")}</span></td>
+        <td><strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong><br><span class="muted">Windows: ${escapeHtml(asset.computer_name)} | ${escapeHtml(asset.serial_number || "-")}</span></td>
+        <td>${escapeHtml(asset.responsible_name || asset.user_name || "-")}<br><span class="muted">${escapeHtml(asset.department || asset.domain_name || "-")}</span></td>
         <td>${escapeHtml(asset.manufacturer || "-")}<br><span class="muted">${escapeHtml(asset.model || "-")}</span></td>
         <td>${escapeHtml(asset.memory_total_gb || "-")} GB<br><span class="muted">${escapeHtml(asset.memory_slots || 0)} pente(s)</span></td>
         <td>${formatDisks(asset.disks)}</td>
         <td>${signals.monthCount}</td>
         <td><span class="health-badge ${health.toLowerCase()}">${health}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
         <td>${formatDateTime(asset.reported_at)}</td>
+        <td><button class="secondary small" onclick="editHardware('${asset.id}')">Editar</button></td>
       </tr>
     `;
   }).join("");
 
   renderDashboard();
 }
+
+window.editHardware = function editHardware(id) {
+  const asset = hardwareAssets.find((item) => item.id === id);
+  if (!asset) return;
+
+  document.getElementById("hardwareEditId").value = asset.id;
+  document.getElementById("hardwareDisplayName").value = asset.display_name || "";
+  document.getElementById("hardwareResponsible").value = asset.responsible_name || "";
+  document.getElementById("hardwareDepartment").value = asset.department || "";
+  hardwareEditModal.classList.remove("hidden");
+};
+
+function closeHardwareEdit() {
+  hardwareEditModal.classList.add("hidden");
+  hardwareEditForm.reset();
+}
+
+document.getElementById("btnCloseHardwareEdit").addEventListener("click", closeHardwareEdit);
+hardwareEditModal.addEventListener("click", (event) => {
+  if (event.target === hardwareEditModal) closeHardwareEdit();
+});
+
+hardwareEditForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = document.getElementById("hardwareEditId").value;
+  const changes = {
+    display_name: document.getElementById("hardwareDisplayName").value.trim() || null,
+    responsible_name: document.getElementById("hardwareResponsible").value.trim() || null,
+    department: document.getElementById("hardwareDepartment").value.trim() || null,
+  };
+  const { error } = await client.from("hardware_inventory").update(changes).eq("id", id);
+  if (error) {
+    alert("Erro ao salvar identificacao: " + error.message);
+    return;
+  }
+  closeHardwareEdit();
+  await loadTickets();
+});
 
 function updateHardwareSummary() {
   const summary = hardwareAssets.reduce((acc, asset) => {

@@ -162,12 +162,29 @@
             <th>Chamados no mes</th>
             <th>Integridade</th>
             <th>Ultima coleta</th>
+            <th>Acoes</th>
           </tr>
         </thead>
         <tbody id="assetsBody"></tbody>
       </table>
     </div>
   </section>
+
+  <div id="hardwareEditModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hardwareEditTitle">
+      <div class="admin-top">
+        <h2 id="hardwareEditTitle">Editar identificacao</h2>
+        <button type="button" id="btnCloseHardwareEdit" class="secondary small">Fechar</button>
+      </div>
+      <form id="hardwareEditForm">
+        <input type="hidden" id="hardwareEditId">
+        <label>Nome de exibicao<input type="text" id="hardwareDisplayName" placeholder="Ex: Computador do Thiago"></label>
+        <label>Colaborador responsavel<input type="text" id="hardwareResponsible" placeholder="Ex: Thiago"></label>
+        <label>Departamento<input type="text" id="hardwareDepartment" placeholder="Ex: Fiscal"></label>
+        <button type="submit">Salvar identificacao</button>
+      </form>
+    </section>
+  </div>
 
   </div>
 </main>

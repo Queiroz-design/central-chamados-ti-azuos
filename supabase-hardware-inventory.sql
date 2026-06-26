@@ -1,6 +1,9 @@
 create table if not exists hardware_inventory (
   id uuid primary key default gen_random_uuid(),
   computer_name text not null unique,
+  display_name text,
+  responsible_name text,
+  department text,
   user_name text,
   domain_name text,
   manufacturer text,
@@ -25,6 +28,10 @@ create table if not exists hardware_inventory (
   reported_at timestamptz default now(),
   created_at timestamptz default now()
 );
+
+alter table hardware_inventory add column if not exists display_name text;
+alter table hardware_inventory add column if not exists responsible_name text;
+alter table hardware_inventory add column if not exists department text;
 
 alter table hardware_inventory enable row level security;
 
