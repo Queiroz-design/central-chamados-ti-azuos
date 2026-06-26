@@ -51,7 +51,11 @@ $diskPayload = @($diskDrives | ForEach-Object {
 
   $reliability = $null
   if ($physical) {
-    $reliability = $physical | Get-StorageReliabilityCounter
+    try {
+      $reliability = $physical | Get-StorageReliabilityCounter -ErrorAction Stop 2>$null
+    } catch {
+      $reliability = $null
+    }
   }
 
   [ordered]@{
@@ -110,6 +114,29 @@ $score = 100 - ($warnings.Count * 12) - ($criticalCount * 18)
 if ($score -lt 0) { $score = 0 }
 $healthStatus = if ($criticalCount -gt 0 -or $score -lt 55) { "Critica" } elseif ($warnings.Count -gt 0 -or $score -lt 80) { "Atencao" } else { "Boa" }
 
+$lastBoot = $null
+if ($os.LastBootUpTime -is [datetime]) {
+  $lastBoot = $os.LastBootUpTime.ToString("o")
+} elseif ($os.LastBootUpTime) {
+  try {
+    $lastBoot = ([Management.ManagementDateTimeConverter]::ToDateTime([string]$os.LastBootUpTime)).ToString("o")
+  } catch {
+    $lastBoot = $null
+  }
+}
+
+$batteryPayload = $null
+if ($battery) {
+  $batteryPayload = [ordered]@{
+    name = $battery.Name
+    status = $battery.Status
+    estimated_charge_remaining = $battery.EstimatedChargeRemaining
+    estimated_run_time = $battery.EstimatedRunTime
+  }
+}
+
+$warningPayload = @($warnings | ForEach-Object { $_ })
+
 $payload = [ordered]@{
   computer_name = $env:COMPUTERNAME
   user_name = "$env:USERNAME"
@@ -119,7 +146,7 @@ $payload = [ordered]@{
   serial_number = $bios.SerialNumber
   os_caption = $os.Caption
   os_version = $os.Version
-  last_boot = ([Management.ManagementDateTimeConverter]::ToDateTime($os.LastBootUpTime)).ToString("o")
+  last_boot = $lastBoot
   cpu_name = $cpu.Name
   cpu_cores = $cpu.NumberOfCores
   cpu_logical_processors = $cpu.NumberOfLogicalProcessors
@@ -128,17 +155,10 @@ $payload = [ordered]@{
   memory_modules = $memoryPayload
   disks = $diskPayload
   volumes = $volumePayload
-  battery = if ($battery) {
-    [ordered]@{
-      name = $battery.Name
-      status = $battery.Status
-      estimated_charge_remaining = $battery.EstimatedChargeRemaining
-      estimated_run_time = $battery.EstimatedRunTime
-    }
-  } else { $null }
+  battery = $batteryPayload
   health_score = [int]$score
   health_status = $healthStatus
-  warnings = @($warnings)
+  warnings = $warningPayload
   raw = [ordered]@{
     collected_by = "coletor-hardware-azuos.ps1"
     collected_at = (Get-Date).ToString("o")
@@ -149,15 +169,15 @@ $payload = [ordered]@{
 $headers = @{
   "apikey" = $SupabaseKey
   "Authorization" = "Bearer $SupabaseKey"
-  "Content-Type" = "application/json"
   "Prefer" = "resolution=merge-duplicates,return=representation"
 }
 
 $json = $payload | ConvertTo-Json -Depth 8
-$uri = "$Endpoint?on_conflict=computer_name"
+$jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($json)
+$uri = "${Endpoint}?on_conflict=computer_name"
 
 try {
-  Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -Body $json | Out-Null
+  Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes | Out-Null
   Write-Host "Inventario enviado com sucesso." -ForegroundColor Green
   Write-Host "Computador: $($payload.computer_name)"
   Write-Host "Saude: $healthStatus ($score/100)"
@@ -168,6 +188,15 @@ try {
 } catch {
   Write-Host "Erro ao enviar inventario." -ForegroundColor Red
   Write-Host $_.Exception.Message
+  $responseText = $_.ErrorDetails.Message
+  if (-not $responseText -and $_.Exception.Response) {
+    try {
+      $reader = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+      $responseText = $reader.ReadToEnd()
+      $reader.Close()
+    } catch {}
+  }
+  if ($responseText) { Write-Host $responseText }
 }
 
 Write-Host ""
