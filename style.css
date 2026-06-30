@@ -81,6 +81,7 @@ button:hover,.btn:hover{filter:brightness(.97);transform:translateY(-1px)}
 .hardware-card-top{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
 .hardware-card-top strong{display:block;color:var(--azul-escuro);font-size:17px}
 .hardware-card-top span{display:block;color:#64748b;margin-top:4px}
+.hardware-spec{margin-top:12px;color:#475569;font-size:13px;line-height:1.4}
 .hardware-card p{margin:10px 0 0;color:#475569;font-size:14px;line-height:1.45}
 .health-meter{height:10px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:16px}
 .health-meter span{display:block;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#22c55e);border-radius:99px}
@@ -135,7 +136,7 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .admin-body .danger-stat{background:#2b1218!important;border-color:#fb7185!important}
 .admin-body .hardware-card{background:#0f172a;border-color:#26364a}
 .admin-body .hardware-card-top strong{color:#f8fafc}
-.admin-body .hardware-card-top span,.admin-body .hardware-card p,.admin-body .hardware-score{color:#94a3b8}
+.admin-body .hardware-card-top span,.admin-body .hardware-card p,.admin-body .hardware-score,.admin-body .hardware-spec{color:#94a3b8}
 .admin-body .health-meter{background:#26364a}
 .admin-body .modal-card{background:#111827;border-color:#334155}
 .admin-body .bar-track{background:#26364a}

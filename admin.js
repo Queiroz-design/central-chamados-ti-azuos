@@ -250,7 +250,7 @@ function formatWarnings(warnings) {
 function renderAssets() {
   if (hardwareLoadError) {
     const message = "Tabela hardware_inventory ainda nao disponivel. Rode o SQL supabase-hardware-inventory.sql no Supabase.";
-    assetsBody.innerHTML = `<tr><td colspan="8">${escapeHtml(message)}</td></tr>`;
+    assetsBody.innerHTML = `<tr><td colspan="10">${escapeHtml(message)}</td></tr>`;
     hardwareCards.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
     updateHardwareSummary();
     renderDashboard();
@@ -260,7 +260,7 @@ function renderAssets() {
   updateHardwareSummary();
 
   if (!hardwareAssets.length) {
-    assetsBody.innerHTML = '<tr><td colspan="8">Nenhuma maquina enviou inventario ainda. Baixe o coletor e execute nos computadores.</td></tr>';
+    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma maquina enviou inventario ainda. Baixe o coletor e execute nos computadores.</td></tr>';
     hardwareCards.innerHTML = '<div class="empty-state">Aguardando primeira coleta de hardware.</div>';
     renderDashboard();
     return;
@@ -280,6 +280,7 @@ function renderAssets() {
           </div>
           <span class="health-badge ${health.toLowerCase()}">${health}</span>
         </div>
+        <div class="hardware-spec">${escapeHtml(asset.cpu_name || "Processador nao informado")} | ${escapeHtml(asset.cpu_cores || 0)} nucleo(s)</div>
         <div class="health-meter"><span style="width:${Math.max(score, 4)}%"></span></div>
         <div class="hardware-score">${score}/100</div>
         <p>${formatWarnings(asset.warnings)}</p>
@@ -296,6 +297,7 @@ function renderAssets() {
         <td><strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong><br><span class="muted">Windows: ${escapeHtml(asset.computer_name)} | ${escapeHtml(asset.serial_number || "-")}</span></td>
         <td>${escapeHtml(asset.responsible_name || asset.user_name || "-")}<br><span class="muted">${escapeHtml(asset.department || asset.domain_name || "-")}</span></td>
         <td>${escapeHtml(asset.manufacturer || "-")}<br><span class="muted">${escapeHtml(asset.model || "-")}</span></td>
+        <td>${escapeHtml(asset.cpu_name || "-")}<br><span class="muted">${escapeHtml(asset.cpu_cores || 0)} nucleo(s) / ${escapeHtml(asset.cpu_logical_processors || 0)} threads</span></td>
         <td>${escapeHtml(asset.memory_total_gb || "-")} GB<br><span class="muted">${escapeHtml(asset.memory_slots || 0)} pente(s)</span></td>
         <td>${formatDisks(asset.disks)}</td>
         <td>${signals.monthCount}</td>
