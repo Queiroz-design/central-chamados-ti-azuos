@@ -1,0 +1,52 @@
+COMO ATIVAR ALERTAS DO UNIFI NO PAINEL DO TI
+
+ETAPA 1 - SUPABASE
+
+1. Abra o Supabase do projeto.
+2. Entre em SQL Editor.
+3. Cole todo o conteudo do arquivo supabase-network-alerts.sql.
+4. Clique em Run.
+
+
+ETAPA 2 - VERCEL
+
+No projeto central-chamados-ti-azuos, abra:
+Settings > Environment Variables
+
+Crie estas variaveis para Production:
+
+SUPABASE_URL
+https://fazguvdmaufcohemsqom.supabase.co
+
+SUPABASE_SECRET_KEY
+Use uma Secret key do Supabase (comeca com sb_secret_).
+Nao use essa chave no HTML ou JavaScript publico.
+
+UNIFI_WEBHOOK_SECRET
+Crie uma senha longa apenas para o webhook. Exemplo:
+azuos-unifi-alertas-2026-troque-esta-senha
+
+Depois das variaveis, faca um novo deploy na Vercel.
+
+
+ETAPA 3 - UNIFI
+
+1. Abra UniFi Network.
+2. Entre em Logs / System Logs > Alarm Manager.
+3. Crie alertas para os eventos de Internet:
+   - WAN Offline / Internet Outage;
+   - WAN Failover;
+   - High Latency;
+   - Packet Loss.
+4. Adicione a acao Webhook com metodo POST.
+5. Use esta URL, trocando SEGREDO pelo mesmo valor de UNIFI_WEBHOOK_SECRET:
+
+https://central-chamados-ti-azuos.vercel.app/api/unifi-webhook?token=SEGREDO
+
+6. Salve e use o teste de webhook do UniFi, quando disponivel.
+
+
+RESULTADO
+
+Os eventos aparecerao em Painel do TI > Rede.
+Enquanto o painel estiver aberto, novos eventos entram em tempo real.

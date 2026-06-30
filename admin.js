@@ -5,11 +5,14 @@ const assetsBody = document.getElementById("assetsBody");
 const hardwareCards = document.getElementById("hardwareCards");
 const hardwareEditModal = document.getElementById("hardwareEditModal");
 const hardwareEditForm = document.getElementById("hardwareEditForm");
+const networkAlertsBody = document.getElementById("networkAlertsBody");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 
 let allTickets = [];
 let hardwareAssets = [];
 let hardwareLoadError = "";
+let networkAlerts = [];
+let networkLoadError = "";
 
 document.getElementById("btnLogout").addEventListener("click", () => {
   sessionStorage.removeItem("ti_logado");
@@ -17,6 +20,7 @@ document.getElementById("btnLogout").addEventListener("click", () => {
 });
 
 document.getElementById("btnRefresh").addEventListener("click", loadTickets);
+document.getElementById("btnNetworkRefresh").addEventListener("click", loadNetworkAlerts);
 
 document.querySelectorAll(".side-tab").forEach((button) => {
   button.addEventListener("click", () => showTab(button.dataset.tab));
@@ -74,7 +78,8 @@ async function loadTickets() {
   body.innerHTML = '<tr><td colspan="9">Carregando chamados...</td></tr>';
   const ticketsRequest = client.from("chamados").select("*").order("created_at", { ascending: false });
   const hardwareRequest = client.from("hardware_inventory").select("*").order("reported_at", { ascending: false });
-  const [{ data, error }, hardwareResult] = await Promise.all([ticketsRequest, hardwareRequest]);
+  const networkRequest = client.from("network_alerts").select("*").order("event_time", { ascending: false }).limit(100);
+  const [{ data, error }, hardwareResult, networkResult] = await Promise.all([ticketsRequest, hardwareRequest, networkRequest]);
 
   if (error) {
     body.innerHTML = `<tr><td colspan="9">Erro ao carregar chamados: ${escapeHtml(error.message)}</td></tr>`;
@@ -89,10 +94,31 @@ async function loadTickets() {
     hardwareLoadError = "";
   }
 
+  if (networkResult.error) {
+    networkAlerts = [];
+    networkLoadError = networkResult.error.message;
+  } else {
+    networkAlerts = networkResult.data || [];
+    networkLoadError = "";
+  }
+
   allTickets = data || [];
   renderDashboard();
   renderAssets();
+  renderNetworkAlerts();
   renderTickets();
+}
+
+async function loadNetworkAlerts() {
+  const { data, error } = await client.from("network_alerts").select("*").order("event_time", { ascending: false }).limit(100);
+  if (error) {
+    networkLoadError = error.message;
+    networkAlerts = [];
+  } else {
+    networkLoadError = "";
+    networkAlerts = data || [];
+  }
+  renderNetworkAlerts();
 }
 
 function buildRecurringAlerts(monthTickets) {
@@ -365,6 +391,86 @@ function updateHardwareSummary() {
   document.getElementById("hwCritical").innerText = summary.critical;
 }
 
+function isNetworkRecovery(alert) {
+  const text = `${alert.title || ""} ${alert.message || ""} ${alert.connection_status || ""}`.toLowerCase();
+  return /recovered|restored|online|connected|healthy|recuperad|restabelecid|normalizad/.test(text);
+}
+
+function networkSeverityClass(severity) {
+  if (severity === "Critica") return "critical";
+  if (severity === "Atencao") return "warning";
+  return "info";
+}
+
+function renderNetworkAlerts() {
+  const statusElement = document.getElementById("networkStatus");
+  const banner = document.getElementById("networkHealthBanner");
+  const badge = document.getElementById("networkBadge");
+
+  if (networkLoadError) {
+    networkAlertsBody.innerHTML = '<tr><td colspan="6">Tabela network_alerts ainda nao disponivel. Rode o SQL supabase-network-alerts.sql no Supabase.</td></tr>';
+    statusElement.innerText = "Nao configurado";
+    banner.className = "network-health-banner warning";
+    banner.innerText = "O monitoramento ainda precisa ser configurado.";
+    badge.classList.add("hidden");
+    return;
+  }
+
+  const now = Date.now();
+  const last24Hours = networkAlerts.filter((alert) => now - new Date(alert.event_time).getTime() <= 24 * 60 * 60 * 1000);
+  const criticalCount = last24Hours.filter((alert) => alert.severity === "Critica" && !isNetworkRecovery(alert)).length;
+  const latest = networkAlerts[0];
+  const latestAgeMinutes = latest ? (now - new Date(latest.event_time).getTime()) / 60000 : Infinity;
+  const activeIssue = latest && latestAgeMinutes <= 30 && !isNetworkRecovery(latest) && ["Critica", "Atencao"].includes(latest.severity);
+
+  document.getElementById("network24h").innerText = last24Hours.length;
+  document.getElementById("networkCritical").innerText = criticalCount;
+  document.getElementById("networkLastEvent").innerText = latest ? formatDateTime(latest.event_time) : "-";
+
+  if (activeIssue) {
+    const critical = latest.severity === "Critica";
+    statusElement.innerText = critical ? "Oscilacao" : "Atencao";
+    banner.className = `network-health-banner ${critical ? "critical" : "warning"}`;
+    banner.innerText = `${latest.title || "Problema de internet"}: ${latest.message || "Verifique o UniFi."}`;
+  } else {
+    statusElement.innerText = networkAlerts.length ? "Estavel" : "Sem eventos";
+    banner.className = "network-health-banner stable";
+    banner.innerText = networkAlerts.length ? "Nenhuma oscilacao ativa detectada nos ultimos 30 minutos." : "Aguardando o primeiro evento do UniFi.";
+  }
+
+  if (criticalCount > 0) {
+    badge.innerText = criticalCount > 99 ? "99+" : criticalCount;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+
+  if (!networkAlerts.length) {
+    networkAlertsBody.innerHTML = '<tr><td colspan="6">Nenhum alerta recebido do UniFi ainda.</td></tr>';
+    return;
+  }
+
+  networkAlertsBody.innerHTML = networkAlerts.map((alert) => {
+    const severityClass = networkSeverityClass(alert.severity);
+    const metrics = [
+      alert.latency_ms !== null && alert.latency_ms !== undefined ? `${alert.latency_ms} ms` : "",
+      alert.packet_loss_percent !== null && alert.packet_loss_percent !== undefined ? `${alert.packet_loss_percent}% perda` : "",
+    ].filter(Boolean).join(" / ") || "-";
+    const wan = [alert.wan_name, alert.provider].filter(Boolean).join(" / ") || "-";
+
+    return `
+      <tr>
+        <td>${formatDateTime(alert.event_time)}</td>
+        <td><span class="network-severity ${severityClass}">${escapeHtml(alert.severity || "Informacao")}</span></td>
+        <td><strong>${escapeHtml(alert.title || alert.event_type || "Evento UniFi")}</strong></td>
+        <td>${escapeHtml(wan)}</td>
+        <td>${escapeHtml(metrics)}</td>
+        <td>${escapeHtml(alert.message || "-")}</td>
+      </tr>
+    `;
+  }).join("");
+}
+
 function renderTickets() {
   const text = filterText.value.toLowerCase();
   const status = filterStatus.value;
@@ -433,5 +539,14 @@ document.getElementById("btnExport").addEventListener("click", () => {
   link.download = "chamados-ti.csv";
   link.click();
 });
+
+client
+  .channel("network-alerts-live")
+  .on("postgres_changes", { event: "INSERT", schema: "public", table: "network_alerts" }, (payload) => {
+    networkAlerts = [payload.new, ...networkAlerts.filter((alert) => alert.id !== payload.new.id)].slice(0, 100);
+    networkLoadError = "";
+    renderNetworkAlerts();
+  })
+  .subscribe();
 
 loadTickets();

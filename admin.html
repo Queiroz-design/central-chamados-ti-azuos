@@ -29,6 +29,7 @@
   <aside class="admin-sidebar">
     <button class="side-tab" data-tab="dashboard"><span>01</span>Dashboard</button>
     <button class="side-tab" data-tab="inventario"><span>02</span>Inventario</button>
+    <button class="side-tab" data-tab="rede"><span>03</span>Rede <b id="networkBadge" class="network-badge hidden">0</b></button>
   </aside>
 
   <div class="admin-content">
@@ -117,6 +118,55 @@
         <h3>Departamentos com mais chamados</h3>
         <div id="deptChart" class="bar-list"></div>
       </section>
+    </div>
+  </section>
+
+  <section id="tab-rede" class="card tab-panel">
+    <div class="admin-top">
+      <div>
+        <h2>Monitoramento da rede</h2>
+        <p class="section-note">Alertas enviados em tempo real pelo UniFi.</p>
+      </div>
+      <button id="btnNetworkRefresh" class="secondary">Atualizar rede</button>
+    </div>
+
+    <div class="network-summary">
+      <div class="stat-box network-status-box">
+        <span>Estado atual</span>
+        <strong id="networkStatus">Sem dados</strong>
+      </div>
+      <div class="stat-box">
+        <span>Alertas em 24 horas</span>
+        <strong id="network24h">0</strong>
+      </div>
+      <div class="stat-box danger-stat">
+        <span>Eventos criticos</span>
+        <strong id="networkCritical">0</strong>
+      </div>
+      <div class="stat-box">
+        <span>Ultimo evento</span>
+        <strong id="networkLastEvent" class="network-last-event">-</strong>
+      </div>
+    </div>
+
+    <div id="networkHealthBanner" class="network-health-banner stable">
+      Aguardando eventos do UniFi.
+    </div>
+
+    <div class="table-wrap">
+      <table class="network-table">
+        <thead>
+          <tr>
+            <th>Horario</th>
+            <th>Gravidade</th>
+            <th>Evento</th>
+            <th>WAN / Provedor</th>
+            <th>Metricas</th>
+            <th>Mensagem</th>
+          </tr>
+        </thead>
+        <tbody id="networkAlertsBody"></tbody>
+      </table>
     </div>
   </section>
 
