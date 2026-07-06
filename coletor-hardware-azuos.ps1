@@ -6,9 +6,9 @@ param(
 
 $ErrorActionPreference = "SilentlyContinue"
 
-$SupabaseUrl = "https://fazguvdmaufcohemsqom.supabase.co"
-$SupabaseKey = "sb_publishable_acp9vD-gQfaT6vtWln60wA_WT-sVtVt"
-$Endpoint = "$SupabaseUrl/rest/v1/hardware_inventory"
+# Envio agora passa pelo proxy serverless (a service key fica so na Vercel).
+$ProxyUrl = "https://central-chamados-ti-azuos.vercel.app/api/coletor"
+$ColetorSecret = "azuos-coletor-gfz8q9w0bqb7"
 $LogDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 if (-not $LogDir) { $LogDir = Join-Path $env:ProgramData "GrupoAzuos\InventarioTI" }
 $LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
@@ -192,27 +192,36 @@ $payload = [ordered]@{
   reported_at = (Get-Date).ToString("o")
 }
 
-$headers = @{
-  "apikey" = $SupabaseKey
-  "Authorization" = "Bearer $SupabaseKey"
-  "Prefer" = "resolution=merge-duplicates,return=representation"
-}
+$headers = @{ "x-coletor-secret" = $ColetorSecret }
 
-$json = $payload | ConvertTo-Json -Depth 8
+$envelope = [ordered]@{
+  table   = "hardware_inventory"
+  method  = "POST"
+  query   = "?on_conflict=computer_name"
+  prefer  = "resolution=merge-duplicates,return=minimal"
+  payload = $payload
+}
+$json = $envelope | ConvertTo-Json -Depth 9
 $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($json)
-$uri = "${Endpoint}?on_conflict=computer_name"
 
 try {
   try {
-    Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes -ErrorAction Stop | Out-Null
+    Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes -ErrorAction Stop | Out-Null
   } catch {
-    $curlOutput = & curl.exe --ssl-no-revoke -sS -f -L -X POST $uri `
-      -H "apikey: $SupabaseKey" `
-      -H "Authorization: Bearer $SupabaseKey" `
-      -H "Prefer: resolution=merge-duplicates,return=representation" `
-      -H "Content-Type: application/json; charset=utf-8" `
-      --data-raw $json 2>&1
-    if ($LASTEXITCODE -ne 0) { throw "Falha HTTPS ao enviar inventario: $curlOutput" }
+    $detail = $_.ErrorDetails.Message
+    if (-not $detail -and $_.Exception.Response) {
+      try {
+        $sr = New-Object System.IO.StreamReader($_.Exception.Response.GetResponseStream())
+        $detail = $sr.ReadToEnd(); $sr.Close()
+      } catch {}
+    }
+    if (-not $detail) {
+      $detail = (& curl.exe --ssl-no-revoke -sS -L -X POST $ProxyUrl `
+        -H "x-coletor-secret: $ColetorSecret" `
+        -H "Content-Type: application/json; charset=utf-8" `
+        --data-raw $json 2>&1) -join "`n"
+    }
+    throw "Falha ao enviar inventario. Resposta do proxy: $detail"
   }
   Set-Content -Path $LogPath -Value "SUCESSO - Inventario enviado em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss')) - Computador: $($payload.computer_name)" -Encoding UTF8
   if (-not $Silent) {
