@@ -1,0 +1,81 @@
+// Proxy dos coletores (Grupo Azuos).
+// As maquinas enviam telemetria/inventario para ESTE endpoint com um segredo
+// (COLETOR_SECRET). O proxy grava no Supabase usando a SERVICE KEY, que fica
+// somente aqui no servidor (nunca no .ps1). Assim as tabelas ficam fechadas ao
+// publico e a chave poderosa nao circula nas maquinas.
+//
+// Operacoes permitidas (allowlist) - so escrita/leitura das tabelas de telemetria:
+const ALLOWED = {
+  hardware_inventory: ["POST", "PATCH"],
+  hardware_live_status: ["POST", "PATCH"],
+  hardware_performance_history: ["POST"],
+  hardware_performance_alerts: ["GET", "POST", "PATCH"],
+};
+
+module.exports = async function handler(req, res) {
+  if (req.method === "GET") {
+    return res.status(200).json({ ok: true, service: "Proxy coletor Grupo Azuos" });
+  }
+  if (req.method !== "POST") {
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).json({ error: "Metodo nao permitido" });
+  }
+
+  const configuredSecret = process.env.COLETOR_SECRET;
+  if (!configuredSecret) return res.status(503).json({ error: "Proxy nao configurado (falta COLETOR_SECRET)" });
+
+  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !supabaseKey) return res.status(503).json({ error: "Supabase nao configurado na Vercel" });
+
+  let body = req.body || {};
+  if (typeof body === "string") {
+    try { body = JSON.parse(body); } catch { body = {}; }
+  }
+
+  const receivedSecret = req.headers["x-coletor-secret"] || body.secret;
+  if (!receivedSecret || receivedSecret !== configuredSecret) {
+    return res.status(401).json({ error: "Token invalido" });
+  }
+
+  const table = String(body.table || "");
+  const method = String(body.method || "POST").toUpperCase();
+  const query = typeof body.query === "string" ? body.query : "";
+  const prefer = typeof body.prefer === "string" ? body.prefer : "";
+  const payload = body.payload;
+
+  if (!ALLOWED[table] || !ALLOWED[table].includes(method)) {
+    return res.status(403).json({ error: "Operacao nao permitida", table, method });
+  }
+  // A query so pode conter caracteres seguros de filtro do PostgREST.
+  if (query && !/^\?[A-Za-z0-9_.,=&%:*()\-]*$/.test(query)) {
+    return res.status(400).json({ error: "Query invalida" });
+  }
+
+  const headers = {
+    apikey: supabaseKey,
+    "Content-Type": "application/json",
+  };
+  if (supabaseKey.startsWith("eyJ")) headers.Authorization = `Bearer ${supabaseKey}`;
+  if (prefer) headers.Prefer = prefer;
+
+  const options = { method, headers };
+  if (method !== "GET" && payload !== undefined) {
+    options.body = JSON.stringify(payload);
+  }
+
+  let response;
+  try {
+    response = await fetch(`${supabaseUrl}/rest/v1/${table}${query}`, options);
+  } catch (err) {
+    return res.status(502).json({ error: "Falha ao contatar o Supabase", details: String(err) });
+  }
+
+  const text = await response.text();
+  res.status(response.status);
+  try {
+    return res.json(text ? JSON.parse(text) : {});
+  } catch {
+    return res.send(text);
+  }
+};
