@@ -14,16 +14,40 @@ const ALLOWED = {
 
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
+    res.setHeader("Cache-Control", "no-store");
+    const wantSelftest =
+      (req.query && req.query.selftest === "1") || /[?&]selftest=1(&|$)/.test(req.url || "");
+    const supabaseUrl0 = process.env.SUPABASE_URL;
+    const supabaseKey0 = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     // Diagnostico seguro: mostra SE as variaveis existem (nunca os valores).
-    return res.status(200).json({
+    const base = {
       ok: true,
       service: "Proxy coletor Grupo Azuos",
       config: {
         hasColetorSecret: !!process.env.COLETOR_SECRET,
-        hasSupabaseUrl: !!process.env.SUPABASE_URL,
-        hasServiceKey: !!(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+        hasSupabaseUrl: !!supabaseUrl0,
+        hasServiceKey: !!supabaseKey0,
       },
-    });
+    };
+    // ?selftest=1 -> tenta falar com o Supabase usando a service key.
+    if (wantSelftest) {
+      if (!supabaseUrl0 || !supabaseKey0) {
+        return res.status(200).json({ ...base, selftest: { skipped: "faltam variaveis" } });
+      }
+      try {
+        const r = await fetch(`${supabaseUrl0}/rest/v1/hardware_inventory?select=computer_name&limit=0`, {
+          headers: { apikey: supabaseKey0, Authorization: `Bearer ${supabaseKey0}` },
+        });
+        const t = await r.text();
+        return res.status(200).json({
+          ...base,
+          selftest: { status: r.status, ok: r.ok, message: r.ok ? "service key OK" : t.slice(0, 300) },
+        });
+      } catch (e) {
+        return res.status(200).json({ ...base, selftest: { error: String(e) } });
+      }
+    }
+    return res.status(200).json(base);
   }
   if (req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
