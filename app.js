@@ -1,1 +1,96 @@
-const form=document.getElementById("ticketForm"),message=document.getElementById("message"),btnSubmit=document.getElementById("btnSubmit");function showMessage(t,e="success"){message.className=`message ${e}`;message.innerHTML=t}function formatTicketNumber(t){return"CH-"+String(t).padStart(4,"0")}async function uploadPrint(t,e){if(!t)return null;const n=t.name.split(".").pop(),o=`prints/${e}-${Date.now()}.${n}`,{error:a}=await client.storage.from("chamados-prints").upload(o,t);if(a)throw a;return client.storage.from("chamados-prints").getPublicUrl(o).data.publicUrl}form.addEventListener("submit",async t=>{t.preventDefault(),btnSubmit.disabled=!0,btnSubmit.innerText="Abrindo...";try{const t=document.getElementById("print").files[0],e=crypto.randomUUID(),n=await uploadPrint(t,e),o={nome:document.getElementById("nome").value.trim(),departamento:document.getElementById("departamento").value,tipo:document.getElementById("tipo").value,anydesk:document.getElementById("anydesk").value.trim(),descricao:document.getElementById("descricao").value.trim(),print_url:n,status:"Aberto"},{data:a,error:i}=await client.from("chamados").insert(o).select().single();if(i)throw i;showMessage(`Chamado aberto com sucesso! Número: <strong>${formatTicketNumber(a.id)}</strong>`),form.reset()}catch(t){showMessage(`Erro ao abrir chamado: ${t.message}`,"error")}finally{btnSubmit.disabled=!1,btnSubmit.innerText="➤ Abrir chamado"}}),document.getElementById("btnSearch").addEventListener("click",async()=>{const t=document.getElementById("searchTicket").value.trim().toUpperCase(),e=Number(t.replace("CH-","")),n=document.getElementById("searchResult");if(!e)return void(n.innerHTML='<div class="ticket-card">Digite um chamado válido.</div>');const{data:o,error:a}=await client.from("chamados").select("*").eq("id",e).single();if(a||!o)return void(n.innerHTML='<div class="ticket-card">Chamado não encontrado.</div>');n.innerHTML=`<div class="ticket-card"><strong>${formatTicketNumber(o.id)}</strong><br><b>Status:</b> ${o.status}<br><b>Nome:</b> ${o.nome}<br><b>Departamento:</b> ${o.departamento}<br><b>Tipo:</b> ${o.tipo}<br><b>AnyDesk:</b> ${o.anydesk||"Não informado"}<br><b>Descrição:</b> ${o.descricao}<br><b>Data:</b> ${new Date(o.created_at).toLocaleString("pt-BR")}${o.print_url?`<br><br><a href="${o.print_url}" target="_blank">Abrir print</a>`:""}</div>`});
+const form = document.getElementById("ticketForm");
+const message = document.getElementById("message");
+const btnSubmit = document.getElementById("btnSubmit");
+const searchResult = document.getElementById("searchResult");
+
+// Escapa texto antes de inserir no HTML (evita XSS a partir dos dados do chamado).
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+// So aceita links http(s) (bloqueia javascript: e outros esquemas perigosos).
+function safeUrl(url) {
+  const value = String(url || "");
+  return /^https?:\/\//i.test(value) ? value : "";
+}
+
+function showMessage(html, type = "success") {
+  message.className = `message ${type}`;
+  message.classList.remove("hidden");
+  message.innerHTML = html;
+}
+
+function formatTicketNumber(value) {
+  return "CH-" + String(value).padStart(4, "0");
+}
+
+async function uploadPrint(file, ticketId) {
+  if (!file) return null;
+  const ext = file.name.split(".").pop();
+  const path = `prints/${ticketId}-${Date.now()}.${ext}`;
+  const { error } = await client.storage.from("chamados-prints").upload(path, file);
+  if (error) throw error;
+  return client.storage.from("chamados-prints").getPublicUrl(path).data.publicUrl;
+}
+
+form.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  btnSubmit.disabled = true;
+  btnSubmit.innerText = "Abrindo...";
+  try {
+    const file = document.getElementById("print").files[0];
+    const ticketId = crypto.randomUUID();
+    const printUrl = await uploadPrint(file, ticketId);
+    const record = {
+      nome: document.getElementById("nome").value.trim(),
+      departamento: document.getElementById("departamento").value,
+      tipo: document.getElementById("tipo").value,
+      anydesk: document.getElementById("anydesk").value.trim(),
+      descricao: document.getElementById("descricao").value.trim(),
+      print_url: printUrl,
+      status: "Aberto",
+    };
+    const { data, error } = await client.from("chamados").insert(record).select().single();
+    if (error) throw error;
+    showMessage(`Chamado aberto com sucesso! Número: <strong>${escapeHtml(formatTicketNumber(data.id))}</strong>`);
+    form.reset();
+  } catch (err) {
+    showMessage(`Erro ao abrir chamado: ${escapeHtml(err.message)}`, "error");
+  } finally {
+    btnSubmit.disabled = false;
+    btnSubmit.innerText = "➤ Abrir chamado";
+  }
+});
+
+document.getElementById("btnSearch").addEventListener("click", async () => {
+  const raw = document.getElementById("searchTicket").value.trim().toUpperCase();
+  const id = Number(raw.replace("CH-", ""));
+  if (!id) {
+    searchResult.innerHTML = '<div class="ticket-card">Digite um chamado válido.</div>';
+    return;
+  }
+  const { data, error } = await client.from("chamados").select("*").eq("id", id).single();
+  if (error || !data) {
+    searchResult.innerHTML = '<div class="ticket-card">Chamado não encontrado.</div>';
+    return;
+  }
+  const link = safeUrl(data.print_url);
+  const printLink = link
+    ? `<br><br><a href="${escapeHtml(link)}" target="_blank" rel="noopener">Abrir print</a>`
+    : "";
+  searchResult.innerHTML = `<div class="ticket-card">
+    <strong>${escapeHtml(formatTicketNumber(data.id))}</strong><br>
+    <b>Status:</b> ${escapeHtml(data.status)}<br>
+    <b>Nome:</b> ${escapeHtml(data.nome)}<br>
+    <b>Departamento:</b> ${escapeHtml(data.departamento)}<br>
+    <b>Tipo:</b> ${escapeHtml(data.tipo)}<br>
+    <b>AnyDesk:</b> ${escapeHtml(data.anydesk || "Não informado")}<br>
+    <b>Descrição:</b> ${escapeHtml(data.descricao)}<br>
+    <b>Data:</b> ${escapeHtml(new Date(data.created_at).toLocaleString("pt-BR"))}${printLink}
+  </div>`;
+});
