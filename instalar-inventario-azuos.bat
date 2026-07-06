@@ -19,9 +19,9 @@ set "PERF_AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-desempen
 
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri '%AGENT_URL%' -OutFile '%AGENT_PATH%'"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%AGENT_URL%' -OutFile '%AGENT_PATH%'"
 if errorlevel 1 goto :erro
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri '%PERF_AGENT_URL%' -OutFile '%PERF_AGENT_PATH%'"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%PERF_AGENT_URL%' -OutFile '%PERF_AGENT_PATH%'"
 if errorlevel 1 goto :erro
 
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosInventarioTI" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /f >nul
@@ -32,7 +32,7 @@ if errorlevel 1 goto :erro
 schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /SC DAILY /MO 1 /ST 12:00 /F >nul 2>&1
 
 echo Fazendo a primeira coleta...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AGENT_PATH%" -Force
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AGENT_PATH%" -Force -ShowDetails
 if errorlevel 1 goto :erro
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PERF_AGENT_PATH%"
 if errorlevel 1 goto :erro
@@ -55,6 +55,8 @@ color 0C
 echo.
 echo Nao foi possivel concluir a instalacao.
 echo Verifique a internet e tente novamente.
+echo.
+if exist "%INSTALL_DIR%\ultima-coleta-status.txt" type "%INSTALL_DIR%\ultima-coleta-status.txt"
 echo.
 pause
 exit /b 1

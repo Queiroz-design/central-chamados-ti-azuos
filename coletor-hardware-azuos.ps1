@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-  [switch]$Silent
+  [switch]$Silent,
+  [switch]$NoPause
 )
 
 $ErrorActionPreference = "SilentlyContinue"
@@ -8,6 +9,10 @@ $ErrorActionPreference = "SilentlyContinue"
 $SupabaseUrl = "https://fazguvdmaufcohemsqom.supabase.co"
 $SupabaseKey = "sb_publishable_acp9vD-gQfaT6vtWln60wA_WT-sVtVt"
 $Endpoint = "$SupabaseUrl/rest/v1/hardware_inventory"
+$LogDir = Join-Path $env:LOCALAPPDATA "GrupoAzuos\InventarioTI"
+$LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
+if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
+Set-Content -Path $LogPath -Value "Coleta iniciada em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))" -Encoding UTF8
 
 function ConvertTo-Gb($bytes) {
   if (-not $bytes) { return 0 }
@@ -198,6 +203,7 @@ $uri = "${Endpoint}?on_conflict=computer_name"
 
 try {
   Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes | Out-Null
+  Set-Content -Path $LogPath -Value "SUCESSO - Inventario enviado em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss')) - Computador: $($payload.computer_name)" -Encoding UTF8
   if (-not $Silent) {
     Write-Host "Inventario enviado com sucesso." -ForegroundColor Green
     Write-Host "Computador: $($payload.computer_name)"
@@ -208,6 +214,7 @@ try {
     $warnings | ForEach-Object { Write-Host "- $($_.message)" }
   }
 } catch {
+  $errorMessage = $_.Exception.Message
   if (-not $Silent) {
     Write-Host "Erro ao enviar inventario." -ForegroundColor Red
     Write-Host $_.Exception.Message
@@ -220,11 +227,13 @@ try {
       $reader.Close()
     } catch {}
   }
+  Add-Content -Path $LogPath -Value "ERRO - $errorMessage" -Encoding UTF8
+  if ($responseText) { Add-Content -Path $LogPath -Value $responseText -Encoding UTF8 }
   if (-not $Silent -and $responseText) { Write-Host $responseText }
   if ($Silent) { exit 1 }
 }
 
-if (-not $Silent) {
+if (-not $Silent -and -not $NoPause) {
   Write-Host ""
   Write-Host "Pode fechar esta janela." -ForegroundColor Cyan
   Read-Host "Pressione ENTER para sair"
