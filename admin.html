@@ -5,13 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Painel do TI - Grupo Azuos</title>
   <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="config.js"></script>
 </head>
-<body class="admin-body">
-<script>
-  if (sessionStorage.getItem("ti_logado") !== "sim") {
-    window.location.href = "login.html";
-  }
-</script>
+<body class="admin-body" style="visibility:hidden">
 
 <header class="top-header admin-header">
   <div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div>
@@ -330,8 +327,6 @@
   </div>
 </main>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js"></script>
 <script src="admin.js"></script>
 </body>
 </html>

@@ -25,9 +25,9 @@ let selectedHistory = [];
 let networkAlerts = [];
 let networkLoadError = "";
 
-document.getElementById("btnLogout").addEventListener("click", () => {
-  sessionStorage.removeItem("ti_logado");
-  window.location.href = "login.html";
+document.getElementById("btnLogout").addEventListener("click", async () => {
+  await client.auth.signOut();
+  window.location.replace("login.html");
 });
 
 document.getElementById("btnRefresh").addEventListener("click", loadTickets);
@@ -953,4 +953,19 @@ client
   })
   .subscribe();
 
-loadTickets();
+// Guard de sessao: so libera o painel com login valido no Supabase Auth.
+async function initAdmin() {
+  const { data: { session } } = await client.auth.getSession();
+  if (!session) {
+    window.location.replace("login.html");
+    return;
+  }
+  document.body.style.visibility = "visible";
+  loadTickets();
+}
+
+client.auth.onAuthStateChange((event) => {
+  if (event === "SIGNED_OUT") window.location.replace("login.html");
+});
+
+initAdmin();
