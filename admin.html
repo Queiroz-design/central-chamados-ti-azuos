@@ -225,7 +225,7 @@
         <thead>
           <tr>
             <th>Computador</th>
-            <th>Usuario</th>
+            <th>Departamento</th>
             <th>Modelo</th>
             <th>Processador</th>
             <th>Memoria</th>
@@ -249,9 +249,13 @@
       </div>
       <form id="hardwareEditForm">
         <input type="hidden" id="hardwareEditId">
-        <label>Nome de exibicao<input type="text" id="hardwareDisplayName" placeholder="Ex: Computador do Thiago"></label>
-        <label>Colaborador responsavel<input type="text" id="hardwareResponsible" placeholder="Ex: Thiago"></label>
-        <label>Departamento<input type="text" id="hardwareDepartment" placeholder="Ex: Fiscal"></label>
+        <label>Identificacao do computador<input type="text" id="hardwareDisplayName" placeholder="Ex: Computador 01"></label>
+        <label>Responsavel atual <span class="optional">(opcional)</span><input type="text" id="hardwareResponsible" placeholder="Pode deixar em branco"></label>
+        <label>Departamento
+          <select id="hardwareDepartment">
+            <option value="">Selecione o departamento</option>
+          </select>
+        </label>
         <button type="submit">Salvar identificacao</button>
       </form>
     </section>

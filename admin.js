@@ -9,6 +9,10 @@ const hardwareEditForm = document.getElementById("hardwareEditForm");
 const hardwareDetailModal = document.getElementById("hardwareDetailModal");
 const networkAlertsBody = document.getElementById("networkAlertsBody");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
+const companyDepartments = [
+  "ANALYZE", "CERTIFICADO", "COMERCIAL", "CONT\u00c1BIL", "CS", "FINANCEIRO",
+  "FISCAL", "INTEGRA\u00c7\u00c3O", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH",
+];
 
 let allTickets = [];
 let hardwareAssets = [];
@@ -276,18 +280,35 @@ function getAssetSignals(asset) {
 }
 
 function getAssetDepartment(asset) {
-  return String(asset.department || asset.domain_name || "Sem departamento").trim();
+  return String(asset.department || "Sem departamento").trim();
 }
 
 function populateHardwareDepartmentFilter() {
   const selected = hardwareDepartmentFilter.value;
-  const departments = [...new Set(hardwareAssets.map(getAssetDepartment))]
-    .filter(Boolean)
+  const assignedDepartments = hardwareAssets.map(getAssetDepartment).filter((department) => department !== "Sem departamento");
+  const departments = [...new Set([...companyDepartments, ...assignedDepartments])]
     .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (hardwareAssets.some((asset) => getAssetDepartment(asset) === "Sem departamento")) departments.push("Sem departamento");
   hardwareDepartmentFilter.innerHTML = '<option value="">Todos os departamentos</option>' + departments
     .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
     .join("");
   if (departments.includes(selected)) hardwareDepartmentFilter.value = selected;
+}
+
+function populateHardwareEditDepartment() {
+  const target = document.getElementById("hardwareDepartment");
+  target.innerHTML = '<option value="">Selecione o departamento</option>' + companyDepartments
+    .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
+    .join("");
+}
+
+function getNextComputerLabel() {
+  const numbers = hardwareAssets.map((asset) => {
+    const match = String(asset.display_name || "").match(/^computador\s*0*(\d+)$/i);
+    return match ? Number(match[1]) : 0;
+  });
+  const next = Math.max(0, ...numbers) + 1;
+  return `Computador ${String(next).padStart(2, "0")}`;
 }
 
 function getFilteredHardwareAssets() {
@@ -381,7 +402,7 @@ function renderAssets() {
         <div class="hardware-card-top">
           <div>
             <strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong>
-            <span>${escapeHtml(asset.responsible_name || asset.user_name || "-")} - ${escapeHtml(asset.model || "-")}</span>
+            <span>${escapeHtml(getAssetDepartment(asset))} - ${escapeHtml(asset.model || "-")}</span>
           </div>
           <span class="health-badge ${health.toLowerCase()}">${health}</span>
         </div>
@@ -407,7 +428,7 @@ function renderAssets() {
     return `
       <tr>
         <td><strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong><br><span class="muted">Windows: ${escapeHtml(asset.computer_name)} | ${escapeHtml(asset.serial_number || "-")}</span></td>
-        <td>${escapeHtml(asset.responsible_name || asset.user_name || "-")}<br><span class="muted">${escapeHtml(asset.department || asset.domain_name || "-")}</span></td>
+        <td><strong>${escapeHtml(getAssetDepartment(asset))}</strong><br><span class="muted">${escapeHtml(asset.responsible_name || "Sem responsavel fixo")}</span></td>
         <td>${escapeHtml(asset.manufacturer || "-")}<br><span class="muted">${escapeHtml(asset.model || "-")}</span></td>
         <td>${escapeHtml(asset.cpu_name || "-")}<br><span class="muted">${escapeHtml(asset.cpu_cores || 0)} nucleo(s) / ${escapeHtml(asset.cpu_logical_processors || 0)} threads</span></td>
         <td>${escapeHtml(asset.memory_total_gb || "-")} GB<br><span class="muted">${escapeHtml(asset.memory_slots || 0)} pente(s)</span></td>
@@ -428,7 +449,7 @@ window.editHardware = function editHardware(id) {
   if (!asset) return;
 
   document.getElementById("hardwareEditId").value = asset.id;
-  document.getElementById("hardwareDisplayName").value = asset.display_name || "";
+  document.getElementById("hardwareDisplayName").value = asset.display_name || getNextComputerLabel();
   document.getElementById("hardwareResponsible").value = asset.responsible_name || "";
   document.getElementById("hardwareDepartment").value = asset.department || "";
   hardwareEditModal.classList.remove("hidden");
@@ -551,8 +572,10 @@ function renderDeviceProperties(asset, live) {
   const volumes = Array.isArray(asset.volumes) ? asset.volumes.map((volume) => `${volume.drive || volume.device_id || "Volume"}: ${volume.size_gb || "-"} GB`).join(" / ") : "-";
   document.getElementById("deviceProperties").innerHTML = [
     propertyItem("Nome do dispositivo", asset.computer_name),
-    propertyItem("Colaborador", asset.responsible_name || asset.user_name),
-    propertyItem("Departamento", asset.department || asset.domain_name),
+    propertyItem("Identificacao", asset.display_name || asset.computer_name),
+    propertyItem("Responsavel atual", asset.responsible_name || "Sem responsavel fixo"),
+    propertyItem("Departamento", getAssetDepartment(asset)),
+    propertyItem("Usuario do Windows", asset.user_name),
     propertyItem("Fabricante e modelo", `${asset.manufacturer || "-"} ${asset.model || ""}`.trim()),
     propertyItem("Processador", asset.cpu_name),
     propertyItem("Nucleos e threads", `${asset.cpu_cores || 0} nucleos / ${asset.cpu_logical_processors || 0} threads`),
@@ -599,7 +622,7 @@ function renderHardwareDetails() {
   const activeAlert = performanceAlerts.find((alert) => alert.computer_name === asset.computer_name && alert.status === "Ativo");
 
   document.getElementById("deviceDetailTitle").innerText = asset.display_name || asset.computer_name;
-  document.getElementById("deviceDetailSubtitle").innerText = `${asset.responsible_name || asset.user_name || "Sem responsavel"} | ${asset.manufacturer || ""} ${asset.model || ""}`;
+  document.getElementById("deviceDetailSubtitle").innerText = `${getAssetDepartment(asset)} | ${asset.manufacturer || ""} ${asset.model || ""}`;
   const liveBadge = document.getElementById("deviceLiveStatus");
   liveBadge.className = `device-live-status ${online ? "online" : "offline"}`;
   liveBadge.innerText = online ? "Online - atualizacao a cada 30 segundos" : "Offline ou sem agente ativo";
@@ -854,7 +877,7 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
   });
 
   const header = [
-    "Departamento", "Computador", "Colaborador", "Fabricante / modelo", "Integridade",
+    "Departamento", "Computador", "Responsavel atual", "Fabricante / modelo", "Integridade",
     "Chamados no mes", "Principais tipos de chamado", "CPU atual", "Memoria atual", "Disco atual",
     "Alertas CPU", "Maior pico CPU", "Alertas memoria", "Maior pico memoria", "Alertas disco", "Maior pico disco",
     "Processos associados aos picos", "Atividades observadas", "Alertas ativos", "Discos instalados",
@@ -871,7 +894,7 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
     const health = suggestedHealth(asset, tickets.length);
 
     return [
-      getAssetDepartment(asset), asset.display_name || asset.computer_name, asset.responsible_name || asset.user_name,
+      getAssetDepartment(asset), asset.display_name || asset.computer_name, asset.responsible_name || "Sem responsavel fixo",
       `${asset.manufacturer || "-"} ${asset.model || ""}`.trim(), health, tickets.length, ticketTypes,
       live ? `${Math.round(Number(live.cpu_percent || 0))}%` : "Offline",
       live ? `${Math.round(Number(live.memory_percent || 0))}%` : "Offline",
@@ -896,6 +919,8 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
   button.disabled = false;
   button.innerText = "Baixar relatorio do departamento";
 });
+
+populateHardwareEditDepartment();
 
 client
   .channel("network-alerts-live")
