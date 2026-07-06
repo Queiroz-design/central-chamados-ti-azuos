@@ -14,7 +14,16 @@ const ALLOWED = {
 
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
-    return res.status(200).json({ ok: true, service: "Proxy coletor Grupo Azuos" });
+    // Diagnostico seguro: mostra SE as variaveis existem (nunca os valores).
+    return res.status(200).json({
+      ok: true,
+      service: "Proxy coletor Grupo Azuos",
+      config: {
+        hasColetorSecret: !!process.env.COLETOR_SECRET,
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasServiceKey: !!(process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY),
+      },
+    });
   }
   if (req.method !== "POST") {
     res.setHeader("Allow", "GET, POST");
@@ -54,9 +63,9 @@ module.exports = async function handler(req, res) {
 
   const headers = {
     apikey: supabaseKey,
+    Authorization: `Bearer ${supabaseKey}`,
     "Content-Type": "application/json",
   };
-  if (supabaseKey.startsWith("eyJ")) headers.Authorization = `Bearer ${supabaseKey}`;
   if (prefer) headers.Prefer = prefer;
 
   const options = { method, headers };
