@@ -3,6 +3,7 @@ const filterText = document.getElementById("filterText");
 const filterStatus = document.getElementById("filterStatus");
 const assetsBody = document.getElementById("assetsBody");
 const hardwareCards = document.getElementById("hardwareCards");
+const hardwareDepartmentFilter = document.getElementById("hardwareDepartmentFilter");
 const hardwareEditModal = document.getElementById("hardwareEditModal");
 const hardwareEditForm = document.getElementById("hardwareEditForm");
 const hardwareDetailModal = document.getElementById("hardwareDetailModal");
@@ -123,6 +124,7 @@ async function loadTickets() {
   }
 
   allTickets = data || [];
+  populateHardwareDepartmentFilter();
   renderDashboard();
   renderAssets();
   renderNetworkAlerts();
@@ -254,19 +256,44 @@ function renderBars(targetId, entries, colorful = false) {
   }).join("");
 }
 
-function getAssetSignals(asset) {
-  const user = normalizeText(asset.user_name);
+function getAssetMonthTickets(asset) {
+  const users = [asset.user_name, asset.responsible_name, asset.display_name].map(normalizeText).filter(Boolean);
   const computer = normalizeText(asset.computer_name);
-  const monthTickets = allTickets.filter((ticket) => {
+  return allTickets.filter((ticket) => {
     const ticketText = `${normalizeText(ticket.nome)} ${normalizeText(ticket.descricao)} ${normalizeText(ticket.anydesk)}`;
-    return isThisMonth(ticket) && ((user && ticketText.includes(user)) || (computer && ticketText.includes(computer)));
+    return isThisMonth(ticket) && (users.some((user) => ticketText.includes(user)) || (computer && ticketText.includes(computer)));
   });
+}
+
+function getAssetSignals(asset) {
+  const monthTickets = getAssetMonthTickets(asset);
   const byType = topEntries(groupCount(monthTickets, (ticket) => ticket.tipo), 1);
 
   return {
     monthCount: monthTickets.length,
     recurringType: byType.length && byType[0][1] >= 2 ? `${byType[0][0]} (${byType[0][1]})` : "-",
   };
+}
+
+function getAssetDepartment(asset) {
+  return String(asset.department || asset.domain_name || "Sem departamento").trim();
+}
+
+function populateHardwareDepartmentFilter() {
+  const selected = hardwareDepartmentFilter.value;
+  const departments = [...new Set(hardwareAssets.map(getAssetDepartment))]
+    .filter(Boolean)
+    .sort((a, b) => a.localeCompare(b, "pt-BR"));
+  hardwareDepartmentFilter.innerHTML = '<option value="">Todos os departamentos</option>' + departments
+    .map((department) => `<option value="${escapeHtml(department)}">${escapeHtml(department)}</option>`)
+    .join("");
+  if (departments.includes(selected)) hardwareDepartmentFilter.value = selected;
+}
+
+function getFilteredHardwareAssets() {
+  const department = normalizeText(hardwareDepartmentFilter.value);
+  if (!department) return hardwareAssets;
+  return hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department);
 }
 
 function suggestedHealth(asset, monthCount) {
@@ -326,7 +353,8 @@ function renderAssets() {
     return;
   }
 
-  updateHardwareSummary();
+  const filteredAssets = getFilteredHardwareAssets();
+  updateHardwareSummary(filteredAssets);
 
   if (!hardwareAssets.length) {
     assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma maquina enviou inventario ainda. Baixe o coletor e execute nos computadores.</td></tr>';
@@ -335,7 +363,13 @@ function renderAssets() {
     return;
   }
 
-  hardwareCards.innerHTML = hardwareAssets.map((asset) => {
+  if (!filteredAssets.length) {
+    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma maquina encontrada neste departamento.</td></tr>';
+    hardwareCards.innerHTML = '<div class="empty-state">Nenhuma maquina encontrada neste departamento.</div>';
+    return;
+  }
+
+  hardwareCards.innerHTML = filteredAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
     const score = Number(asset.health_score || 0);
@@ -366,7 +400,7 @@ function renderAssets() {
     `;
   }).join("");
 
-  assetsBody.innerHTML = hardwareAssets.map((asset) => {
+  assetsBody.innerHTML = filteredAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
 
@@ -427,8 +461,9 @@ hardwareEditForm.addEventListener("submit", async (event) => {
   await loadTickets();
 });
 
-function updateHardwareSummary() {
-  const summary = hardwareAssets.reduce((acc, asset) => {
+function updateHardwareSummary(assets = getFilteredHardwareAssets()) {
+  const computerNames = new Set(assets.map((asset) => normalizeText(asset.computer_name)));
+  const summary = assets.reduce((acc, asset) => {
     const health = suggestedHealth(asset, getAssetSignals(asset).monthCount);
     acc.total += 1;
     if (health === "Boa") acc.good += 1;
@@ -442,9 +477,9 @@ function updateHardwareSummary() {
   document.getElementById("hwWarning").innerText = summary.warning;
   document.getElementById("hwCritical").innerText = summary.critical;
 
-  const online = hardwareLiveStatus.filter(isMachineOnline);
+  const online = hardwareLiveStatus.filter((live) => computerNames.has(normalizeText(live.computer_name)) && isMachineOnline(live));
   document.getElementById("hwOnline").innerText = online.length;
-  document.getElementById("hwActiveAlerts").innerText = performanceAlerts.filter((alert) => alert.status === "Ativo").length;
+  document.getElementById("hwActiveAlerts").innerText = performanceAlerts.filter((alert) => computerNames.has(normalizeText(alert.computer_name)) && alert.status === "Ativo").length;
   document.getElementById("hwCpuHigh").innerText = online.filter((item) => Number(item.cpu_percent) >= 80).length;
   document.getElementById("hwMemoryHigh").innerText = online.filter((item) => Number(item.memory_percent) >= 80).length;
   document.getElementById("hwDiskHigh").innerText = online.filter((item) => Number(item.disk_percent) >= 80).length;
@@ -771,6 +806,95 @@ document.getElementById("btnExport").addEventListener("click", () => {
   link.href = URL.createObjectURL(blob);
   link.download = "chamados-ti.csv";
   link.click();
+});
+
+hardwareDepartmentFilter.addEventListener("change", renderAssets);
+
+function csvCell(value) {
+  return `"${String(value ?? "").replaceAll('"', '""')}"`;
+}
+
+function plainDisks(disks) {
+  if (!Array.isArray(disks) || !disks.length) return "-";
+  return disks.map((disk) => `${disk.media_type || "Disco"} ${disk.size_gb || "-"} GB (${disk.health_status || disk.status || "-"})`).join(" | ");
+}
+
+function alertMetricCount(alerts, metric) {
+  return alerts.filter((alert) => normalizeText(alert.metric) === normalizeText(metric)).length;
+}
+
+function alertMetricPeak(alerts, metric) {
+  const values = alerts.filter((alert) => normalizeText(alert.metric) === normalizeText(metric)).map((alert) => Number(alert.peak_value || 0));
+  return values.length ? `${Math.round(Math.max(...values))}%` : "-";
+}
+
+document.getElementById("btnExportHardwareReport").addEventListener("click", async () => {
+  const button = document.getElementById("btnExportHardwareReport");
+  const assets = getFilteredHardwareAssets();
+  if (!assets.length) {
+    alert("Nenhuma maquina encontrada para gerar o relatorio.");
+    return;
+  }
+
+  button.disabled = true;
+  button.innerText = "Gerando relatorio...";
+  const computerNames = assets.map((asset) => asset.computer_name).filter(Boolean);
+  const { data, error } = await client.from("hardware_performance_alerts")
+    .select("*")
+    .in("computer_name", computerNames)
+    .order("started_at", { ascending: false });
+  const reportAlerts = error ? performanceAlerts : (data || []);
+
+  const rankedAssets = [...assets].sort((a, b) => {
+    const aTickets = getAssetMonthTickets(a).length;
+    const bTickets = getAssetMonthTickets(b).length;
+    const aAlerts = reportAlerts.filter((alert) => normalizeText(alert.computer_name) === normalizeText(a.computer_name)).length;
+    const bAlerts = reportAlerts.filter((alert) => normalizeText(alert.computer_name) === normalizeText(b.computer_name)).length;
+    return (bTickets + bAlerts) - (aTickets + aAlerts);
+  });
+
+  const header = [
+    "Departamento", "Computador", "Colaborador", "Fabricante / modelo", "Integridade",
+    "Chamados no mes", "Principais tipos de chamado", "CPU atual", "Memoria atual", "Disco atual",
+    "Alertas CPU", "Maior pico CPU", "Alertas memoria", "Maior pico memoria", "Alertas disco", "Maior pico disco",
+    "Processos associados aos picos", "Atividades observadas", "Alertas ativos", "Discos instalados",
+    "Ultima telemetria", "Ultima coleta de inventario",
+  ];
+
+  const rows = rankedAssets.map((asset) => {
+    const tickets = getAssetMonthTickets(asset);
+    const live = getLiveStatus(asset.computer_name);
+    const alerts = reportAlerts.filter((alert) => normalizeText(alert.computer_name) === normalizeText(asset.computer_name));
+    const ticketTypes = topEntries(groupCount(tickets, (ticket) => ticket.tipo), 5).map(([type, count]) => `${type} (${count})`).join(" | ") || "-";
+    const causes = [...new Set(alerts.map((alert) => alert.cause_process).filter(Boolean))].join(" | ") || "-";
+    const activities = [...new Set(alerts.map((alert) => alert.activity_category).filter(Boolean))].join(" | ") || "-";
+    const health = suggestedHealth(asset, tickets.length);
+
+    return [
+      getAssetDepartment(asset), asset.display_name || asset.computer_name, asset.responsible_name || asset.user_name,
+      `${asset.manufacturer || "-"} ${asset.model || ""}`.trim(), health, tickets.length, ticketTypes,
+      live ? `${Math.round(Number(live.cpu_percent || 0))}%` : "Offline",
+      live ? `${Math.round(Number(live.memory_percent || 0))}%` : "Offline",
+      live ? `${Math.round(Number(live.disk_percent || 0))}%` : "Offline",
+      alertMetricCount(alerts, "CPU"), alertMetricPeak(alerts, "CPU"),
+      alertMetricCount(alerts, "Memoria"), alertMetricPeak(alerts, "Memoria"),
+      alertMetricCount(alerts, "Disco"), alertMetricPeak(alerts, "Disco"),
+      causes, activities, alerts.filter((alert) => alert.status === "Ativo").length, plainDisks(asset.disks),
+      live ? formatDateTime(live.last_seen) : "-", formatDateTime(asset.reported_at),
+    ];
+  });
+
+  const csv = "\uFEFF" + [header, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const link = document.createElement("a");
+  const departmentName = hardwareDepartmentFilter.value || "todos-os-departamentos";
+  const safeName = departmentName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  link.href = URL.createObjectURL(blob);
+  link.download = `relatorio-inventario-${safeName || "departamento"}.csv`;
+  link.click();
+  URL.revokeObjectURL(link.href);
+  button.disabled = false;
+  button.innerText = "Baixar relatorio do departamento";
 });
 
 client
