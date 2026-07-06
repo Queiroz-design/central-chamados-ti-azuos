@@ -12,12 +12,29 @@ const ALLOWED = {
   hardware_performance_alerts: ["GET", "POST", "PATCH"],
 };
 
+// Le o corpo cru da requisicao (caso a Vercel nao tenha feito o parse do JSON).
+function readRawBody(req) {
+  return new Promise((resolve) => {
+    let data = "";
+    req.on("data", (chunk) => { data += chunk; });
+    req.on("end", () => resolve(data));
+    req.on("error", () => resolve(""));
+  });
+}
+
+// Normaliza a URL base do Supabase: tira barras finais e um "/rest/v1" sobrando.
+function baseSupabaseUrl() {
+  return String(process.env.SUPABASE_URL || "")
+    .replace(/\/+$/, "")
+    .replace(/\/rest\/v1$/, "");
+}
+
 module.exports = async function handler(req, res) {
   if (req.method === "GET") {
     res.setHeader("Cache-Control", "no-store");
     const wantSelftest =
       (req.query && req.query.selftest === "1") || /[?&]selftest=1(&|$)/.test(req.url || "");
-    const supabaseUrl0 = process.env.SUPABASE_URL;
+    const supabaseUrl0 = baseSupabaseUrl();
     const supabaseKey0 = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     // Diagnostico seguro: mostra SE as variaveis existem (nunca os valores).
     const base = {
@@ -34,14 +51,15 @@ module.exports = async function handler(req, res) {
       if (!supabaseUrl0 || !supabaseKey0) {
         return res.status(200).json({ ...base, selftest: { skipped: "faltam variaveis" } });
       }
+      const testUrl = `${supabaseUrl0}/rest/v1/hardware_inventory?select=computer_name&limit=0`;
       try {
-        const r = await fetch(`${supabaseUrl0}/rest/v1/hardware_inventory?select=computer_name&limit=0`, {
+        const r = await fetch(testUrl, {
           headers: { apikey: supabaseKey0, Authorization: `Bearer ${supabaseKey0}` },
         });
         const t = await r.text();
         return res.status(200).json({
           ...base,
-          selftest: { status: r.status, ok: r.ok, message: r.ok ? "service key OK" : t.slice(0, 300) },
+          selftest: { url: testUrl, status: r.status, ok: r.ok, message: r.ok ? "service key OK" : t.slice(0, 300) },
         });
       } catch (e) {
         return res.status(200).json({ ...base, selftest: { error: String(e) } });
@@ -57,13 +75,20 @@ module.exports = async function handler(req, res) {
   const configuredSecret = process.env.COLETOR_SECRET;
   if (!configuredSecret) return res.status(503).json({ error: "Proxy nao configurado (falta COLETOR_SECRET)" });
 
-  const supabaseUrl = process.env.SUPABASE_URL;
+  const supabaseUrl = baseSupabaseUrl();
   const supabaseKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!supabaseUrl || !supabaseKey) return res.status(503).json({ error: "Supabase nao configurado na Vercel" });
 
-  let body = req.body || {};
-  if (typeof body === "string") {
-    try { body = JSON.parse(body); } catch { body = {}; }
+  let body = {};
+  if (req.body && typeof req.body === "object") {
+    body = req.body;
+  } else if (typeof req.body === "string" && req.body) {
+    try { body = JSON.parse(req.body); } catch { body = {}; }
+  }
+  // Se ainda nao temos os campos esperados, le o corpo cru direto do stream.
+  if (!body || !body.table) {
+    const raw = await readRawBody(req);
+    if (raw) { try { body = JSON.parse(raw); } catch { /* mantem body atual */ } }
   }
 
   const receivedSecret = req.headers["x-coletor-secret"] || body.secret;
