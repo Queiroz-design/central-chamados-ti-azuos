@@ -8,7 +8,6 @@ $baseDir = Join-Path $env:LOCALAPPDATA "GrupoAzuos\InventarioTI"
 $collectorPath = Join-Path $baseDir "coletor-hardware-azuos.ps1"
 $lastRunPath = Join-Path $baseDir "ultima-coleta.txt"
 $collectorUrl = "https://central-chamados-ti-azuos.vercel.app/coletor-hardware-azuos.ps1"
-$intervalDays = 15
 
 if (-not (Test-Path $baseDir)) {
   New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
@@ -16,7 +15,7 @@ if (-not (Test-Path $baseDir)) {
 
 if (-not $Force -and (Test-Path $lastRunPath)) {
   $lastRun = (Get-Item $lastRunPath).LastWriteTime
-  if (((Get-Date) - $lastRun).TotalDays -lt $intervalDays) {
+  if ($lastRun.Date -eq (Get-Date).Date) {
     exit 0
   }
 }

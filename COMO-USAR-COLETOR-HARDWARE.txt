@@ -16,8 +16,8 @@ COMO ATIVAR O INVENTARIO AUTOMATICO DE HARDWARE
    Nao e necessario abrir PowerShell nem digitar comandos.
 
 O instalador faz a primeira coleta e configura novas coletas:
-- a cada 15 dias;
-- no primeiro login apos o prazo, se a maquina estiver desligada.
+- todos os dias no primeiro login do Windows;
+- verificacao diaria ao meio-dia, se a maquina permanecer ligada;
 - desempenho de CPU, memoria e disco a cada 30 segundos;
 - historico de desempenho a cada 5 minutos;
 - alertas de saturacao e recuperacao.

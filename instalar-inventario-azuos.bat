@@ -29,7 +29,7 @@ if errorlevel 1 goto :erro
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%PERF_AGENT_PATH%\"" /f >nul
 if errorlevel 1 goto :erro
 
-schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /SC DAILY /MO 15 /ST 12:00 /F >nul 2>&1
+schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /SC DAILY /MO 1 /ST 12:00 /F >nul 2>&1
 
 echo Fazendo a primeira coleta...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AGENT_PATH%" -Force
@@ -43,8 +43,8 @@ echo INSTALACAO CONCLUIDA COM SUCESSO
 echo ==================================================
 echo.
 echo O computador sera atualizado automaticamente:
-echo - a cada 15 dias;
-echo - no primeiro login apos o prazo, se a maquina estiver desligada.
+echo - todos os dias no primeiro login do Windows;
+echo - verificacao diaria ao meio-dia, se a maquina permanecer ligada;
 echo - desempenho de CPU, memoria e disco em tempo real.
 echo.
 pause
