@@ -14,19 +14,27 @@ echo.
 set "INSTALL_DIR=%LOCALAPPDATA%\GrupoAzuos\InventarioTI"
 set "AGENT_PATH=%INSTALL_DIR%\agente-inventario-azuos.ps1"
 set "AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-inventario-azuos.ps1"
+set "PERF_AGENT_PATH=%INSTALL_DIR%\agente-desempenho-azuos.ps1"
+set "PERF_AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-desempenho-azuos.ps1"
 
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri '%AGENT_URL%' -OutFile '%AGENT_PATH%'"
 if errorlevel 1 goto :erro
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "Invoke-WebRequest -UseBasicParsing -Uri '%PERF_AGENT_URL%' -OutFile '%PERF_AGENT_PATH%'"
+if errorlevel 1 goto :erro
 
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosInventarioTI" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /f >nul
+if errorlevel 1 goto :erro
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%PERF_AGENT_PATH%\"" /f >nul
 if errorlevel 1 goto :erro
 
 schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /SC DAILY /MO 15 /ST 12:00 /F >nul 2>&1
 
 echo Fazendo a primeira coleta...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AGENT_PATH%" -Force
+if errorlevel 1 goto :erro
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%PERF_AGENT_PATH%"
 if errorlevel 1 goto :erro
 
 echo.
@@ -37,6 +45,7 @@ echo.
 echo O computador sera atualizado automaticamente:
 echo - a cada 15 dias;
 echo - no primeiro login apos o prazo, se a maquina estiver desligada.
+echo - desempenho de CPU, memoria e disco em tempo real.
 echo.
 pause
 exit /b 0

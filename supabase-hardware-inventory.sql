@@ -15,6 +15,10 @@ create table if not exists hardware_inventory (
   cpu_name text,
   cpu_cores int,
   cpu_logical_processors int,
+  gpu jsonb default '[]'::jsonb,
+  system_type text,
+  device_uuid text,
+  product_id text,
   memory_total_gb numeric,
   memory_slots int,
   memory_modules jsonb default '[]'::jsonb,
@@ -32,6 +36,10 @@ create table if not exists hardware_inventory (
 alter table hardware_inventory add column if not exists display_name text;
 alter table hardware_inventory add column if not exists responsible_name text;
 alter table hardware_inventory add column if not exists department text;
+alter table hardware_inventory add column if not exists gpu jsonb default '[]'::jsonb;
+alter table hardware_inventory add column if not exists system_type text;
+alter table hardware_inventory add column if not exists device_uuid text;
+alter table hardware_inventory add column if not exists product_id text;
 
 alter table hardware_inventory enable row level security;
 

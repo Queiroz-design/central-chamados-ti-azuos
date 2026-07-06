@@ -27,6 +27,9 @@ $computer = Get-CimInstance Win32_ComputerSystem
 $bios = Get-CimInstance Win32_BIOS
 $os = Get-CimInstance Win32_OperatingSystem
 $cpu = Get-CimInstance Win32_Processor | Select-Object -First 1
+$gpus = @(Get-CimInstance Win32_VideoController)
+$systemProduct = Get-CimInstance Win32_ComputerSystemProduct | Select-Object -First 1
+$windowsProductId = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").ProductId
 $memoryModules = @(Get-CimInstance Win32_PhysicalMemory)
 $diskDrives = @(Get-CimInstance Win32_DiskDrive)
 $physicalDisks = @(Get-PhysicalDisk)
@@ -141,6 +144,14 @@ if ($battery) {
 }
 
 $warningPayload = @($warnings | ForEach-Object { $_ })
+$gpuPayload = @($gpus | ForEach-Object {
+  [ordered]@{
+    name = $_.Name
+    memory_gb = if ($_.AdapterRAM) { [math]::Round(([double]$_.AdapterRAM / 1GB), 2) } else { $null }
+    driver_version = $_.DriverVersion
+    resolution = if ($_.CurrentHorizontalResolution) { "$($_.CurrentHorizontalResolution)x$($_.CurrentVerticalResolution)" } else { "" }
+  }
+})
 
 $payload = [ordered]@{
   computer_name = $env:COMPUTERNAME
@@ -155,6 +166,10 @@ $payload = [ordered]@{
   cpu_name = $cpu.Name
   cpu_cores = $cpu.NumberOfCores
   cpu_logical_processors = $cpu.NumberOfLogicalProcessors
+  gpu = $gpuPayload
+  system_type = "$($os.OSArchitecture), $($computer.SystemType)"
+  device_uuid = $systemProduct.UUID
+  product_id = $windowsProductId
   memory_total_gb = $memoryTotalGb
   memory_slots = $memorySlots
   memory_modules = $memoryPayload

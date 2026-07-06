@@ -4,17 +4,23 @@ COMO ATIVAR O INVENTARIO AUTOMATICO DE HARDWARE
 2. Cole e execute o conteudo do arquivo:
    supabase-hardware-inventory.sql
 
-3. No Painel do TI, abra Inventario e clique em:
+3. Cole e execute tambem o conteudo do arquivo:
+   supabase-performance-monitoring.sql
+
+4. No Painel do TI, abra Inventario e clique em:
    Baixar instalador automatico
 
-4. Envie o arquivo instalar-inventario-azuos.bat para o usuario.
+5. Envie o arquivo instalar-inventario-azuos.bat para o usuario.
 
-5. Na maquina do usuario, de dois cliques no arquivo.
+6. Na maquina do usuario, de dois cliques no arquivo.
    Nao e necessario abrir PowerShell nem digitar comandos.
 
 O instalador faz a primeira coleta e configura novas coletas:
 - a cada 15 dias;
 - no primeiro login apos o prazo, se a maquina estiver desligada.
+- desempenho de CPU, memoria e disco a cada 30 segundos;
+- historico de desempenho a cada 5 minutos;
+- alertas de saturacao e recuperacao.
 
 O colaborador precisa executar o instalador apenas uma vez.
 
@@ -24,6 +30,7 @@ O coletor envia para o site:
 - fabricante/modelo/serial;
 - Windows e ultimo boot;
 - processador;
+- placa de video;
 - memoria total;
 - quantidade de pentes de memoria;
 - detalhes dos pentes;
@@ -32,5 +39,11 @@ O coletor envia para o site:
 - volumes e espaco livre;
 - score de saude de 0 a 100;
 - alertas de pouca memoria, pouco disco, disco quente ou falha.
+- processos com maior uso de CPU, memoria e disco;
+- aplicativo ativo e categoria geral da atividade;
+- alertas quando CPU, memoria ou disco atingirem saturacao.
+
+O monitor nao coleta URL, texto digitado, arquivos ou conteudo da tela.
+O historico detalhado de desempenho e mantido por 90 dias.
 
 Depois de executar, atualize o Painel do TI.

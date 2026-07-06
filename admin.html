@@ -198,6 +198,17 @@
       </div>
     </div>
 
+    <div class="live-summary">
+      <div><span class="live-dot"></span><strong id="hwOnline">0</strong><small>online agora</small></div>
+      <div><strong id="hwActiveAlerts">0</strong><small>alertas ativos</small></div>
+      <div><strong id="hwCpuHigh">0</strong><small>CPU elevada</small></div>
+      <div><strong id="hwMemoryHigh">0</strong><small>memoria elevada</small></div>
+      <div><strong id="hwDiskHigh">0</strong><small>disco elevado</small></div>
+    </div>
+    <div id="performanceSetupNotice" class="setup-notice hidden">
+      O monitoramento em tempo real ainda precisa ser ativado no Supabase.
+    </div>
+
     <div id="hardwareCards" class="hardware-cards"></div>
 
     <div class="table-wrap">
@@ -234,6 +245,72 @@
         <label>Departamento<input type="text" id="hardwareDepartment" placeholder="Ex: Fiscal"></label>
         <button type="submit">Salvar identificacao</button>
       </form>
+    </section>
+  </div>
+
+  <div id="hardwareDetailModal" class="device-detail-backdrop hidden">
+    <section class="device-detail" role="dialog" aria-modal="true" aria-labelledby="deviceDetailTitle">
+      <header class="device-detail-header">
+        <div>
+          <span id="deviceLiveStatus" class="device-live-status offline">Offline</span>
+          <h2 id="deviceDetailTitle">Computador</h2>
+          <p id="deviceDetailSubtitle" class="section-note"></p>
+        </div>
+        <button type="button" id="btnCloseHardwareDetail" class="secondary">Fechar</button>
+      </header>
+
+      <div class="live-metrics-grid">
+        <article class="live-metric cpu">
+          <div><span>CPU</span><strong id="detailCpu">0%</strong></div>
+          <div class="metric-bar"><i id="detailCpuBar"></i></div>
+          <small id="detailCpuCause">Aguardando dados</small>
+        </article>
+        <article class="live-metric memory">
+          <div><span>Memoria</span><strong id="detailMemory">0%</strong></div>
+          <div class="metric-bar"><i id="detailMemoryBar"></i></div>
+          <small id="detailMemoryCause">Aguardando dados</small>
+        </article>
+        <article class="live-metric disk">
+          <div><span>Disco</span><strong id="detailDisk">0%</strong></div>
+          <div class="metric-bar"><i id="detailDiskBar"></i></div>
+          <small id="detailDiskCause">Aguardando dados</small>
+        </article>
+      </div>
+
+      <div class="detail-section">
+        <h3>Desempenho nas ultimas 24 horas</h3>
+        <div class="performance-charts">
+          <div><span>CPU</span><svg id="cpuHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
+          <div><span>Memoria</span><svg id="memoryHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
+          <div><span>Disco</span><svg id="diskHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
+        </div>
+      </div>
+
+      <div class="detail-two-columns">
+        <section class="detail-section">
+          <h3>Processos com maior consumo</h3>
+          <div id="detailTopProcesses" class="process-list"></div>
+        </section>
+        <section class="detail-section">
+          <h3>Atividade e possivel causa</h3>
+          <div id="detailActivity" class="activity-box">Aguardando telemetria.</div>
+        </section>
+      </div>
+
+      <section class="detail-section">
+        <h3>Propriedades do computador</h3>
+        <div id="deviceProperties" class="device-properties"></div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Historico de alertas</h3>
+        <div class="table-wrap">
+          <table class="performance-alerts-table">
+            <thead><tr><th>Inicio</th><th>Recurso</th><th>Pico</th><th>Status</th><th>Possivel causa</th><th>Atividade</th></tr></thead>
+            <tbody id="performanceAlertsBody"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </div>
 
