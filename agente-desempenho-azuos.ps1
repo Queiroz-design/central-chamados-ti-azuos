@@ -1,5 +1,6 @@
 $ErrorActionPreference = "SilentlyContinue"
-$baseDir = Join-Path $env:LOCALAPPDATA "GrupoAzuos\InventarioTI"
+$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $baseDir) { $baseDir = Join-Path $env:ProgramData "GrupoAzuos\InventarioTI" }
 $monitorPath = Join-Path $baseDir "monitor-desempenho-azuos.ps1"
 $monitorUrl = "https://central-chamados-ti-azuos.vercel.app/monitor-desempenho-azuos.ps1"
 

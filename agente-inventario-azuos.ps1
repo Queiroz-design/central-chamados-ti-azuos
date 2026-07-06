@@ -5,7 +5,8 @@ param(
 )
 
 $ErrorActionPreference = "SilentlyContinue"
-$baseDir = Join-Path $env:LOCALAPPDATA "GrupoAzuos\InventarioTI"
+$baseDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $baseDir) { $baseDir = Join-Path $env:ProgramData "GrupoAzuos\InventarioTI" }
 $collectorPath = Join-Path $baseDir "coletor-hardware-azuos.ps1"
 $lastRunPath = Join-Path $baseDir "ultima-coleta.txt"
 $collectorUrl = "https://central-chamados-ti-azuos.vercel.app/coletor-hardware-azuos.ps1"

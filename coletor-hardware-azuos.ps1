@@ -9,7 +9,8 @@ $ErrorActionPreference = "SilentlyContinue"
 $SupabaseUrl = "https://fazguvdmaufcohemsqom.supabase.co"
 $SupabaseKey = "sb_publishable_acp9vD-gQfaT6vtWln60wA_WT-sVtVt"
 $Endpoint = "$SupabaseUrl/rest/v1/hardware_inventory"
-$LogDir = Join-Path $env:LOCALAPPDATA "GrupoAzuos\InventarioTI"
+$LogDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $LogDir) { $LogDir = Join-Path $env:ProgramData "GrupoAzuos\InventarioTI" }
 $LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 Set-Content -Path $LogPath -Value "Coleta iniciada em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))" -Encoding UTF8

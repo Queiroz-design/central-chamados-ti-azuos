@@ -12,12 +12,25 @@ echo Instalando o inventario automatico...
 echo.
 
 set "INSTALL_DIR=%LOCALAPPDATA%\GrupoAzuos\InventarioTI"
-set "AGENT_PATH=%INSTALL_DIR%\agente-inventario-azuos.ps1"
 set "AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-inventario-azuos.ps1"
-set "PERF_AGENT_PATH=%INSTALL_DIR%\agente-desempenho-azuos.ps1"
 set "PERF_AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-desempenho-azuos.ps1"
 
-if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%" >nul 2>&1
+>"%INSTALL_DIR%\.teste-escrita" echo ok 2>nul
+if errorlevel 1 goto :usar_programdata
+del "%INSTALL_DIR%\.teste-escrita" >nul 2>&1
+goto :diretorio_pronto
+
+:usar_programdata
+set "INSTALL_DIR=%ProgramData%\GrupoAzuos\InventarioTI"
+if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%" >nul 2>&1
+>"%INSTALL_DIR%\.teste-escrita" echo ok 2>nul
+if errorlevel 1 goto :erro_permissao
+del "%INSTALL_DIR%\.teste-escrita" >nul 2>&1
+
+:diretorio_pronto
+set "AGENT_PATH=%INSTALL_DIR%\agente-inventario-azuos.ps1"
+set "PERF_AGENT_PATH=%INSTALL_DIR%\agente-desempenho-azuos.ps1"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%AGENT_URL%' -OutFile '%AGENT_PATH%'"
 if errorlevel 1 curl.exe --ssl-no-revoke -fsSL "%AGENT_URL%" -o "%AGENT_PATH%"
@@ -59,6 +72,15 @@ echo Nao foi possivel concluir a instalacao.
 echo Verifique a internet e tente novamente.
 echo.
 if exist "%INSTALL_DIR%\ultima-coleta-status.txt" type "%INSTALL_DIR%\ultima-coleta-status.txt"
+echo.
+pause
+exit /b 1
+
+:erro_permissao
+color 0C
+echo.
+echo ERRO: O Windows bloqueou as duas pastas de instalacao.
+echo Execute este arquivo como Administrador.
 echo.
 pause
 exit /b 1
