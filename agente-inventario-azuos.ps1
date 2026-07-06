@@ -11,6 +11,15 @@ $lastRunPath = Join-Path $baseDir "ultima-coleta.txt"
 $collectorUrl = "https://central-chamados-ti-azuos.vercel.app/coletor-hardware-azuos.ps1"
 $logPath = Join-Path $baseDir "ultima-coleta-status.txt"
 
+function Get-AzuosFile($url, $path) {
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $path -ErrorAction Stop
+  } catch {
+    & curl.exe --ssl-no-revoke -fsSL $url -o $path
+    if ($LASTEXITCODE -ne 0) { throw "Falha ao baixar $url" }
+  }
+}
+
 if (-not (Test-Path $baseDir)) {
   New-Item -ItemType Directory -Path $baseDir -Force | Out-Null
 }
@@ -24,7 +33,7 @@ if (-not $Force -and (Test-Path $lastRunPath)) {
 
 try {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-  Invoke-WebRequest -UseBasicParsing -Uri $collectorUrl -OutFile $collectorPath
+  Get-AzuosFile $collectorUrl $collectorPath
   if ($ShowDetails) {
     & powershell.exe -NoProfile -ExecutionPolicy Bypass -File $collectorPath -NoPause
   } else {

@@ -202,7 +202,17 @@ $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($json)
 $uri = "${Endpoint}?on_conflict=computer_name"
 
 try {
-  Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes | Out-Null
+  try {
+    Invoke-RestMethod -Method Post -Uri $uri -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes -ErrorAction Stop | Out-Null
+  } catch {
+    $curlOutput = & curl.exe --ssl-no-revoke -sS -f -L -X POST $uri `
+      -H "apikey: $SupabaseKey" `
+      -H "Authorization: Bearer $SupabaseKey" `
+      -H "Prefer: resolution=merge-duplicates,return=representation" `
+      -H "Content-Type: application/json; charset=utf-8" `
+      --data-raw $json 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Falha HTTPS ao enviar inventario: $curlOutput" }
+  }
   Set-Content -Path $LogPath -Value "SUCESSO - Inventario enviado em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss')) - Computador: $($payload.computer_name)" -Encoding UTF8
   if (-not $Silent) {
     Write-Host "Inventario enviado com sucesso." -ForegroundColor Green

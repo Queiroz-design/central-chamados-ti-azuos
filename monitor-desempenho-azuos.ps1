@@ -49,7 +49,20 @@ function Invoke-Supabase($method, $table, $body, $query = "", $returnRepresentat
     $json = $body | ConvertTo-Json -Depth 8 -Compress
     $params.Body = [Text.Encoding]::UTF8.GetBytes($json)
   }
-  return Invoke-RestMethod @params
+  try {
+    return Invoke-RestMethod @params -ErrorAction Stop
+  } catch {
+    $curlArgs = @("--ssl-no-revoke", "-sS", "-f", "-L", "-X", $method.ToUpper(), $uri,
+      "-H", "apikey: $SupabaseKey",
+      "-H", "Authorization: Bearer $SupabaseKey",
+      "-H", "Content-Type: application/json; charset=utf-8",
+      "-H", "Prefer: $($headers.Prefer)")
+    if ($null -ne $body) { $curlArgs += @("--data-raw", $json) }
+    $result = & curl.exe @curlArgs 2>&1
+    if ($LASTEXITCODE -ne 0) { throw "Falha HTTPS no monitor: $result" }
+    if ($result -and ($method -eq "Get" -or $returnRepresentation)) { return $result | ConvertFrom-Json }
+    return $null
+  }
 }
 
 function Get-ActivityInfo {

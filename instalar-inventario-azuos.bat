@@ -20,8 +20,10 @@ set "PERF_AGENT_URL=https://central-chamados-ti-azuos.vercel.app/agente-desempen
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%AGENT_URL%' -OutFile '%AGENT_PATH%'"
+if errorlevel 1 curl.exe --ssl-no-revoke -fsSL "%AGENT_URL%" -o "%AGENT_PATH%"
 if errorlevel 1 goto :erro
 powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -UseBasicParsing -Uri '%PERF_AGENT_URL%' -OutFile '%PERF_AGENT_PATH%'"
+if errorlevel 1 curl.exe --ssl-no-revoke -fsSL "%PERF_AGENT_URL%" -o "%PERF_AGENT_PATH%"
 if errorlevel 1 goto :erro
 
 reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosInventarioTI" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /f >nul
