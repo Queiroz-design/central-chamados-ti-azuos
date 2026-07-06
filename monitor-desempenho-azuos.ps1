@@ -8,8 +8,9 @@ $HistoryEveryCycles = 10
 $AlertThreshold = 98
 $RecoveryThreshold = 90
 $ConsecutiveRequired = 2
-$SupabaseUrl = "https://fazguvdmaufcohemsqom.supabase.co"
-$SupabaseKey = "sb_publishable_acp9vD-gQfaT6vtWln60wA_WT-sVtVt"
+# Envio agora passa pelo proxy serverless (a service key fica so na Vercel).
+$ProxyUrl = "https://central-chamados-ti-azuos.vercel.app/api/coletor"
+$ColetorSecret = "azuos-coletor-gfz8q9w0bqb7"
 $ComputerName = $env:COMPUTERNAME
 $LogicalProcessors = [math]::Max(1, (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors)
 
@@ -33,32 +34,25 @@ function Clamp-Percent($value) {
 }
 
 function Invoke-Supabase($method, $table, $body, $query = "", $returnRepresentation = $false) {
-  $uri = "${SupabaseUrl}/rest/v1/${table}${query}"
-  $headers = @{
-    apikey = $SupabaseKey
-    Authorization = "Bearer $SupabaseKey"
-    Prefer = if ($returnRepresentation) { "resolution=merge-duplicates,return=representation" } else { "resolution=merge-duplicates,return=minimal" }
+  # Envia sempre por POST ao proxy; o metodo real do Supabase vai no envelope.
+  $prefer = if ($returnRepresentation) { "resolution=merge-duplicates,return=representation" } else { "resolution=merge-duplicates,return=minimal" }
+  $envelope = [ordered]@{
+    table   = $table
+    method  = $method.ToUpper()
+    query   = $query
+    prefer  = $prefer
+    payload = $body
   }
-  $params = @{
-    Method = $method
-    Uri = $uri
-    Headers = $headers
-    ContentType = "application/json; charset=utf-8"
-  }
-  if ($null -ne $body) {
-    $json = $body | ConvertTo-Json -Depth 8 -Compress
-    $params.Body = [Text.Encoding]::UTF8.GetBytes($json)
-  }
+  $json = $envelope | ConvertTo-Json -Depth 9 -Compress
+  $bytes = [Text.Encoding]::UTF8.GetBytes($json)
+  $headers = @{ "x-coletor-secret" = $ColetorSecret }
   try {
-    return Invoke-RestMethod @params -ErrorAction Stop
+    return Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes -ErrorAction Stop
   } catch {
-    $curlArgs = @("--ssl-no-revoke", "-sS", "-f", "-L", "-X", $method.ToUpper(), $uri,
-      "-H", "apikey: $SupabaseKey",
-      "-H", "Authorization: Bearer $SupabaseKey",
-      "-H", "Content-Type: application/json; charset=utf-8",
-      "-H", "Prefer: $($headers.Prefer)")
-    if ($null -ne $body) { $curlArgs += @("--data-raw", $json) }
-    $result = & curl.exe @curlArgs 2>&1
+    $result = & curl.exe --ssl-no-revoke -sS -f -L -X POST $ProxyUrl `
+      -H "x-coletor-secret: $ColetorSecret" `
+      -H "Content-Type: application/json; charset=utf-8" `
+      --data-raw $json 2>&1
     if ($LASTEXITCODE -ne 0) { throw "Falha HTTPS no monitor: $result" }
     if ($result -and ($method -eq "Get" -or $returnRepresentation)) { return $result | ConvertFrom-Json }
     return $null
