@@ -880,8 +880,8 @@ function renderTicketMetrics() {
   const today = new Date().toDateString();
   const resolvedToday = allTickets.filter((t) => t.resolvido_em && new Date(t.resolvido_em).toDateString() === today).length;
   const durations = allTickets
-    .filter((t) => t.resolvido_em && t.created_at)
-    .map((t) => new Date(t.resolvido_em).getTime() - new Date(t.created_at).getTime())
+    .filter((t) => t.resolvido_em && t.atendimento_em)
+    .map((t) => new Date(t.resolvido_em).getTime() - new Date(t.atendimento_em).getTime())
     .filter((ms) => ms > 0);
   let avg = "-";
   if (durations.length) {
@@ -892,7 +892,7 @@ function renderTicketMetrics() {
     <div class="ticket-metric"><span>Abertos</span><strong>${open}</strong></div>
     <div class="ticket-metric"><span>Em atendimento</span><strong>${inProgress}</strong></div>
     <div class="ticket-metric"><span>Resolvidos hoje</span><strong>${resolvedToday}</strong></div>
-    <div class="ticket-metric"><span>Tempo médio</span><strong>${avg}</strong></div>
+    <div class="ticket-metric" title="Média do tempo entre 'Em atendimento' e 'Resolvido'"><span>Tempo médio</span><strong>${avg}</strong></div>
   `;
 }
 
@@ -941,6 +941,8 @@ window.openTicketDetails = function openTicketDetails(id) {
       ${ticketDetailRow("Tipo", ticket.tipo)}
       ${ticketDetailRow("AnyDesk", ticket.anydesk || "Não informado")}
       ${ticketDetailRow("Contato do solicitante", ticket.contato || "Não informado")}
+      ${ticket.atendimento_em ? ticketDetailRow("Em atendimento desde", new Date(ticket.atendimento_em).toLocaleString("pt-BR")) : ""}
+      ${ticket.resolvido_em ? ticketDetailRow("Resolvido em", new Date(ticket.resolvido_em).toLocaleString("pt-BR")) : ""}
     </div>
     <div class="ticket-detail-block">
       <span>Descrição</span>
@@ -982,7 +984,11 @@ ticketDetailModal.addEventListener("click", (event) => {
 });
 
 window.changeStatus = async function changeStatus(id, status) {
-  const changes = { status, resolvido_em: status === "Resolvido" ? new Date().toISOString() : null };
+  const ticket = allTickets.find((item) => String(item.id) === String(id));
+  const now = new Date().toISOString();
+  const changes = { status };
+  if (status === "Em atendimento" && ticket && !ticket.atendimento_em) changes.atendimento_em = now;
+  changes.resolvido_em = status === "Resolvido" ? now : null;
   const { error } = await client.from("chamados").update(changes).eq("id", id);
 
   if (error) {
