@@ -3,6 +3,9 @@ const message = document.getElementById("message");
 const btnSubmit = document.getElementById("btnSubmit");
 const searchResult = document.getElementById("searchResult");
 
+// Abertura e consulta passam pela funcao serverless (a tabela nao fica exposta).
+const API_CHAMADO = "/api/chamado";
+
 // Escapa texto antes de inserir no HTML (evita XSS a partir dos dados do chamado).
 function escapeHtml(value) {
   return String(value ?? "")
@@ -51,13 +54,19 @@ form.addEventListener("submit", async (event) => {
       departamento: document.getElementById("departamento").value,
       tipo: document.getElementById("tipo").value,
       anydesk: document.getElementById("anydesk").value.trim(),
+      prioridade: document.getElementById("prioridade").value,
+      contato: document.getElementById("contato").value.trim(),
       descricao: document.getElementById("descricao").value.trim(),
       print_url: printUrl,
-      status: "Aberto",
     };
-    const { data, error } = await client.from("chamados").insert(record).select().single();
-    if (error) throw error;
-    showMessage(`Chamado aberto com sucesso! Número: <strong>${escapeHtml(formatTicketNumber(data.id))}</strong>`);
+    const response = await fetch(API_CHAMADO, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(record),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Erro ao abrir chamado");
+    showMessage(`Chamado aberto com sucesso! Número: <strong>${escapeHtml(formatTicketNumber(result.chamado.id))}</strong>`);
     form.reset();
   } catch (err) {
     showMessage(`Erro ao abrir chamado: ${escapeHtml(err.message)}`, "error");
@@ -74,8 +83,12 @@ document.getElementById("btnSearch").addEventListener("click", async () => {
     searchResult.innerHTML = '<div class="ticket-card">Digite um chamado válido.</div>';
     return;
   }
-  const { data, error } = await client.from("chamados").select("*").eq("id", id).single();
-  if (error || !data) {
+  let data;
+  try {
+    const response = await fetch(`${API_CHAMADO}?numero=${id}`);
+    if (!response.ok) throw new Error("nao encontrado");
+    data = (await response.json()).chamado;
+  } catch {
     searchResult.innerHTML = '<div class="ticket-card">Chamado não encontrado.</div>';
     return;
   }
@@ -86,6 +99,7 @@ document.getElementById("btnSearch").addEventListener("click", async () => {
   searchResult.innerHTML = `<div class="ticket-card">
     <strong>${escapeHtml(formatTicketNumber(data.id))}</strong><br>
     <b>Status:</b> ${escapeHtml(data.status)}<br>
+    <b>Prioridade:</b> ${escapeHtml(data.prioridade || "Média")}<br>
     <b>Nome:</b> ${escapeHtml(data.nome)}<br>
     <b>Departamento:</b> ${escapeHtml(data.departamento)}<br>
     <b>Tipo:</b> ${escapeHtml(data.tipo)}<br>
