@@ -161,7 +161,7 @@ async function loadTickets() {
     hardwareAssets = [];
     hardwareLoadError = hardwareResult.error.message;
   } else {
-    hardwareAssets = hardwareResult.data || [];
+    hardwareAssets = (hardwareResult.data || []).filter((asset) => !asset.arquivado);
     hardwareLoadError = "";
   }
 
@@ -503,7 +503,7 @@ function renderAssets() {
         <td>${signals.monthCount}</td>
         <td><span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
         <td>${formatDateTime(asset.reported_at)}</td>
-        <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${asset.id}')">Detalhes</button><button class="secondary small" onclick="event.stopPropagation();editHardware('${asset.id}')">Editar</button></div></td>
+        <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${asset.id}')">Detalhes</button><button class="secondary small" onclick="event.stopPropagation();editHardware('${asset.id}')">Editar</button><button class="secondary small remove-hw" onclick="event.stopPropagation();archiveHardware('${asset.id}')">Remover</button></div></td>
       </tr>
     `;
   }).join("");
@@ -520,6 +520,18 @@ window.editHardware = function editHardware(id) {
   document.getElementById("hardwareResponsible").value = asset.responsible_name || "";
   document.getElementById("hardwareDepartment").value = asset.department || "";
   hardwareEditModal.classList.remove("hidden");
+};
+
+window.archiveHardware = async function archiveHardware(id) {
+  const asset = hardwareAssets.find((item) => item.id === id);
+  const label = asset ? (asset.display_name || asset.computer_name) : "esta máquina";
+  if (!confirm(`Remover ${label} do inventário?\n\nA máquina some do painel, mas os dados ficam guardados no banco (dá para restaurar).`)) return;
+  const { error } = await client.from("hardware_inventory").update({ arquivado: true }).eq("id", id);
+  if (error) {
+    alert("Erro ao remover: " + error.message);
+    return;
+  }
+  await loadTickets();
 };
 
 function closeHardwareEdit() {

@@ -50,6 +50,7 @@ button:hover,.btn:hover{filter:brightness(.97);transform:translateY(-1px)}
 .stat-box span{display:block;color:#64748b;font-size:14px;margin-bottom:8px}
 .stat-box strong{font-size:32px;color:var(--azul-escuro)}
 .stat-box.warning{border-color:#facc15;background:#fffbeb}
+.stat-box.good-stat{border-color:#22c55e;background:#f0fdf4}
 .dashboard-main-grid{display:grid;grid-template-columns:1.4fr .9fr;gap:16px;margin-bottom:16px}
 .dashboard-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 .panel{border:1px solid #e2e8f0;border-radius:8px;padding:18px;background:#fff}
@@ -153,6 +154,9 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .admin-body td{border-bottom-color:#243244}
 .admin-body .stat-box,.admin-body .legend-row,.admin-body .empty-state{background:#0f172a;border-color:#26364a;color:#cbd5e1}
 .admin-body .stat-box.warning{background:#2a2108;border-color:#f59e0b}
+.admin-body .stat-box.good-stat{background:#052e20;border-color:#16a34a}
+.table-actions .remove-hw{border-color:#7f1d1d;color:#fca5a5}
+.table-actions .remove-hw:hover{background:#3b1118}
 .admin-body .danger-stat{background:#2b1218!important;border-color:#fb7185!important}
 .admin-body .hardware-card{background:#0f172a;border-color:#26364a}
 .admin-body .hardware-card-top strong{color:#f8fafc}
