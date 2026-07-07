@@ -8,6 +8,7 @@ const hardwareEditModal = document.getElementById("hardwareEditModal");
 const hardwareEditForm = document.getElementById("hardwareEditForm");
 const hardwareDetailModal = document.getElementById("hardwareDetailModal");
 const networkAlertsBody = document.getElementById("networkAlertsBody");
+const ticketDetailModal = document.getElementById("ticketDetailModal");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 const companyDepartments = [
   "ANALYZE", "CERTIFICADO", "COMERCIAL", "CONT\u00c1BIL", "CS", "FINANCEIRO",
@@ -776,25 +777,74 @@ function renderTickets() {
   }
 
   body.innerHTML = filtered.map((ticket) => `
-    <tr>
+    <tr class="ticket-row" onclick="openTicketDetails('${ticket.id}')" title="Clique para ver o chamado completo">
       <td><strong>${formatTicketNumber(ticket.id)}</strong></td>
-      <td>${new Date(ticket.created_at).toLocaleString("pt-BR")}</td>
+      <td>${escapeHtml(new Date(ticket.created_at).toLocaleString("pt-BR"))}</td>
       <td>${escapeHtml(ticket.nome)}</td>
       <td>${escapeHtml(ticket.departamento)}</td>
       <td>${escapeHtml(ticket.tipo)}</td>
       <td>${escapeHtml(ticket.anydesk || "-")}</td>
-      <td>
+      <td onclick="event.stopPropagation()">
         <select class="status" onchange="changeStatus(${ticket.id}, this.value)">
           <option ${ticket.status === "Aberto" ? "selected" : ""}>Aberto</option>
           <option ${ticket.status === "Em atendimento" ? "selected" : ""}>Em atendimento</option>
           <option ${ticket.status === "Resolvido" ? "selected" : ""}>Resolvido</option>
         </select>
       </td>
-      <td>${escapeHtml(ticket.descricao)}</td>
-      <td>${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : "-"}</td>
+      <td class="desc-cell">${truncateText(ticket.descricao, 60)}</td>
+      <td onclick="event.stopPropagation()">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : "-"}</td>
     </tr>
   `).join("");
 }
+
+function truncateText(value, max = 60) {
+  const text = String(value || "");
+  if (text.length <= max) return escapeHtml(text);
+  return escapeHtml(text.slice(0, max).trim()) + "…";
+}
+
+function ticketDetailRow(label, value) {
+  return `<div class="ticket-detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? "-")}</strong></div>`;
+}
+
+window.openTicketDetails = function openTicketDetails(id) {
+  const ticket = allTickets.find((item) => String(item.id) === String(id));
+  if (!ticket) return;
+  document.getElementById("ticketDetailTitle").innerText = formatTicketNumber(ticket.id);
+  const printBlock = ticket.print_url
+    ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank" rel="noopener"><img class="ticket-detail-print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>`
+    : "Sem print anexado.";
+  document.getElementById("ticketDetailBody").innerHTML = `
+    <div class="ticket-detail-grid">
+      ${ticketDetailRow("Status", ticket.status)}
+      ${ticketDetailRow("Data", new Date(ticket.created_at).toLocaleString("pt-BR"))}
+      ${ticketDetailRow("Nome", ticket.nome)}
+      ${ticketDetailRow("Departamento", ticket.departamento)}
+      ${ticketDetailRow("Tipo", ticket.tipo)}
+      ${ticketDetailRow("AnyDesk", ticket.anydesk || "Não informado")}
+    </div>
+    <div class="ticket-detail-block">
+      <span>Descrição</span>
+      <p>${escapeHtml(ticket.descricao)}</p>
+    </div>
+    <div class="ticket-detail-block">
+      <span>Print do erro</span>
+      <div>${printBlock}</div>
+    </div>
+  `;
+  ticketDetailModal.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+};
+
+function closeTicketDetails() {
+  ticketDetailModal.classList.add("hidden");
+  document.body.classList.remove("modal-open");
+}
+
+document.getElementById("btnCloseTicketDetail").addEventListener("click", closeTicketDetails);
+ticketDetailModal.addEventListener("click", (event) => {
+  if (event.target === ticketDetailModal) closeTicketDetails();
+});
 
 window.changeStatus = async function changeStatus(id, status) {
   const { error } = await client.from("chamados").update({ status }).eq("id", id);
