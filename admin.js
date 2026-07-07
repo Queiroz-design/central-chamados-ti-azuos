@@ -95,6 +95,34 @@ function accentLabel(value) {
   return map[value] || value;
 }
 
+// Tempo relativo amigavel ("há 8 min", "há 3 h", "há 2 dia(s)").
+function relativeTime(value) {
+  const then = new Date(value).getTime();
+  if (!then) return "-";
+  const min = Math.round((Date.now() - then) / 60000);
+  if (min < 1) return "agora";
+  if (min < 60) return `há ${min} min`;
+  const hours = Math.round(min / 60);
+  if (hours < 24) return `há ${hours} h`;
+  const days = Math.round(hours / 24);
+  if (days < 30) return `há ${days} dia(s)`;
+  return new Date(value).toLocaleDateString("pt-BR");
+}
+
+function priorityLabel(value) {
+  const p = normalizeText(value);
+  if (p === "alta") return "Alta";
+  if (p === "baixa") return "Baixa";
+  return "Média";
+}
+
+function statusSlug(value) {
+  const s = normalizeText(value);
+  if (s === "resolvido") return "resolvido";
+  if (s === "em atendimento") return "atendimento";
+  return "aberto";
+}
+
 function isThisMonth(ticket) {
   const date = new Date(ticket.created_at);
   const now = new Date();
@@ -160,6 +188,7 @@ async function loadTickets() {
     _search: [
       formatTicketNumber(ticket.id), ticket.nome, ticket.departamento,
       ticket.tipo, ticket.anydesk, ticket.descricao, ticket.status,
+      ticket.prioridade, ticket.contato, ticket.responsavel,
     ].map((value) => String(value || "")).join(" ").toLowerCase(),
   }));
   signalsCache.clear();
@@ -815,30 +844,56 @@ function renderTickets() {
 
   if (filtered.length === 0) {
     body.innerHTML = '<tr><td colspan="9">Nenhum chamado encontrado.</td></tr>';
+    renderTicketMetrics();
     renderTicketsPager(0, 1);
     return;
   }
 
   body.innerHTML = pageItems.map((ticket) => `
     <tr class="ticket-row" onclick="openTicketDetails('${ticket.id}')" title="Clique para ver o chamado completo">
-      <td><strong>${formatTicketNumber(ticket.id)}</strong></td>
-      <td>${escapeHtml(new Date(ticket.created_at).toLocaleString("pt-BR"))}</td>
+      <td><strong>${formatTicketNumber(ticket.id)}</strong><br><span class="prio-badge" data-prio="${priorityLabel(ticket.prioridade)}">${priorityLabel(ticket.prioridade)}</span></td>
+      <td title="${escapeHtml(new Date(ticket.created_at).toLocaleString("pt-BR"))}">${escapeHtml(relativeTime(ticket.created_at))}</td>
       <td>${escapeHtml(ticket.nome)}</td>
       <td>${escapeHtml(ticket.departamento)}</td>
       <td>${escapeHtml(ticket.tipo)}</td>
       <td>${escapeHtml(ticket.anydesk || "-")}</td>
       <td onclick="event.stopPropagation()">
-        <select class="status" onchange="changeStatus(${ticket.id}, this.value)">
+        <select class="status" data-status="${escapeHtml(ticket.status)}" onchange="changeStatus(${ticket.id}, this.value)">
           <option ${ticket.status === "Aberto" ? "selected" : ""}>Aberto</option>
           <option ${ticket.status === "Em atendimento" ? "selected" : ""}>Em atendimento</option>
           <option ${ticket.status === "Resolvido" ? "selected" : ""}>Resolvido</option>
         </select>
       </td>
       <td class="desc-cell">${truncateText(ticket.descricao, 60)}</td>
-      <td onclick="event.stopPropagation()">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : "-"}</td>
+      <td onclick="event.stopPropagation()" class="actions-cell">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : ""}<button type="button" class="ticket-delete" title="Excluir chamado" onclick="deleteTicket('${ticket.id}')">Excluir</button></td>
     </tr>
   `).join("");
+  renderTicketMetrics();
   renderTicketsPager(filtered.length, totalPages);
+}
+
+function renderTicketMetrics() {
+  const target = document.getElementById("ticketMetrics");
+  if (!target) return;
+  const open = allTickets.filter((t) => t.status === "Aberto").length;
+  const inProgress = allTickets.filter((t) => t.status === "Em atendimento").length;
+  const today = new Date().toDateString();
+  const resolvedToday = allTickets.filter((t) => t.resolvido_em && new Date(t.resolvido_em).toDateString() === today).length;
+  const durations = allTickets
+    .filter((t) => t.resolvido_em && t.created_at)
+    .map((t) => new Date(t.resolvido_em).getTime() - new Date(t.created_at).getTime())
+    .filter((ms) => ms > 0);
+  let avg = "-";
+  if (durations.length) {
+    const min = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length / 60000);
+    avg = min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${min % 60}m`;
+  }
+  target.innerHTML = `
+    <div class="ticket-metric"><span>Abertos</span><strong>${open}</strong></div>
+    <div class="ticket-metric"><span>Em atendimento</span><strong>${inProgress}</strong></div>
+    <div class="ticket-metric"><span>Resolvidos hoje</span><strong>${resolvedToday}</strong></div>
+    <div class="ticket-metric"><span>Tempo médio</span><strong>${avg}</strong></div>
+  `;
 }
 
 function renderTicketsPager(total, totalPages) {
@@ -885,6 +940,7 @@ window.openTicketDetails = function openTicketDetails(id) {
       ${ticketDetailRow("Departamento", ticket.departamento)}
       ${ticketDetailRow("Tipo", ticket.tipo)}
       ${ticketDetailRow("AnyDesk", ticket.anydesk || "Não informado")}
+      ${ticketDetailRow("Contato do solicitante", ticket.contato || "Não informado")}
     </div>
     <div class="ticket-detail-block">
       <span>Descrição</span>
@@ -893,6 +949,22 @@ window.openTicketDetails = function openTicketDetails(id) {
     <div class="ticket-detail-block">
       <span>Print do erro</span>
       <div>${printBlock}</div>
+    </div>
+    <div class="ticket-detail-edit">
+      <label>Prioridade
+        <select id="ticketDetailPriority">
+          <option ${priorityLabel(ticket.prioridade) === "Alta" ? "selected" : ""}>Alta</option>
+          <option ${priorityLabel(ticket.prioridade) === "Média" ? "selected" : ""}>Média</option>
+          <option ${priorityLabel(ticket.prioridade) === "Baixa" ? "selected" : ""}>Baixa</option>
+        </select>
+      </label>
+      <label>Responsável do TI
+        <input type="text" id="ticketDetailResponsible" value="${escapeHtml(ticket.responsavel || "")}" placeholder="Quem está cuidando">
+      </label>
+    </div>
+    <div class="ticket-detail-actions">
+      <button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar prioridade e responsável</button>
+      <button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>
     </div>
   `;
   ticketDetailModal.classList.remove("hidden");
@@ -910,13 +982,39 @@ ticketDetailModal.addEventListener("click", (event) => {
 });
 
 window.changeStatus = async function changeStatus(id, status) {
-  const { error } = await client.from("chamados").update({ status }).eq("id", id);
+  const changes = { status, resolvido_em: status === "Resolvido" ? new Date().toISOString() : null };
+  const { error } = await client.from("chamados").update(changes).eq("id", id);
 
   if (error) {
     alert("Erro ao alterar status: " + error.message);
     return;
   }
 
+  await loadTickets();
+};
+
+window.deleteTicket = async function deleteTicket(id) {
+  const ticket = allTickets.find((item) => String(item.id) === String(id));
+  const label = ticket ? formatTicketNumber(ticket.id) : "este chamado";
+  if (!confirm(`Excluir ${label}? Esta ação não pode ser desfeita.`)) return;
+  const { error } = await client.from("chamados").delete().eq("id", id);
+  if (error) {
+    alert("Erro ao excluir: " + error.message);
+    return;
+  }
+  closeTicketDetails();
+  await loadTickets();
+};
+
+window.saveTicketMeta = async function saveTicketMeta(id) {
+  const prioridade = document.getElementById("ticketDetailPriority").value;
+  const responsavel = document.getElementById("ticketDetailResponsible").value.trim() || null;
+  const { error } = await client.from("chamados").update({ prioridade, responsavel }).eq("id", id);
+  if (error) {
+    alert("Erro ao salvar: " + error.message);
+    return;
+  }
+  closeTicketDetails();
   await loadTickets();
 };
 

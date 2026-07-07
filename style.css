@@ -275,3 +275,23 @@ th{background:#f9fafb;color:var(--azul-escuro)}
   .brand-logo{width:170px}
   .card{padding:18px}
 }
+/* Indicadores + prioridade + status coloridos (painel de chamados) */
+.ticket-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 16px}
+.ticket-metric{background:#0f172a;border:1px solid #1f2a3a;border-radius:10px;padding:12px 14px}
+.ticket-metric span{display:block;font-size:12px;color:#94a3b8}
+.ticket-metric strong{font-size:22px}
+.prio-badge{display:inline-block;margin-top:4px;font-size:11px;font-weight:bold;padding:2px 8px;border-radius:20px}
+.prio-badge[data-prio="Alta"]{background:#3b1118;color:#fecdd3}
+.prio-badge[data-prio="Média"]{background:#3a2c08;color:#fde68a}
+.prio-badge[data-prio="Baixa"]{background:#0f2436;color:#93c5fd}
+select.status{border-radius:8px;font-weight:bold}
+select.status[data-status="Aberto"]{background:#3a2c08;color:#fde68a;border-color:#854f0b}
+select.status[data-status="Em atendimento"]{background:#0f2436;color:#93c5fd;border-color:#185fa5}
+select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-color:#16a34a}
+.actions-cell{white-space:nowrap}
+.ticket-delete{background:transparent;border:1px solid #7f1d1d;color:#fca5a5;border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;margin-left:8px}
+.ticket-delete:hover{background:#3b1118}
+.ticket-detail-edit{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;border-top:1px solid #243244;padding-top:16px}
+.ticket-detail-edit label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#94a3b8}
+.ticket-detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+@media(max-width:640px){.ticket-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ticket-detail-edit{grid-template-columns:1fr}}
