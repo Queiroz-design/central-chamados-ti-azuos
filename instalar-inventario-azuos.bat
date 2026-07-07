@@ -57,10 +57,16 @@ echo ==================================================
 echo INSTALACAO CONCLUIDA COM SUCESSO
 echo ==================================================
 echo.
+echo *** IMPORTANTE: REINICIE O COMPUTADOR AGORA ***
+echo (ou saia e entre de novo no usuario do Windows)
+echo Isso ativa o monitoramento em tempo real (ficar Online).
+echo.
 echo O computador sera atualizado automaticamente:
 echo - todos os dias no primeiro login do Windows;
 echo - verificacao diaria ao meio-dia, se a maquina permanecer ligada;
 echo - desempenho de CPU, memoria e disco em tempo real.
+echo.
+echo Nao precisa rodar este instalador de novo nesta maquina.
 echo.
 pause
 exit /b 0
