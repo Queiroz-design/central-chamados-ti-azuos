@@ -32,7 +32,7 @@ form.addEventListener("submit", async (event) => {
   const { error } = await client.auth.signInWithPassword({ email, password: senha });
 
   if (error) {
-    showError("Usuario ou senha invalidos.");
+    showError("Usuário ou senha inválidos.");
     submitBtn.disabled = false;
     submitBtn.innerText = original;
     return;

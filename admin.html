@@ -14,7 +14,7 @@
   <div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div>
   <div class="header-title">
     <h1>Painel do TI</h1>
-    <p>Gerencie chamados, computadores e alertas de recorrencia</p>
+    <p>Gerencie chamados, computadores e alertas de recorrência</p>
   </div>
   <div class="header-actions">
     <a class="btn secondary" href="index.html">Abrir chamado</a>
@@ -25,7 +25,7 @@
 <main class="admin-shell">
   <aside class="admin-sidebar">
     <button class="side-tab" data-tab="dashboard"><span>01</span>Dashboard</button>
-    <button class="side-tab" data-tab="inventario"><span>02</span>Inventario</button>
+    <button class="side-tab" data-tab="inventario"><span>02</span>Inventário</button>
     <button class="side-tab" data-tab="rede"><span>03</span>Rede <b id="networkBadge" class="network-badge hidden">0</b></button>
   </aside>
 
@@ -33,7 +33,7 @@
   <section id="chamados-principal" class="card tickets-card">
     <div class="admin-top">
       <h2>Chamados</h2>
-      <button id="btnExport" class="secondary">Baixar relatorio</button>
+      <button id="btnExport" class="secondary">Baixar relatório</button>
     </div>
     <div class="filters">
       <input type="text" id="filterText" placeholder="Buscar por nome, chamado, departamento...">
@@ -55,7 +55,7 @@
             <th>Tipo</th>
             <th>AnyDesk</th>
             <th>Status</th>
-            <th>Descricao</th>
+            <th>Descrição</th>
             <th>Print</th>
           </tr>
         </thead>
@@ -69,14 +69,14 @@
     <div class="admin-top">
       <div>
         <h2>Dashboard de integridade</h2>
-        <p class="section-note">Visao baseada nos chamados registrados e no inventario de computadores.</p>
+        <p class="section-note">Visão baseada nos chamados registrados e no inventário de computadores.</p>
       </div>
       <button id="btnRefresh" class="secondary">Atualizar</button>
     </div>
 
     <div class="stats-grid">
       <div class="stat-box">
-        <span>Chamados no mes</span>
+        <span>Chamados no mês</span>
         <strong id="statMonth">0</strong>
       </div>
       <div class="stat-box">
@@ -88,7 +88,7 @@
         <strong id="statDevices">0</strong>
       </div>
       <div class="stat-box warning">
-        <span>Alertas de recorrencia</span>
+        <span>Alertas de recorrência</span>
         <strong id="statAlerts">0</strong>
       </div>
     </div>
@@ -97,12 +97,12 @@
       <section class="panel problem-panel">
         <h3>Mapa dos maiores problemas</h3>
         <div class="problem-chart-wrap">
-          <div id="problemDonut" class="problem-donut" aria-label="Grafico de problemas por tipo"></div>
+          <div id="problemDonut" class="problem-donut" aria-label="Gráfico de problemas por tipo"></div>
           <div id="problemLegend" class="problem-legend"></div>
         </div>
       </section>
       <section class="panel">
-        <h3>Alertas do mes</h3>
+        <h3>Alertas do mês</h3>
         <div id="alertsList" class="alert-list"></div>
       </section>
     </div>
@@ -138,11 +138,11 @@
         <strong id="network24h">0</strong>
       </div>
       <div class="stat-box danger-stat">
-        <span>Eventos criticos</span>
+        <span>Eventos críticos</span>
         <strong id="networkCritical">0</strong>
       </div>
       <div class="stat-box">
-        <span>Ultimo evento</span>
+        <span>Último evento</span>
         <strong id="networkLastEvent" class="network-last-event">-</strong>
       </div>
     </div>
@@ -155,11 +155,11 @@
       <table class="network-table">
         <thead>
           <tr>
-            <th>Horario</th>
+            <th>Horário</th>
             <th>Gravidade</th>
             <th>Evento</th>
             <th>WAN / Provedor</th>
-            <th>Metricas</th>
+            <th>Métricas</th>
             <th>Mensagem</th>
           </tr>
         </thead>
@@ -171,10 +171,10 @@
   <section id="tab-inventario" class="card tab-panel">
     <div class="admin-top">
       <div>
-        <h2>Inventario automatico de computadores</h2>
-        <p class="section-note">Dados enviados pelo coletor de hardware executado nas maquinas.</p>
+        <h2>Inventário automático de computadores</h2>
+        <p class="section-note">Dados enviados pelo coletor de hardware executado nas máquinas.</p>
       </div>
-      <a class="btn secondary" href="instalar-inventario-azuos.bat" download>Baixar instalador automatico</a>
+      <a class="btn secondary" href="instalar-inventario-azuos.bat" download>Baixar instalador automático</a>
     </div>
 
     <div class="inventory-toolbar">
@@ -183,24 +183,24 @@
           <option value="">Todos os departamentos</option>
         </select>
       </label>
-      <button id="btnExportHardwareReport" type="button">Baixar relatorio do departamento</button>
+      <button id="btnExportHardwareReport" type="button">Baixar relatório do departamento</button>
     </div>
 
     <div class="hardware-summary">
       <div class="stat-box">
-        <span>Maquinas inventariadas</span>
+        <span>Máquinas inventariadas</span>
         <strong id="hwTotal">0</strong>
       </div>
       <div class="stat-box">
-        <span>Saude boa</span>
+        <span>Saúde boa</span>
         <strong id="hwGood">0</strong>
       </div>
       <div class="stat-box warning">
-        <span>Em atencao</span>
+        <span>Em atenção</span>
         <strong id="hwWarning">0</strong>
       </div>
       <div class="stat-box danger-stat">
-        <span>Criticas</span>
+        <span>Críticas</span>
         <strong id="hwCritical">0</strong>
       </div>
     </div>
@@ -209,7 +209,7 @@
       <div><span class="live-dot"></span><strong id="hwOnline">0</strong><small>online agora</small></div>
       <div><strong id="hwActiveAlerts">0</strong><small>alertas ativos</small></div>
       <div><strong id="hwCpuHigh">0</strong><small>CPU elevada</small></div>
-      <div><strong id="hwMemoryHigh">0</strong><small>memoria elevada</small></div>
+      <div><strong id="hwMemoryHigh">0</strong><small>memória elevada</small></div>
       <div><strong id="hwDiskHigh">0</strong><small>disco elevado</small></div>
     </div>
     <div id="performanceSetupNotice" class="setup-notice hidden">
@@ -226,12 +226,12 @@
             <th>Departamento</th>
             <th>Modelo</th>
             <th>Processador</th>
-            <th>Memoria</th>
+            <th>Memória</th>
             <th>Discos</th>
-            <th>Chamados no mes</th>
+            <th>Chamados no mês</th>
             <th>Integridade</th>
-            <th>Ultima coleta</th>
-            <th>Acoes</th>
+            <th>Última coleta</th>
+            <th>Ações</th>
           </tr>
         </thead>
         <tbody id="assetsBody"></tbody>
@@ -242,19 +242,19 @@
   <div id="hardwareEditModal" class="modal-backdrop hidden">
     <section class="modal-card" role="dialog" aria-modal="true" aria-labelledby="hardwareEditTitle">
       <div class="admin-top">
-        <h2 id="hardwareEditTitle">Editar identificacao</h2>
+        <h2 id="hardwareEditTitle">Editar identificação</h2>
         <button type="button" id="btnCloseHardwareEdit" class="secondary small">Fechar</button>
       </div>
       <form id="hardwareEditForm">
         <input type="hidden" id="hardwareEditId">
-        <label>Identificacao do computador<input type="text" id="hardwareDisplayName" placeholder="Ex: Computador 01"></label>
-        <label>Responsavel atual <span class="optional">(opcional)</span><input type="text" id="hardwareResponsible" placeholder="Pode deixar em branco"></label>
+        <label>Identificação do computador<input type="text" id="hardwareDisplayName" placeholder="Ex: Computador 01"></label>
+        <label>Responsável atual <span class="optional">(opcional)</span><input type="text" id="hardwareResponsible" placeholder="Pode deixar em branco"></label>
         <label>Departamento
           <select id="hardwareDepartment">
             <option value="">Selecione o departamento</option>
           </select>
         </label>
-        <button type="submit">Salvar identificacao</button>
+        <button type="submit">Salvar identificação</button>
       </form>
     </section>
   </div>
@@ -277,7 +277,7 @@
           <small id="detailCpuCause">Aguardando dados</small>
         </article>
         <article class="live-metric memory">
-          <div><span>Memoria</span><strong id="detailMemory">0%</strong></div>
+          <div><span>Memória</span><strong id="detailMemory">0%</strong></div>
           <div class="metric-bar"><i id="detailMemoryBar"></i></div>
           <small id="detailMemoryCause">Aguardando dados</small>
         </article>
@@ -289,10 +289,10 @@
       </div>
 
       <div class="detail-section">
-        <h3>Desempenho nas ultimas 24 horas</h3>
+        <h3>Desempenho nas últimas 24 horas</h3>
         <div class="performance-charts">
           <div><span>CPU</span><svg id="cpuHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
-          <div><span>Memoria</span><svg id="memoryHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
+          <div><span>Memória</span><svg id="memoryHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
           <div><span>Disco</span><svg id="diskHistoryChart" viewBox="0 0 500 120" preserveAspectRatio="none"></svg></div>
         </div>
       </div>
@@ -303,7 +303,7 @@
           <div id="detailTopProcesses" class="process-list"></div>
         </section>
         <section class="detail-section">
-          <h3>Atividade e possivel causa</h3>
+          <h3>Atividade e possível causa</h3>
           <div id="detailActivity" class="activity-box">Aguardando telemetria.</div>
         </section>
       </div>
@@ -314,10 +314,10 @@
       </section>
 
       <section class="detail-section">
-        <h3>Historico de alertas</h3>
+        <h3>Histórico de alertas</h3>
         <div class="table-wrap">
           <table class="performance-alerts-table">
-            <thead><tr><th>Inicio</th><th>Recurso</th><th>Pico</th><th>Status</th><th>Possivel causa</th><th>Atividade</th></tr></thead>
+            <thead><tr><th>Início</th><th>Recurso</th><th>Pico</th><th>Status</th><th>Possível causa</th><th>Atividade</th></tr></thead>
             <tbody id="performanceAlertsBody"></tbody>
           </table>
         </div>

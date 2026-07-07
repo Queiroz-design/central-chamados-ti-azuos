@@ -89,6 +89,12 @@ function normalizeText(value) {
   return String(value || "").trim().toLowerCase();
 }
 
+// Exibe rotulos com acento sem alterar os valores usados na logica/banco.
+function accentLabel(value) {
+  const map = { Atencao: "Atenção", Critica: "Crítica", Informacao: "Informação" };
+  return map[value] || value;
+}
+
 function isThisMonth(ticket) {
   const date = new Date(ticket.created_at);
   const now = new Date();
@@ -222,14 +228,14 @@ function renderAlerts(alerts) {
   const alertsList = document.getElementById("alertsList");
 
   if (!alerts.length) {
-    alertsList.innerHTML = '<div class="empty-state">Nenhuma recorrencia critica neste mes.</div>';
+    alertsList.innerHTML = '<div class="empty-state">Nenhuma recorrência crítica neste mês.</div>';
     return;
   }
 
   alertsList.innerHTML = alerts.map((alert) => `
     <article class="alert-item">
       <strong>${escapeHtml(alert.nome)} abriu ${alert.count} chamados de ${escapeHtml(alert.tipo)}</strong>
-      <span>${escapeHtml(alert.departamento || "Departamento nao informado")} precisa de verificacao preventiva.</span>
+      <span>${escapeHtml(alert.departamento || "Departamento não informado")} precisa de verificação preventiva.</span>
     </article>
   `).join("");
 }
@@ -241,7 +247,7 @@ function renderProblemDonut(entries) {
   if (!entries.length) {
     donut.style.background = "#e2e8f0";
     donut.innerHTML = "<strong>0</strong><span>chamados</span>";
-    legend.innerHTML = '<div class="empty-state">Sem chamados neste mes.</div>';
+    legend.innerHTML = '<div class="empty-state">Sem chamados neste mês.</div>';
     return;
   }
 
@@ -270,7 +276,7 @@ function renderBars(targetId, entries, colorful = false) {
   const target = document.getElementById(targetId);
 
   if (!entries.length) {
-    target.innerHTML = '<div class="empty-state">Sem dados neste mes.</div>';
+    target.innerHTML = '<div class="empty-state">Sem dados neste mês.</div>';
     return;
   }
 
@@ -398,7 +404,7 @@ function renderAssets() {
   setupNotice.classList.toggle("hidden", !performanceLoadError);
 
   if (hardwareLoadError) {
-    const message = "Tabela hardware_inventory ainda nao disponivel. Rode o SQL supabase-hardware-inventory.sql no Supabase.";
+    const message = "Tabela hardware_inventory ainda não disponível. Rode o SQL supabase-hardware-inventory.sql no Supabase.";
     assetsBody.innerHTML = `<tr><td colspan="10">${escapeHtml(message)}</td></tr>`;
     hardwareCards.innerHTML = `<div class="empty-state">${escapeHtml(message)}</div>`;
     updateHardwareSummary();
@@ -410,15 +416,15 @@ function renderAssets() {
   updateHardwareSummary(filteredAssets);
 
   if (!hardwareAssets.length) {
-    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma maquina enviou inventario ainda. Baixe o coletor e execute nos computadores.</td></tr>';
+    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina enviou inventário ainda. Baixe o coletor e execute nos computadores.</td></tr>';
     hardwareCards.innerHTML = '<div class="empty-state">Aguardando primeira coleta de hardware.</div>';
     renderDashboard();
     return;
   }
 
   if (!filteredAssets.length) {
-    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma maquina encontrada neste departamento.</td></tr>';
-    hardwareCards.innerHTML = '<div class="empty-state">Nenhuma maquina encontrada neste departamento.</div>';
+    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina encontrada neste departamento.</td></tr>';
+    hardwareCards.innerHTML = '<div class="empty-state">Nenhuma máquina encontrada neste departamento.</div>';
     return;
   }
 
@@ -436,7 +442,7 @@ function renderAssets() {
             <strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong>
             <span>${escapeHtml(getAssetDepartment(asset))} - ${escapeHtml(asset.model || "-")}</span>
           </div>
-          <span class="health-badge ${health.toLowerCase()}">${health}</span>
+          <span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span>
         </div>
         <div class="machine-presence ${online ? "online" : "offline"}"><i></i>${online ? "Online agora" : "Offline"}</div>
         <div class="hardware-live-grid">
@@ -444,10 +450,10 @@ function renderAssets() {
           ${liveMetric("RAM", live?.memory_percent)}
           ${liveMetric("Disco", live?.disk_percent)}
         </div>
-        <div class="hardware-spec">${escapeHtml(asset.cpu_name || "Processador nao informado")} | ${escapeHtml(asset.cpu_cores || 0)} nucleo(s)</div>
+        <div class="hardware-spec">${escapeHtml(asset.cpu_name || "Processador não informado")} | ${escapeHtml(asset.cpu_cores || 0)} núcleo(s)</div>
         <div class="health-meter"><span style="width:${Math.max(score, 4)}%"></span></div>
         <div class="hardware-score">${score}/100</div>
-        <p>${online ? `Ultima leitura: ${formatDateTime(live.last_seen)}` : formatWarnings(asset.warnings)}</p>
+        <p>${online ? `Última leitura: ${formatDateTime(live.last_seen)}` : formatWarnings(asset.warnings)}</p>
         <button class="secondary small details-button" type="button">Ver desempenho e propriedades</button>
       </article>
     `;
@@ -460,13 +466,13 @@ function renderAssets() {
     return `
       <tr>
         <td><strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong><br><span class="muted">Windows: ${escapeHtml(asset.computer_name)} | ${escapeHtml(asset.serial_number || "-")}</span></td>
-        <td><strong>${escapeHtml(getAssetDepartment(asset))}</strong><br><span class="muted">${escapeHtml(asset.responsible_name || "Sem responsavel fixo")}</span></td>
+        <td><strong>${escapeHtml(getAssetDepartment(asset))}</strong><br><span class="muted">${escapeHtml(asset.responsible_name || "Sem responsável fixo")}</span></td>
         <td>${escapeHtml(asset.manufacturer || "-")}<br><span class="muted">${escapeHtml(asset.model || "-")}</span></td>
-        <td>${escapeHtml(asset.cpu_name || "-")}<br><span class="muted">${escapeHtml(asset.cpu_cores || 0)} nucleo(s) / ${escapeHtml(asset.cpu_logical_processors || 0)} threads</span></td>
+        <td>${escapeHtml(asset.cpu_name || "-")}<br><span class="muted">${escapeHtml(asset.cpu_cores || 0)} núcleo(s) / ${escapeHtml(asset.cpu_logical_processors || 0)} threads</span></td>
         <td>${escapeHtml(asset.memory_total_gb || "-")} GB<br><span class="muted">${escapeHtml(asset.memory_slots || 0)} pente(s)</span></td>
         <td>${formatDisks(asset.disks)}</td>
         <td>${signals.monthCount}</td>
-        <td><span class="health-badge ${health.toLowerCase()}">${health}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
+        <td><span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
         <td>${formatDateTime(asset.reported_at)}</td>
         <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${asset.id}')">Detalhes</button><button class="secondary small" onclick="event.stopPropagation();editHardware('${asset.id}')">Editar</button></div></td>
       </tr>
@@ -507,7 +513,7 @@ hardwareEditForm.addEventListener("submit", async (event) => {
   };
   const { error } = await client.from("hardware_inventory").update(changes).eq("id", id);
   if (error) {
-    alert("Erro ao salvar identificacao: " + error.message);
+    alert("Erro ao salvar identificação: " + error.message);
     return;
   }
   closeHardwareEdit();
@@ -550,7 +556,7 @@ function setMetricDetail(prefix, value, cause) {
 function renderSparkline(targetId, history, field, color) {
   const svg = document.getElementById(targetId);
   if (!history.length) {
-    svg.innerHTML = '<text x="250" y="66" text-anchor="middle">Aguardando historico</text>';
+    svg.innerHTML = '<text x="250" y="66" text-anchor="middle">Aguardando histórico</text>';
     return;
   }
 
@@ -605,25 +611,25 @@ function renderDeviceProperties(asset, live) {
   document.getElementById("deviceProperties").innerHTML = [
     propertyItem("Nome do dispositivo", asset.computer_name),
     propertyItem("Identificacao", asset.display_name || asset.computer_name),
-    propertyItem("Responsavel atual", asset.responsible_name || "Sem responsavel fixo"),
+    propertyItem("Responsável atual", asset.responsible_name || "Sem responsável fixo"),
     propertyItem("Departamento", getAssetDepartment(asset)),
-    propertyItem("Usuario do Windows", asset.user_name),
+    propertyItem("Usuário do Windows", asset.user_name),
     propertyItem("Fabricante e modelo", `${asset.manufacturer || "-"} ${asset.model || ""}`.trim()),
     propertyItem("Processador", asset.cpu_name),
-    propertyItem("Nucleos e threads", `${asset.cpu_cores || 0} nucleos / ${asset.cpu_logical_processors || 0} threads`),
+    propertyItem("Núcleos e threads", `${asset.cpu_cores || 0} nucleos / ${asset.cpu_logical_processors || 0} threads`),
     propertyItem("RAM instalada", `${asset.memory_total_gb || live?.memory_total_gb || "-"} GB`),
-    propertyItem("Modulos de memoria", describeMemoryModules(asset.memory_modules)),
-    propertyItem("Placa de video", describeGpu(asset.gpu)),
+    propertyItem("Módulos de memória", describeMemoryModules(asset.memory_modules)),
+    propertyItem("Placa de vídeo", describeGpu(asset.gpu)),
     propertyItem("Armazenamento", disks),
     propertyItem("Volumes", volumes),
     propertyItem("Windows", `${asset.os_caption || "-"} ${asset.os_version || ""}`.trim()),
     propertyItem("Tipo de sistema", asset.system_type || asset.os_architecture),
-    propertyItem("Numero de serie", asset.serial_number),
+    propertyItem("Número de série", asset.serial_number),
     propertyItem("UUID do dispositivo", asset.device_uuid),
     propertyItem("ID do produto", asset.product_id),
     propertyItem("Tempo ligado", live ? formatUptime(live.uptime_seconds) : "-"),
-    propertyItem("Ultima coleta de inventario", formatDateTime(asset.reported_at)),
-    propertyItem("Ultima telemetria", live ? formatDateTime(live.last_seen) : "-"),
+    propertyItem("Última coleta de inventário", formatDateTime(asset.reported_at)),
+    propertyItem("Última telemetria", live ? formatDateTime(live.last_seen) : "-"),
   ].join("");
 }
 
@@ -640,7 +646,7 @@ function renderPerformanceAlerts(computerName) {
       <td><strong>${escapeHtml(alert.metric)}</strong></td>
       <td>${Math.round(Number(alert.peak_value || 0))}%</td>
       <td><span class="alert-status ${alert.status === "Ativo" ? "active" : "recovered"}">${escapeHtml(alert.status)}</span></td>
-      <td>${escapeHtml(alert.cause_process || "Nao identificado")}</td>
+      <td>${escapeHtml(alert.cause_process || "Não identificado")}</td>
       <td>${escapeHtml(alert.activity_category || "-")}</td>
     </tr>
   `).join("");
@@ -657,9 +663,9 @@ function renderHardwareDetails() {
   document.getElementById("deviceDetailSubtitle").innerText = `${getAssetDepartment(asset)} | ${asset.manufacturer || ""} ${asset.model || ""}`;
   const liveBadge = document.getElementById("deviceLiveStatus");
   liveBadge.className = `device-live-status ${online ? "online" : "offline"}`;
-  liveBadge.innerText = online ? "Online - atualizacao a cada 30 segundos" : "Offline ou sem agente ativo";
+  liveBadge.innerText = online ? "Online - atualização a cada 30 segundos" : "Offline ou sem agente ativo";
 
-  const activity = live?.activity_category || "Atividade nao identificada";
+  const activity = live?.activity_category || "Atividade não identificada";
   setMetricDetail("Cpu", live?.cpu_percent, live?.top_cpu?.[0] ? `Maior consumo: ${live.top_cpu[0].name}` : "Sem processo dominante");
   setMetricDetail("Memory", live?.memory_percent, live?.top_memory?.[0] ? `Maior consumo: ${live.top_memory[0].name}` : "Sem processo dominante");
   setMetricDetail("Disk", live?.disk_percent, live?.top_io?.[0] ? `Maior E/S: ${live.top_io[0].name}` : "Sem processo dominante");
@@ -669,10 +675,10 @@ function renderHardwareDetails() {
     <h4>Disco</h4>${processList(live?.top_io, "io")}
   `;
   document.getElementById("detailActivity").innerHTML = `
-    <span>Aplicativo em primeiro plano</span><strong>${escapeHtml(live?.active_process || "Nao identificado")}</strong>
+    <span>Aplicativo em primeiro plano</span><strong>${escapeHtml(live?.active_process || "Não identificado")}</strong>
     <span>Categoria observada</span><strong>${escapeHtml(activity)}</strong>
     ${activeAlert ? `<div class="active-cause"><b>Alerta ativo:</b> ${escapeHtml(activeAlert.message || activeAlert.metric)}</div>` : ""}
-    <small>O sistema registra o aplicativo e a categoria, sem capturar URL, texto ou conteudo do usuario.</small>
+    <small>O sistema registra o aplicativo e a categoria, sem capturar URL, texto ou conteúdo do usuário.</small>
   `;
   renderSparkline("cpuHistoryChart", selectedHistory, "cpu_percent", "#38bdf8");
   renderSparkline("memoryHistoryChart", selectedHistory, "memory_percent", "#a78bfa");
@@ -731,7 +737,7 @@ function renderNetworkAlerts() {
   const badge = document.getElementById("networkBadge");
 
   if (networkLoadError) {
-    networkAlertsBody.innerHTML = '<tr><td colspan="6">Tabela network_alerts ainda nao disponivel. Rode o SQL supabase-network-alerts.sql no Supabase.</td></tr>';
+    networkAlertsBody.innerHTML = '<tr><td colspan="6">Tabela network_alerts ainda não disponível. Rode o SQL supabase-network-alerts.sql no Supabase.</td></tr>';
     statusElement.innerText = "Nao configurado";
     banner.className = "network-health-banner warning";
     banner.innerText = "O monitoramento ainda precisa ser configurado.";
@@ -752,13 +758,13 @@ function renderNetworkAlerts() {
 
   if (activeIssue) {
     const critical = latest.severity === "Critica";
-    statusElement.innerText = critical ? "Oscilacao" : "Atencao";
+    statusElement.innerText = critical ? "Oscilação" : "Atenção";
     banner.className = `network-health-banner ${critical ? "critical" : "warning"}`;
     banner.innerText = `${latest.title || "Problema de internet"}: ${latest.message || "Verifique o UniFi."}`;
   } else {
-    statusElement.innerText = networkAlerts.length ? "Estavel" : "Sem eventos";
+    statusElement.innerText = networkAlerts.length ? "Estável" : "Sem eventos";
     banner.className = "network-health-banner stable";
-    banner.innerText = networkAlerts.length ? "Nenhuma oscilacao ativa detectada nos ultimos 30 minutos." : "Aguardando o primeiro evento do UniFi.";
+    banner.innerText = networkAlerts.length ? "Nenhuma oscilação ativa detectada nos últimos 30 minutos." : "Aguardando o primeiro evento do UniFi.";
   }
 
   if (criticalCount > 0) {
@@ -784,7 +790,7 @@ function renderNetworkAlerts() {
     return `
       <tr>
         <td>${formatDateTime(alert.event_time)}</td>
-        <td><span class="network-severity ${severityClass}">${escapeHtml(alert.severity || "Informacao")}</span></td>
+        <td><span class="network-severity ${severityClass}">${escapeHtml(accentLabel(alert.severity || "Informacao"))}</span></td>
         <td><strong>${escapeHtml(alert.title || alert.event_type || "Evento UniFi")}</strong></td>
         <td>${escapeHtml(wan)}</td>
         <td>${escapeHtml(metrics)}</td>
@@ -844,8 +850,8 @@ function renderTicketsPager(total, totalPages) {
   }
   pager.innerHTML = `
     <button class="secondary small" ${ticketsPage <= 1 ? "disabled" : ""} onclick="changeTicketsPage(-1)">Anterior</button>
-    <span class="pager-info">Pagina ${ticketsPage} de ${totalPages} &middot; ${total} chamados</span>
-    <button class="secondary small" ${ticketsPage >= totalPages ? "disabled" : ""} onclick="changeTicketsPage(1)">Proxima</button>
+    <span class="pager-info">Página ${ticketsPage} de ${totalPages} &middot; ${total} chamados</span>
+    <button class="secondary small" ${ticketsPage >= totalPages ? "disabled" : ""} onclick="changeTicketsPage(1)">Próxima</button>
   `;
 }
 
@@ -918,7 +924,7 @@ filterText.addEventListener("input", debounce(() => { ticketsPage = 1; renderTic
 filterStatus.addEventListener("change", () => { ticketsPage = 1; renderTickets(); });
 
 document.getElementById("btnExport").addEventListener("click", () => {
-  const header = ["Chamado", "Data", "Nome", "Departamento", "Tipo", "AnyDesk", "Status", "Descricao", "Print"];
+  const header = ["Chamado", "Data", "Nome", "Departamento", "Tipo", "AnyDesk", "Status", "Descrição", "Print"];
   const rows = allTickets.map((ticket) => [
     formatTicketNumber(ticket.id),
     new Date(ticket.created_at).toLocaleString("pt-BR"),
@@ -962,12 +968,12 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
   const button = document.getElementById("btnExportHardwareReport");
   const assets = getFilteredHardwareAssets();
   if (!assets.length) {
-    alert("Nenhuma maquina encontrada para gerar o relatorio.");
+    alert("Nenhuma máquina encontrada para gerar o relatório.");
     return;
   }
 
   button.disabled = true;
-  button.innerText = "Gerando relatorio...";
+  button.innerText = "Gerando relatório...";
   const computerNames = assets.map((asset) => asset.computer_name).filter(Boolean);
   const { data, error } = await client.from("hardware_performance_alerts")
     .select("*")
@@ -984,11 +990,11 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
   });
 
   const header = [
-    "Departamento", "Computador", "Responsavel atual", "Fabricante / modelo", "Integridade",
-    "Chamados no mes", "Principais tipos de chamado", "CPU atual", "Memoria atual", "Disco atual",
-    "Alertas CPU", "Maior pico CPU", "Alertas memoria", "Maior pico memoria", "Alertas disco", "Maior pico disco",
+    "Departamento", "Computador", "Responsável atual", "Fabricante / modelo", "Integridade",
+    "Chamados no mês", "Principais tipos de chamado", "CPU atual", "Memória atual", "Disco atual",
+    "Alertas CPU", "Maior pico CPU", "Alertas memória", "Maior pico memória", "Alertas disco", "Maior pico disco",
     "Processos associados aos picos", "Atividades observadas", "Alertas ativos", "Discos instalados",
-    "Ultima telemetria", "Ultima coleta de inventario",
+    "Última telemetria", "Última coleta de inventário",
   ];
 
   const rows = rankedAssets.map((asset) => {
@@ -1001,7 +1007,7 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
     const health = suggestedHealth(asset, tickets.length);
 
     return [
-      getAssetDepartment(asset), asset.display_name || asset.computer_name, asset.responsible_name || "Sem responsavel fixo",
+      getAssetDepartment(asset), asset.display_name || asset.computer_name, asset.responsible_name || "Sem responsável fixo",
       `${asset.manufacturer || "-"} ${asset.model || ""}`.trim(), health, tickets.length, ticketTypes,
       live ? `${Math.round(Number(live.cpu_percent || 0))}%` : "Offline",
       live ? `${Math.round(Number(live.memory_percent || 0))}%` : "Offline",
@@ -1020,11 +1026,11 @@ document.getElementById("btnExportHardwareReport").addEventListener("click", asy
   const departmentName = hardwareDepartmentFilter.value || "todos-os-departamentos";
   const safeName = departmentName.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
   link.href = URL.createObjectURL(blob);
-  link.download = `relatorio-inventario-${safeName || "departamento"}.csv`;
+  link.download = `relatório-inventario-${safeName || "departamento"}.csv`;
   link.click();
   URL.revokeObjectURL(link.href);
   button.disabled = false;
-  button.innerText = "Baixar relatorio do departamento";
+  button.innerText = "Baixar relatório do departamento";
 });
 
 populateHardwareEditDepartment();
