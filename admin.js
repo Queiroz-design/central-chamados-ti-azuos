@@ -25,6 +25,27 @@ let selectedHardwareId = null;
 let selectedHistory = [];
 let networkAlerts = [];
 let networkLoadError = "";
+let ticketsPage = 1;
+const TICKETS_PER_PAGE = 25;
+let signalsCache = new Map();
+let assetsRenderTimer = null;
+
+function debounce(fn, wait) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), wait);
+  };
+}
+
+// Agrupa varias telemetrias que chegam juntas em uma unica re-renderizacao.
+function scheduleRenderAssets() {
+  if (assetsRenderTimer) return;
+  assetsRenderTimer = setTimeout(() => {
+    assetsRenderTimer = null;
+    renderAssets();
+  }, 600);
+}
 
 document.getElementById("btnLogout").addEventListener("click", async () => {
   await client.auth.signOut();
@@ -128,7 +149,14 @@ async function loadTickets() {
     performanceLoadError = "";
   }
 
-  allTickets = data || [];
+  allTickets = (data || []).map((ticket) => ({
+    ...ticket,
+    _search: [
+      formatTicketNumber(ticket.id), ticket.nome, ticket.departamento,
+      ticket.tipo, ticket.anydesk, ticket.descricao, ticket.status,
+    ].map((value) => String(value || "")).join(" ").toLowerCase(),
+  }));
+  signalsCache.clear();
   populateHardwareDepartmentFilter();
   renderDashboard();
   renderAssets();
@@ -271,13 +299,15 @@ function getAssetMonthTickets(asset) {
 }
 
 function getAssetSignals(asset) {
+  if (signalsCache.has(asset.id)) return signalsCache.get(asset.id);
   const monthTickets = getAssetMonthTickets(asset);
   const byType = topEntries(groupCount(monthTickets, (ticket) => ticket.tipo), 1);
-
-  return {
+  const result = {
     monthCount: monthTickets.length,
     recurringType: byType.length && byType[0][1] >= 2 ? `${byType[0][0]} (${byType[0][1]})` : "-",
   };
+  signalsCache.set(asset.id, result);
+  return result;
 }
 
 function getAssetDepartment(asset) {
@@ -363,6 +393,7 @@ function liveMetric(label, value) {
 }
 
 function renderAssets() {
+  signalsCache.clear();
   const setupNotice = document.getElementById("performanceSetupNotice");
   setupNotice.classList.toggle("hidden", !performanceLoadError);
 
@@ -764,19 +795,25 @@ function renderNetworkAlerts() {
 }
 
 function renderTickets() {
-  const text = filterText.value.toLowerCase();
+  const text = filterText.value.trim().toLowerCase();
   const status = filterStatus.value;
-  const filtered = allTickets.filter((ticket) => {
-    const content = JSON.stringify(ticket).toLowerCase() + " " + formatTicketNumber(ticket.id).toLowerCase();
-    return content.includes(text) && (!status || ticket.status === status);
-  });
+  const filtered = allTickets.filter((ticket) =>
+    (!text || (ticket._search || "").includes(text)) && (!status || ticket.status === status)
+  );
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / TICKETS_PER_PAGE));
+  if (ticketsPage > totalPages) ticketsPage = totalPages;
+  if (ticketsPage < 1) ticketsPage = 1;
+  const startIndex = (ticketsPage - 1) * TICKETS_PER_PAGE;
+  const pageItems = filtered.slice(startIndex, startIndex + TICKETS_PER_PAGE);
 
   if (filtered.length === 0) {
     body.innerHTML = '<tr><td colspan="9">Nenhum chamado encontrado.</td></tr>';
+    renderTicketsPager(0, 1);
     return;
   }
 
-  body.innerHTML = filtered.map((ticket) => `
+  body.innerHTML = pageItems.map((ticket) => `
     <tr class="ticket-row" onclick="openTicketDetails('${ticket.id}')" title="Clique para ver o chamado completo">
       <td><strong>${formatTicketNumber(ticket.id)}</strong></td>
       <td>${escapeHtml(new Date(ticket.created_at).toLocaleString("pt-BR"))}</td>
@@ -795,7 +832,27 @@ function renderTickets() {
       <td onclick="event.stopPropagation()">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : "-"}</td>
     </tr>
   `).join("");
+  renderTicketsPager(filtered.length, totalPages);
 }
+
+function renderTicketsPager(total, totalPages) {
+  const pager = document.getElementById("ticketsPager");
+  if (!pager) return;
+  if (total <= TICKETS_PER_PAGE) {
+    pager.innerHTML = total ? `<span class="pager-info">${total} chamado(s)</span>` : "";
+    return;
+  }
+  pager.innerHTML = `
+    <button class="secondary small" ${ticketsPage <= 1 ? "disabled" : ""} onclick="changeTicketsPage(-1)">Anterior</button>
+    <span class="pager-info">Pagina ${ticketsPage} de ${totalPages} &middot; ${total} chamados</span>
+    <button class="secondary small" ${ticketsPage >= totalPages ? "disabled" : ""} onclick="changeTicketsPage(1)">Proxima</button>
+  `;
+}
+
+window.changeTicketsPage = function changeTicketsPage(delta) {
+  ticketsPage += delta;
+  renderTickets();
+};
 
 function truncateText(value, max = 60) {
   const text = String(value || "");
@@ -857,8 +914,8 @@ window.changeStatus = async function changeStatus(id, status) {
   await loadTickets();
 };
 
-filterText.addEventListener("input", renderTickets);
-filterStatus.addEventListener("change", renderTickets);
+filterText.addEventListener("input", debounce(() => { ticketsPage = 1; renderTickets(); }, 250));
+filterStatus.addEventListener("change", () => { ticketsPage = 1; renderTickets(); });
 
 document.getElementById("btnExport").addEventListener("click", () => {
   const header = ["Chamado", "Data", "Nome", "Departamento", "Tipo", "AnyDesk", "Status", "Descricao", "Print"];
@@ -988,7 +1045,7 @@ client
     if (!current?.computer_name) return;
     hardwareLiveStatus = [current, ...hardwareLiveStatus.filter((item) => item.computer_name !== current.computer_name)];
     performanceLoadError = "";
-    renderAssets();
+    scheduleRenderAssets();
     if (selectedHardwareId) renderHardwareDetails();
   })
   .on("postgres_changes", { event: "*", schema: "public", table: "hardware_performance_alerts" }, (payload) => {
