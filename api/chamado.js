@@ -18,7 +18,7 @@ function baseSupabaseUrl() {
     .replace(/\/rest\/v1$/, "");
 }
 
-const SELECT = "id,status,nome,departamento,tipo,anydesk,descricao,print_url,created_at";
+const SELECT = "id,status,nome,departamento,tipo,anydesk,prioridade,descricao,print_url,created_at";
 
 module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
@@ -70,6 +70,8 @@ module.exports = async function handler(req, res) {
     const tipo = str(body.tipo, 80);
     const anydesk = str(body.anydesk, 60);
     const descricao = str(body.descricao, 5000);
+    const contato = str(body.contato, 120);
+    const prioridade = ["Alta", "Média", "Baixa"].includes(String(body.prioridade)) ? String(body.prioridade) : "Média";
 
     // So aceita print que veio do storage do proprio projeto.
     let printUrl = String(body.print_url || "");
@@ -79,7 +81,7 @@ module.exports = async function handler(req, res) {
       return res.status(400).json({ error: "Preencha nome, departamento, tipo e descricao" });
     }
 
-    const record = { nome, departamento, tipo, anydesk, descricao, print_url: printUrl || null, status: "Aberto" };
+    const record = { nome, departamento, tipo, anydesk, prioridade, contato: contato || null, descricao, print_url: printUrl || null, status: "Aberto" };
     try {
       const r = await fetch(`${supabaseUrl}/rest/v1/chamados`, {
         method: "POST",
