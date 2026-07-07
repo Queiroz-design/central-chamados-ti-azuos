@@ -246,3 +246,32 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .pager{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:14px;flex-wrap:wrap}
 .pager-info{font-size:13px;color:#94a3b8}
 .pager button[disabled]{opacity:.45;cursor:not-allowed}
+/* ===== Responsivo: celular (<=640px) ===== */
+@media(max-width:640px){
+  /* Abas do painel em faixa compacta no topo */
+  .admin-sidebar{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .side-tab{flex-direction:column;justify-content:center;text-align:center;gap:4px;padding:10px 6px;font-size:13px}
+  .side-tab span{margin:0}
+  /* Tabela de chamados compacta: Chamado, Nome e Status (toque na linha abre o resto) */
+  .tickets-card table{min-width:0}
+  .tickets-card table th:nth-child(2),.tickets-card table td:nth-child(2),
+  .tickets-card table th:nth-child(4),.tickets-card table td:nth-child(4),
+  .tickets-card table th:nth-child(5),.tickets-card table td:nth-child(5),
+  .tickets-card table th:nth-child(6),.tickets-card table td:nth-child(6),
+  .tickets-card table th:nth-child(8),.tickets-card table td:nth-child(8),
+  .tickets-card table th:nth-child(9),.tickets-card table td:nth-child(9){display:none}
+  .desc-cell{max-width:none;white-space:normal}
+  th,td{padding:10px 8px}
+  /* Janelas ocupam quase a tela e rolam */
+  .modal-card{width:96%;max-width:96%;max-height:88vh;overflow:auto;padding:18px}
+  .ticket-detail-grid{grid-template-columns:1fr}
+  .header-actions{flex-wrap:wrap}
+  .pager{justify-content:center}
+}
+/* ===== Responsivo: telas bem estreitas (<=480px) ===== */
+@media(max-width:480px){
+  .header-title h1{font-size:24px}
+  .header-title p{font-size:14px}
+  .brand-logo{width:170px}
+  .card{padding:18px}
+}
