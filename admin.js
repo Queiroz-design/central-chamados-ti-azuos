@@ -1182,6 +1182,141 @@ client
   })
   .subscribe();
 
+// ===== Deposito de hardware (estoque: entrada e saida) =====
+const DEPOSITO_CATEGORIAS = ["SSD", "Memória", "Monitor", "Teclado", "Mouse", "Adaptador DisplayPort → VGA", "Adaptador HDMI → VGA", "Máquina (CPU)", "Outro"];
+let depositoItens = [];
+let depositoMovs = [];
+let depositoLoadError = "";
+
+function fillCategorySelect(el, includeAll) {
+  if (!el) return;
+  const current = el.value;
+  el.innerHTML = (includeAll ? '<option value="">Todas as categorias</option>' : "") +
+    DEPOSITO_CATEGORIAS.map((c) => `<option>${escapeHtml(c)}</option>`).join("");
+  if (current) el.value = current;
+}
+
+async function loadDeposito() {
+  if (!document.getElementById("depositoBody")) return;
+  const [itensRes, movsRes] = await Promise.all([
+    client.from("deposito_itens").select("*").order("categoria", { ascending: true }).order("nome", { ascending: true }),
+    client.from("deposito_movimentacoes").select("*").order("created_at", { ascending: false }).limit(50),
+  ]);
+  if (itensRes.error) { depositoLoadError = itensRes.error.message; depositoItens = []; }
+  else { depositoLoadError = ""; depositoItens = itensRes.data || []; }
+  depositoMovs = movsRes.error ? [] : (movsRes.data || []);
+  renderDeposito();
+}
+
+function renderDeposito() {
+  const listBody = document.getElementById("depositoBody");
+  if (!listBody) return;
+  fillCategorySelect(document.getElementById("depositoItemCategoria"), false);
+  fillCategorySelect(document.getElementById("depositoCategoryFilter"), true);
+  const metrics = document.getElementById("depositoMetrics");
+  const movBody = document.getElementById("depositoMovBody");
+
+  if (depositoLoadError) {
+    listBody.innerHTML = '<tr><td colspan="4">Depósito ainda não disponível. Rode o SQL supabase-deposito.sql no Supabase.</td></tr>';
+    if (metrics) metrics.innerHTML = "";
+    if (movBody) movBody.innerHTML = "";
+    return;
+  }
+
+  const filterCat = document.getElementById("depositoCategoryFilter").value;
+  const items = filterCat ? depositoItens.filter((i) => i.categoria === filterCat) : depositoItens;
+
+  const totalUnidades = depositoItens.reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const zerados = depositoItens.filter((i) => Number(i.quantidade || 0) <= 0).length;
+  if (metrics) metrics.innerHTML = `
+    <div class="ticket-metric"><span>Tipos de item</span><strong>${depositoItens.length}</strong></div>
+    <div class="ticket-metric"><span>Unidades em estoque</span><strong>${totalUnidades}</strong></div>
+    <div class="ticket-metric"><span>Itens zerados</span><strong>${zerados}</strong></div>
+  `;
+
+  listBody.innerHTML = items.length ? items.map((item) => `
+    <tr>
+      <td>${escapeHtml(item.categoria)}</td>
+      <td><strong>${escapeHtml(item.nome)}</strong></td>
+      <td><span class="estoque-badge ${Number(item.quantidade) <= 0 ? "zero" : ""}">${Number(item.quantidade || 0)}</span></td>
+      <td><div class="table-actions">
+        <button class="secondary small" onclick="movimentarDeposito('${item.id}','entrada')">Entrada</button>
+        <button class="secondary small" onclick="movimentarDeposito('${item.id}','saida')">Saída</button>
+        <button class="secondary small remove-hw" onclick="excluirDepositoItem('${item.id}')">Excluir</button>
+      </div></td>
+    </tr>
+  `).join("") : '<tr><td colspan="4">Nenhum item cadastrado. Clique em "Adicionar item".</td></tr>';
+
+  if (movBody) {
+    const nameById = {};
+    depositoItens.forEach((i) => { nameById[i.id] = i.nome; });
+    movBody.innerHTML = depositoMovs.length ? depositoMovs.map((m) => `
+      <tr>
+        <td>${escapeHtml(new Date(m.created_at).toLocaleString("pt-BR"))}</td>
+        <td>${escapeHtml(nameById[m.item_id] || "-")}</td>
+        <td><span class="mov-badge ${m.tipo}">${m.tipo === "entrada" ? "Entrada" : "Saída"}</span></td>
+        <td>${Number(m.quantidade)}</td>
+        <td>${escapeHtml(m.responsavel || "-")}</td>
+        <td>${escapeHtml(m.observacao || "-")}</td>
+      </tr>
+    `).join("") : '<tr><td colspan="6">Nenhuma movimentação ainda.</td></tr>';
+  }
+}
+
+window.movimentarDeposito = function movimentarDeposito(itemId, tipo) {
+  const item = depositoItens.find((i) => i.id === itemId);
+  if (!item) return;
+  document.getElementById("depositoMovItemId").value = itemId;
+  document.getElementById("depositoMovTipo").value = tipo;
+  document.getElementById("depositoMovTitle").innerText = `${tipo === "entrada" ? "Entrada" : "Saída"} — ${item.nome}`;
+  document.getElementById("depositoMovQtd").value = 1;
+  document.getElementById("depositoMovResp").value = "";
+  document.getElementById("depositoMovObs").value = "";
+  document.getElementById("depositoMovModal").classList.remove("hidden");
+};
+
+window.excluirDepositoItem = async function excluirDepositoItem(id) {
+  const item = depositoItens.find((i) => i.id === id);
+  if (!confirm(`Excluir o item "${item ? item.nome : ""}" do depósito? Esta ação não pode ser desfeita.`)) return;
+  const { error } = await client.from("deposito_itens").delete().eq("id", id);
+  if (error) { alert("Erro ao excluir: " + error.message); return; }
+  await loadDeposito();
+};
+
+document.getElementById("btnAddDepositoItem")?.addEventListener("click", () => {
+  document.getElementById("depositoItemForm").reset();
+  fillCategorySelect(document.getElementById("depositoItemCategoria"), false);
+  document.getElementById("depositoItemModal").classList.remove("hidden");
+});
+document.getElementById("btnCloseDepositoItem")?.addEventListener("click", () => document.getElementById("depositoItemModal").classList.add("hidden"));
+document.getElementById("btnCloseDepositoMov")?.addEventListener("click", () => document.getElementById("depositoMovModal").classList.add("hidden"));
+document.getElementById("depositoCategoryFilter")?.addEventListener("change", renderDeposito);
+
+document.getElementById("depositoItemForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const nome = document.getElementById("depositoItemNome").value.trim();
+  const categoria = document.getElementById("depositoItemCategoria").value;
+  const quantidade = Math.max(0, parseInt(document.getElementById("depositoItemQtd").value, 10) || 0);
+  if (!nome) return;
+  const { error } = await client.from("deposito_itens").insert({ nome, categoria, quantidade });
+  if (error) { alert("Erro ao adicionar item: " + error.message); return; }
+  document.getElementById("depositoItemModal").classList.add("hidden");
+  await loadDeposito();
+});
+
+document.getElementById("depositoMovForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const item_id = document.getElementById("depositoMovItemId").value;
+  const tipo = document.getElementById("depositoMovTipo").value;
+  const quantidade = Math.max(1, parseInt(document.getElementById("depositoMovQtd").value, 10) || 1);
+  const responsavel = document.getElementById("depositoMovResp").value.trim() || null;
+  const observacao = document.getElementById("depositoMovObs").value.trim() || null;
+  const { error } = await client.from("deposito_movimentacoes").insert({ item_id, tipo, quantidade, responsavel, observacao });
+  if (error) { alert("Erro ao registrar movimentação: " + error.message); return; }
+  document.getElementById("depositoMovModal").classList.add("hidden");
+  await loadDeposito();
+});
+
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
   const { data: { session } } = await client.auth.getSession();
@@ -1191,6 +1326,7 @@ async function initAdmin() {
   }
   document.body.style.visibility = "visible";
   loadTickets();
+  loadDeposito();
 }
 
 client.auth.onAuthStateChange((event) => {

@@ -299,3 +299,11 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .ticket-detail-edit label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#94a3b8}
 .ticket-detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 @media(max-width:640px){.ticket-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ticket-detail-edit{grid-template-columns:1fr}}
+/* Deposito (estoque) */
+.deposito-table,.deposito-mov-table{min-width:0}
+.deposito-mov-title{margin:22px 0 10px}
+.estoque-badge{display:inline-block;min-width:34px;text-align:center;padding:3px 10px;border-radius:20px;background:#0f2436;color:#93c5fd;font-weight:bold}
+.estoque-badge.zero{background:#3b1118;color:#fca5a5}
+.mov-badge{display:inline-block;font-size:12px;padding:3px 9px;border-radius:20px;font-weight:bold}
+.mov-badge.entrada{background:#052e20;color:#bbf7d0}
+.mov-badge.saida{background:#3a2c08;color:#fde68a}
