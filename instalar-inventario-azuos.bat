@@ -68,8 +68,10 @@ echo - desempenho de CPU, memoria e disco em tempo real.
 echo.
 echo Nao precisa rodar este instalador de novo nesta maquina.
 echo.
+echo Ao pressionar uma tecla, esta janela fecha e o instalador
+echo sera removido automaticamente da area de trabalho.
 pause
-exit /b 0
+(goto) 2>nul & del "%~f0"
 
 :erro
 color 0C
