@@ -65,6 +65,13 @@ document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
   document.querySelector(".admin-sidebar").classList.toggle("collapsed");
 });
 
+// Tema claro/escuro (lembra a escolha).
+try { if (localStorage.getItem("adminTheme") === "light") document.body.classList.add("light"); } catch (e) {}
+document.getElementById("btnTheme")?.addEventListener("click", () => {
+  const isLight = document.body.classList.toggle("light");
+  try { localStorage.setItem("adminTheme", isLight ? "light" : "dark"); } catch (e) {}
+});
+
 function showTab(tabName) {
   const selectedPanel = document.getElementById(`tab-${tabName}`);
   const shouldOpen = selectedPanel && !selectedPanel.classList.contains("active");
