@@ -29,6 +29,8 @@ let ticketsPage = 1;
 const TICKETS_PER_PAGE = 25;
 let signalsCache = new Map();
 let assetsRenderTimer = null;
+let hardwareView = "cards";
+let hardwareSort = { key: "nome", dir: "asc" };
 
 function debounce(fn, wait) {
   let timer;
@@ -57,6 +59,10 @@ document.getElementById("btnNetworkRefresh").addEventListener("click", loadNetwo
 
 document.querySelectorAll(".side-tab").forEach((button) => {
   button.addEventListener("click", () => showTab(button.dataset.tab));
+});
+
+document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
+  document.querySelector(".admin-sidebar").classList.toggle("collapsed");
 });
 
 function showTab(tabName) {
@@ -377,18 +383,52 @@ function getNextComputerLabel() {
   return `Computador ${String(next).padStart(2, "0")}`;
 }
 
+function assetSortValue(asset, key) {
+  if (key === "departamento") return normalizeText(getAssetDepartment(asset));
+  if (key === "memoria") return Number(asset.memory_total_gb || 0);
+  if (key === "chamados") return getAssetSignals(asset).monthCount;
+  if (key === "integridade") {
+    const rank = { Boa: 1, Atencao: 2, Critica: 3 };
+    return rank[suggestedHealth(asset, getAssetSignals(asset).monthCount)] || 0;
+  }
+  if (key === "coleta") return new Date(asset.reported_at || 0).getTime();
+  return normalizeText(asset.display_name || asset.computer_name);
+}
+
 function getFilteredHardwareAssets() {
   const department = normalizeText(hardwareDepartmentFilter.value);
-  const list = department
+  const searchInput = document.getElementById("hardwareSearch");
+  const search = normalizeText(searchInput ? searchInput.value : "");
+  let list = department
     ? hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department)
-    : hardwareAssets;
-  return [...list].sort((a, b) =>
-    String(a.display_name || a.computer_name || "").localeCompare(
-      String(b.display_name || b.computer_name || ""),
-      "pt-BR",
-      { numeric: true, sensitivity: "base" }
-    )
-  );
+    : hardwareAssets.slice();
+  if (search) {
+    list = list.filter((asset) =>
+      `${asset.display_name || ""} ${asset.computer_name || ""} ${getAssetDepartment(asset)} ${asset.model || ""} ${asset.cpu_name || ""} ${asset.manufacturer || ""}`
+        .toLowerCase().includes(search)
+    );
+  }
+  const dir = hardwareSort.dir === "desc" ? -1 : 1;
+  list.sort((a, b) => {
+    const va = assetSortValue(a, hardwareSort.key);
+    const vb = assetSortValue(b, hardwareSort.key);
+    if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+    return String(va).localeCompare(String(vb), "pt-BR", { numeric: true }) * dir;
+  });
+  return list;
+}
+
+function applyHardwareView() {
+  const cardsEl = document.getElementById("hardwareCards");
+  const tableEl = document.getElementById("hardwareTableWrap");
+  if (cardsEl) cardsEl.style.display = hardwareView === "table" ? "none" : "";
+  if (tableEl) tableEl.style.display = hardwareView === "table" ? "" : "none";
+  document.getElementById("btnViewCards")?.classList.toggle("active", hardwareView !== "table");
+  document.getElementById("btnViewTable")?.classList.toggle("active", hardwareView === "table");
+  document.querySelectorAll(".assets-table th.sortable").forEach((th) => {
+    const arrow = th.querySelector(".arrow");
+    if (arrow) arrow.textContent = th.dataset.sort === hardwareSort.key ? (hardwareSort.dir === "asc" ? "▲" : "▼") : "";
+  });
 }
 
 
@@ -438,6 +478,7 @@ function liveMetric(label, value) {
 
 function renderAssets() {
   signalsCache.clear();
+  applyHardwareView();
   const setupNotice = document.getElementById("performanceSetupNotice");
   setupNotice.classList.toggle("hidden", !performanceLoadError);
 
@@ -1070,6 +1111,18 @@ document.getElementById("btnExport").addEventListener("click", () => {
 });
 
 hardwareDepartmentFilter.addEventListener("change", renderAssets);
+try { hardwareView = localStorage.getItem("hardwareView") || "cards"; } catch (e) {}
+document.getElementById("hardwareSearch")?.addEventListener("input", debounce(renderAssets, 250));
+document.getElementById("btnViewCards")?.addEventListener("click", () => { hardwareView = "cards"; try { localStorage.setItem("hardwareView", "cards"); } catch (e) {} applyHardwareView(); });
+document.getElementById("btnViewTable")?.addEventListener("click", () => { hardwareView = "table"; try { localStorage.setItem("hardwareView", "table"); } catch (e) {} applyHardwareView(); });
+document.querySelectorAll(".assets-table th.sortable").forEach((th) => {
+  th.addEventListener("click", () => {
+    const key = th.dataset.sort;
+    if (hardwareSort.key === key) hardwareSort.dir = hardwareSort.dir === "asc" ? "desc" : "asc";
+    else { hardwareSort.key = key; hardwareSort.dir = "asc"; }
+    renderAssets();
+  });
+});
 
 function csvCell(value) {
   return `"${String(value ?? "").replaceAll('"', '""')}"`;
@@ -1326,6 +1379,132 @@ document.getElementById("depositoMovForm")?.addEventListener("submit", async (ev
   await loadDeposito();
 });
 
+// ===== Manutencao dos computadores =====
+const MANUTENCAO_TIPOS = ["Preventiva", "Corretiva", "Troca de peça", "Formatação/Reinstalação", "Limpeza", "Outro"];
+let manutencoes = [];
+let manutencoesLoadError = "";
+
+async function loadManutencoes() {
+  if (!document.getElementById("manutencaoBody")) return;
+  const { data, error } = await client.from("manutencoes").select("*").order("data", { ascending: false }).limit(300);
+  if (error) { manutencoesLoadError = error.message; manutencoes = []; }
+  else { manutencoesLoadError = ""; manutencoes = data || []; }
+  renderManutencoes();
+}
+
+function fillManutencaoComputers() {
+  const modalSel = document.getElementById("manutencaoComputador");
+  if (modalSel) {
+    const machines = [...hardwareAssets]
+      .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name }))
+      .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { numeric: true }));
+    modalSel.innerHTML = machines.length
+      ? machines.map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.label)}</option>`).join("")
+      : '<option value="">Nenhuma máquina no inventário</option>';
+  }
+  const filterSel = document.getElementById("manutencaoFilter");
+  if (filterSel) {
+    const current = filterSel.value;
+    const labels = [...new Set(manutencoes.map((m) => m.computer_label || m.computer_name).filter(Boolean))]
+      .sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { numeric: true }));
+    filterSel.innerHTML = '<option value="">Todos os computadores</option>' + labels.map((l) => `<option>${escapeHtml(l)}</option>`).join("");
+    if (labels.includes(current)) filterSel.value = current;
+  }
+}
+
+function renderManutencoes() {
+  const body = document.getElementById("manutencaoBody");
+  if (!body) return;
+  fillManutencaoComputers();
+  const rankBody = document.getElementById("manutencaoRankBody");
+  const metrics = document.getElementById("manutencaoMetrics");
+
+  if (manutencoesLoadError) {
+    body.innerHTML = '<tr><td colspan="6">Manutenção ainda não disponível. Rode o SQL supabase-manutencao.sql no Supabase.</td></tr>';
+    if (rankBody) rankBody.innerHTML = "";
+    if (metrics) metrics.innerHTML = "";
+    return;
+  }
+
+  const now = new Date();
+  const isMonth = (d) => { const x = new Date(d); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); };
+
+  const byMachine = {};
+  manutencoes.forEach((m) => {
+    const key = m.computer_label || m.computer_name || "Sem identificação";
+    if (!byMachine[key]) byMachine[key] = { total: 0, mes: 0 };
+    byMachine[key].total += 1;
+    if (isMonth(m.data)) byMachine[key].mes += 1;
+  });
+  const ranking = Object.entries(byMachine).sort((a, b) => b[1].total - a[1].total);
+
+  if (metrics) {
+    const totalMes = manutencoes.filter((m) => isMonth(m.data)).length;
+    const topLabel = ranking.length ? ranking[0][0] : "-";
+    metrics.innerHTML = `
+      <div class="ticket-metric"><span>Manutenções no mês</span><strong>${totalMes}</strong></div>
+      <div class="ticket-metric"><span>Total de registros</span><strong>${manutencoes.length}</strong></div>
+      <div class="ticket-metric"><span>Máquina mais mexida</span><strong style="font-size:16px">${escapeHtml(topLabel)}</strong></div>
+    `;
+  }
+
+  if (rankBody) {
+    rankBody.innerHTML = ranking.length ? ranking.map(([label, c]) => `
+      <tr>
+        <td><strong>${escapeHtml(label)}</strong></td>
+        <td>${c.mes}</td>
+        <td><span class="estoque-badge ${c.total >= 4 ? "zero" : ""}">${c.total}</span></td>
+      </tr>
+    `).join("") : '<tr><td colspan="3">Nenhuma manutenção registrada.</td></tr>';
+  }
+
+  const filter = document.getElementById("manutencaoFilter").value;
+  const rows = filter ? manutencoes.filter((m) => (m.computer_label || m.computer_name) === filter) : manutencoes;
+  body.innerHTML = rows.length ? rows.map((m) => `
+    <tr>
+      <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
+      <td><strong>${escapeHtml(m.computer_label || m.computer_name || "-")}</strong></td>
+      <td><span class="mov-badge entrada">${escapeHtml(m.tipo || "-")}</span></td>
+      <td>${escapeHtml(m.descricao || "-")}</td>
+      <td>${escapeHtml(m.responsavel || "-")}</td>
+      <td><button type="button" class="ticket-delete" onclick="excluirManutencao('${m.id}')">Excluir</button></td>
+    </tr>
+  `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
+}
+
+window.excluirManutencao = async function excluirManutencao(id) {
+  if (!confirm("Excluir este registro de manutenção?")) return;
+  const { error } = await client.from("manutencoes").delete().eq("id", id);
+  if (error) { alert("Erro ao excluir: " + error.message); return; }
+  await loadManutencoes();
+};
+
+document.getElementById("btnAddManutencao")?.addEventListener("click", () => {
+  document.getElementById("manutencaoForm").reset();
+  document.getElementById("manutencaoTipo").innerHTML = MANUTENCAO_TIPOS.map((t) => `<option>${escapeHtml(t)}</option>`).join("");
+  fillManutencaoComputers();
+  document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("manutencaoModal").classList.remove("hidden");
+});
+document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
+document.getElementById("manutencaoFilter")?.addEventListener("change", renderManutencoes);
+
+document.getElementById("manutencaoForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const sel = document.getElementById("manutencaoComputador");
+  const computer_name = sel.value || null;
+  const computer_label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : computer_name;
+  const tipo = document.getElementById("manutencaoTipo").value;
+  const descricao = document.getElementById("manutencaoDescricao").value.trim() || null;
+  const responsavel = document.getElementById("manutencaoResp").value.trim() || null;
+  const dataStr = document.getElementById("manutencaoData").value;
+  const data = dataStr ? new Date(dataStr + "T12:00:00").toISOString() : new Date().toISOString();
+  const { error } = await client.from("manutencoes").insert({ computer_name, computer_label, tipo, descricao, responsavel, data });
+  if (error) { alert("Erro ao salvar: " + error.message); return; }
+  document.getElementById("manutencaoModal").classList.add("hidden");
+  await loadManutencoes();
+});
+
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
   const { data: { session } } = await client.auth.getSession();
@@ -1336,6 +1515,7 @@ async function initAdmin() {
   document.body.style.visibility = "visible";
   loadTickets();
   loadDeposito();
+  loadManutencoes();
 }
 
 client.auth.onAuthStateChange((event) => {

@@ -11,7 +11,7 @@
 <body class="admin-body" style="visibility:hidden">
 
 <header class="top-header admin-header">
-  <div class="brand-side"><img src="logo-azuos.svg" alt="Grupo Azuos" class="brand-logo"></div>
+  <div class="brand-side"><img src="logo-azuos.png" alt="Grupo Azuos" class="brand-logo"></div>
   <div class="header-title">
     <h1>Painel do TI</h1>
     <p>Gerencie chamados, computadores e alertas de recorrência</p>
@@ -24,10 +24,12 @@
 
 <main class="admin-shell">
   <aside class="admin-sidebar">
+    <button id="btnToggleSidebar" class="sidebar-toggle" type="button" aria-label="Abrir ou fechar o menu">&#9776; Menu</button>
     <button class="side-tab" data-tab="dashboard"><span>01</span>Dashboard</button>
     <button class="side-tab" data-tab="inventario"><span>02</span>Inventário</button>
     <button class="side-tab" data-tab="rede"><span>03</span>Rede <b id="networkBadge" class="network-badge hidden">0</b></button>
     <button class="side-tab" data-tab="deposito"><span>04</span>Depósito</button>
+    <button class="side-tab" data-tab="manutencao"><span>05</span>Manutenção</button>
   </aside>
 
   <div class="admin-content">
@@ -185,6 +187,11 @@
           <option value="">Todos os departamentos</option>
         </select>
       </label>
+      <input type="text" id="hardwareSearch" placeholder="Buscar por computador, modelo, processador...">
+      <div class="view-toggle">
+        <button type="button" id="btnViewCards" class="active">Cards</button>
+        <button type="button" id="btnViewTable">Tabela</button>
+      </div>
       <button id="btnExportHardwareReport" type="button">Baixar relatório do departamento</button>
     </div>
 
@@ -220,19 +227,19 @@
 
     <div id="hardwareCards" class="hardware-cards"></div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" id="hardwareTableWrap">
       <table class="assets-table">
         <thead>
           <tr>
-            <th>Computador</th>
-            <th>Departamento</th>
+            <th class="sortable" data-sort="nome">Computador <span class="arrow"></span></th>
+            <th class="sortable" data-sort="departamento">Departamento <span class="arrow"></span></th>
             <th>Modelo</th>
             <th>Processador</th>
-            <th>Memória</th>
+            <th class="sortable" data-sort="memoria">Memória <span class="arrow"></span></th>
             <th>Discos</th>
-            <th>Chamados no mês</th>
-            <th>Integridade</th>
-            <th>Última coleta</th>
+            <th class="sortable" data-sort="chamados">Chamados no mês <span class="arrow"></span></th>
+            <th class="sortable" data-sort="integridade">Integridade <span class="arrow"></span></th>
+            <th class="sortable" data-sort="coleta">Última coleta <span class="arrow"></span></th>
             <th>Ações</th>
           </tr>
         </thead>
@@ -268,6 +275,36 @@
       <table class="deposito-mov-table">
         <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th></tr></thead>
         <tbody id="depositoMovBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tab-manutencao" class="card tab-panel">
+    <div class="admin-top">
+      <div>
+        <h2>Manutenção dos computadores</h2>
+        <p class="section-note">Histórico do que foi feito em cada máquina. Ajuda a ver quais são mexidas com frequência e precisam ser trocadas.</p>
+      </div>
+      <button id="btnAddManutencao" class="secondary">Registrar manutenção</button>
+    </div>
+    <div id="manutencaoMetrics" class="ticket-metrics"></div>
+    <h3 class="deposito-mov-title">Manutenções por computador</h3>
+    <div class="table-wrap">
+      <table class="deposito-table">
+        <thead><tr><th>Computador</th><th>No mês</th><th>Total</th></tr></thead>
+        <tbody id="manutencaoRankBody"></tbody>
+      </table>
+    </div>
+    <div class="inventory-toolbar">
+      <label>Computador
+        <select id="manutencaoFilter"><option value="">Todos os computadores</option></select>
+      </label>
+    </div>
+    <h3 class="deposito-mov-title">Histórico</h3>
+    <div class="table-wrap">
+      <table class="deposito-mov-table">
+        <thead><tr><th>Data</th><th>Computador</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th><th>Ações</th></tr></thead>
+        <tbody id="manutencaoBody"></tbody>
       </table>
     </div>
   </section>
@@ -396,6 +433,23 @@
         <label>Responsável <span class="optional">(opcional)</span><input type="text" id="depositoMovResp" placeholder="Quem retirou ou repôs"></label>
         <label>Observação <span class="optional">(opcional)</span><input type="text" id="depositoMovObs" placeholder="Ex: entregue para Fulano, sala 3"></label>
         <button type="submit" id="depositoMovSubmit">Confirmar</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="manutencaoModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true">
+      <div class="admin-top">
+        <h2>Registrar manutenção</h2>
+        <button type="button" id="btnCloseManutencao" class="secondary small">Fechar</button>
+      </div>
+      <form id="manutencaoForm">
+        <label>Computador<select id="manutencaoComputador"></select></label>
+        <label>Tipo<select id="manutencaoTipo"></select></label>
+        <label>O que foi feito<textarea id="manutencaoDescricao" placeholder="Ex: Troca de SSD; limpeza interna; troca de memória"></textarea></label>
+        <label>Responsável <span class="optional">(opcional)</span><input type="text" id="manutencaoResp" placeholder="Quem fez a manutenção"></label>
+        <label>Data<input type="date" id="manutencaoData"></label>
+        <button type="submit">Salvar manutenção</button>
       </form>
     </section>
   </div>
