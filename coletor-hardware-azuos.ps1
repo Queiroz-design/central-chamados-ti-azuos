@@ -206,7 +206,7 @@ $jsonBytes = [System.Text.Encoding]::UTF8.GetBytes($json)
 
 try {
   try {
-    Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes -ErrorAction Stop | Out-Null
+    Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $jsonBytes -TimeoutSec 30 -ErrorAction Stop | Out-Null
   } catch {
     $detail = $_.ErrorDetails.Message
     if (-not $detail -and $_.Exception.Response) {
@@ -216,7 +216,7 @@ try {
       } catch {}
     }
     if (-not $detail) {
-      $detail = (& curl.exe --ssl-no-revoke -sS -L -X POST $ProxyUrl `
+      $detail = (& curl.exe --ssl-no-revoke --max-time 30 -sS -L -X POST $ProxyUrl `
         -H "x-coletor-secret: $ColetorSecret" `
         -H "Content-Type: application/json; charset=utf-8" `
         --data-raw $json 2>&1) -join "`n"
