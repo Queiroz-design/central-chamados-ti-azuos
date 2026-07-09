@@ -14,8 +14,14 @@ $ColetorSecret = "azuos-coletor-gfz8q9w0bqb7"
 $ComputerName = $env:COMPUTERNAME
 $LogicalProcessors = [math]::Max(1, (Get-CimInstance Win32_ComputerSystem).NumberOfLogicalProcessors)
 
+$MonitorLogDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $MonitorLogDir) { $MonitorLogDir = Join-Path $env:ProgramData "GrupoAzuos\InventarioTI" }
+$MonitorLog = Join-Path $MonitorLogDir "ultima-telemetria-status.txt"
+function Write-MonitorLog($text) { try { Set-Content -Path $MonitorLog -Value "$((Get-Date).ToString('dd/MM/yyyy HH:mm:ss')) - $text" -Encoding UTF8 } catch {} }
+Write-MonitorLog "Monitor iniciado."
+
 $mutex = New-Object System.Threading.Mutex($false, "Local\AzuosMonitorDesempenho")
-if (-not $mutex.WaitOne(0, $false)) { exit 0 }
+if (-not $mutex.WaitOne(0, $false)) { Write-MonitorLog "Ja existe um monitor rodando nesta sessao. Este saiu."; exit 0 }
 
 Add-Type @"
 using System;
@@ -145,6 +151,7 @@ while ($true) {
       agent_version=$AgentVersion; last_seen=$now
     }
     Invoke-Supabase "Post" "hardware_live_status" $livePayload "?on_conflict=computer_name" $false | Out-Null
+    Write-MonitorLog "OK - telemetria enviada. CPU $cpuPercent% MEM $memoryPercent% DISK $diskPercent%"
 
     $cycle++
     if ($cycle -ge $HistoryEveryCycles) {
@@ -191,7 +198,9 @@ while ($true) {
         }
       }
     }
-  } catch {}
+  } catch {
+    Write-MonitorLog "ERRO ao enviar telemetria: $($_.Exception.Message)"
+  }
 
   Start-Sleep -Seconds $SampleSeconds
 }
