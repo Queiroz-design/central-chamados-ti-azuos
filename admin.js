@@ -12,7 +12,7 @@ const ticketDetailModal = document.getElementById("ticketDetailModal");
 const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
 const companyDepartments = [
   "ANALYZE", "CERTIFICADO", "COMERCIAL", "CONT\u00c1BIL", "CS", "FINANCEIRO",
-  "FISCAL", "INTEGRA\u00c7\u00c3O", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH",
+  "FISCAL", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH",
 ];
 
 let allTickets = [];
@@ -569,7 +569,7 @@ function renderAssets() {
         <td>${signals.monthCount}</td>
         <td><span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span><br><span class="muted">${escapeHtml(asset.health_score || 0)}/100</span></td>
         <td>${formatDateTime(asset.reported_at)}</td>
-        <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${asset.id}')">Detalhes</button><button class="secondary small" onclick="event.stopPropagation();editHardware('${asset.id}')">Editar</button><button class="secondary small remove-hw" onclick="event.stopPropagation();archiveHardware('${asset.id}')">Remover</button></div></td>
+        <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${asset.id}')">Detalhes</button><button class="secondary small" onclick="event.stopPropagation();editHardware('${asset.id}')">Editar</button><button class="secondary small remove-hw" onclick="event.stopPropagation();archiveHardware('${asset.id}')">Remover</button><button class="secondary small remove-hw" onclick="event.stopPropagation();blockHardware('${asset.id}')" title="Bloquear (rejeitar os dados desta máquina)">Bloquear</button></div></td>
       </tr>
     `;
   }).join("");
@@ -597,6 +597,21 @@ window.archiveHardware = async function archiveHardware(id) {
     alert("Erro ao remover: " + error.message);
     return;
   }
+  await loadTickets();
+};
+
+window.blockHardware = async function blockHardware(id) {
+  const asset = hardwareAssets.find((item) => item.id === id);
+  if (!asset) return;
+  const name = asset.computer_name;
+  const label = asset.display_name || name;
+  if (!confirm(`Bloquear a máquina "${label}" (${name})?\n\nEla some do painel E o sistema passa a REJEITAR os dados dela. Use para máquinas desconhecidas ou não autorizadas.`)) return;
+  const { error } = await client.from("coletores_bloqueados").insert({ computer_name: name, motivo: "Bloqueada pelo painel" });
+  if (error && !String(error.message).toLowerCase().includes("duplicate")) {
+    alert("Erro ao bloquear: " + error.message);
+    return;
+  }
+  await client.from("hardware_inventory").update({ arquivado: true }).eq("id", id);
   await loadTickets();
 };
 
