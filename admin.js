@@ -379,9 +379,18 @@ function getNextComputerLabel() {
 
 function getFilteredHardwareAssets() {
   const department = normalizeText(hardwareDepartmentFilter.value);
-  if (!department) return hardwareAssets;
-  return hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department);
+  const list = department
+    ? hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department)
+    : hardwareAssets;
+  return [...list].sort((a, b) =>
+    String(a.display_name || a.computer_name || "").localeCompare(
+      String(b.display_name || b.computer_name || ""),
+      "pt-BR",
+      { numeric: true, sensitivity: "base" }
+    )
+  );
 }
+
 
 function suggestedHealth(asset, monthCount) {
   if (asset.health_status === "Critica" || monthCount >= 5) return "Critica";
