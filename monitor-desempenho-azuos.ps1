@@ -23,6 +23,8 @@ Write-MonitorLog "Monitor iniciado."
 $mutex = New-Object System.Threading.Mutex($false, "Local\AzuosMonitorDesempenho")
 if (-not $mutex.WaitOne(0, $false)) { Write-MonitorLog "Ja existe um monitor rodando nesta sessao. Este saiu."; exit 0 }
 
+$ActiveWindowReady = $true
+try {
 Add-Type @"
 using System;
 using System.Runtime.InteropServices;
@@ -33,6 +35,8 @@ public class AzuosActiveWindow {
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
 }
 "@
+} catch { $ActiveWindowReady = $false }
+Write-MonitorLog "Preparando coleta..."
 
 function Clamp-Percent($value) {
   if ($null -eq $value) { return 0 }
@@ -53,9 +57,9 @@ function Invoke-Supabase($method, $table, $body, $query = "", $returnRepresentat
   $bytes = [Text.Encoding]::UTF8.GetBytes($json)
   $headers = @{ "x-coletor-secret" = $ColetorSecret }
   try {
-    return Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes -ErrorAction Stop
+    return Invoke-RestMethod -Method Post -Uri $ProxyUrl -Headers $headers -ContentType "application/json; charset=utf-8" -Body $bytes -TimeoutSec 20 -ErrorAction Stop
   } catch {
-    $result = & curl.exe --ssl-no-revoke -sS -f -L -X POST $ProxyUrl `
+    $result = & curl.exe --ssl-no-revoke --max-time 25 -sS -f -L -X POST $ProxyUrl `
       -H "x-coletor-secret: $ColetorSecret" `
       -H "Content-Type: application/json; charset=utf-8" `
       --data-raw $json 2>&1
@@ -66,6 +70,7 @@ function Invoke-Supabase($method, $table, $body, $query = "", $returnRepresentat
 }
 
 function Get-ActivityInfo {
+  if (-not $ActiveWindowReady) { return [ordered]@{ process = ""; category = "" } }
   $handle = [AzuosActiveWindow]::GetForegroundWindow()
   $pidValue = [uint32]0
   [AzuosActiveWindow]::GetWindowThreadProcessId($handle, [ref]$pidValue) | Out-Null
@@ -115,6 +120,7 @@ $recoveryCounts = @{ CPU=0; Memoria=0; Disco=0 }
 $activeAlerts = @{}
 $cycle = 0
 
+Write-MonitorLog "Verificando alertas ativos..."
 try {
   $existing = Invoke-Supabase "Get" "hardware_performance_alerts" $null "?computer_name=eq.$([uri]::EscapeDataString($ComputerName))&status=eq.Ativo&select=*" $false
   foreach ($alert in @($existing)) { $activeAlerts[$alert.metric] = $alert }
@@ -122,6 +128,7 @@ try {
 
 while ($true) {
   try {
+    Write-MonitorLog "Coletando desempenho..."
     $processor = Get-CimInstance Win32_PerfFormattedData_PerfOS_Processor -Filter "Name='_Total'"
     $disk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"
     $os = Get-CimInstance Win32_OperatingSystem
