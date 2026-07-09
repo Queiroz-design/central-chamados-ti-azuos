@@ -23,19 +23,6 @@ Write-MonitorLog "Monitor iniciado."
 $mutex = New-Object System.Threading.Mutex($false, "Local\AzuosMonitorDesempenho")
 if (-not $mutex.WaitOne(0, $false)) { Write-MonitorLog "Ja existe um monitor rodando nesta sessao. Este saiu."; exit 0 }
 
-$ActiveWindowReady = $true
-try {
-Add-Type @"
-using System;
-using System.Runtime.InteropServices;
-using System.Text;
-public class AzuosActiveWindow {
-  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder text, int count);
-  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
-}
-"@
-} catch { $ActiveWindowReady = $false }
 Write-MonitorLog "Preparando coleta..."
 
 function Clamp-Percent($value) {
@@ -70,28 +57,8 @@ function Invoke-Supabase($method, $table, $body, $query = "", $returnRepresentat
 }
 
 function Get-ActivityInfo {
-  if (-not $ActiveWindowReady) { return [ordered]@{ process = ""; category = "" } }
-  $handle = [AzuosActiveWindow]::GetForegroundWindow()
-  $pidValue = [uint32]0
-  [AzuosActiveWindow]::GetWindowThreadProcessId($handle, [ref]$pidValue) | Out-Null
-  $builder = New-Object Text.StringBuilder 512
-  [AzuosActiveWindow]::GetWindowText($handle, $builder, $builder.Capacity) | Out-Null
-  $title = $builder.ToString()
-  $process = Get-Process -Id $pidValue
-  $name = if ($process) { $process.ProcessName } else { "" }
-  $category = $name
-
-  if ($name -match "chrome|msedge|firefox|opera|brave") {
-    if ($title -match "YouTube") { $category = "YouTube no navegador" }
-    elseif ($title -match "Google Meet|Meet") { $category = "Reuniao no navegador" }
-    else { $category = "Navegador" }
-  } elseif ($name -match "Teams") { $category = "Microsoft Teams" }
-  elseif ($name -match "EXCEL") { $category = "Microsoft Excel" }
-  elseif ($name -match "WINWORD") { $category = "Microsoft Word" }
-  elseif ($name -match "OUTLOOK") { $category = "Microsoft Outlook" }
-  elseif ($name -match "AnyDesk") { $category = "AnyDesk" }
-
-  return [ordered]@{ process = $name; category = $category }
+  # Removido o monitoramento de janela ativa (parecia spyware para o antivirus).
+  return [ordered]@{ process = ""; category = "" }
 }
 
 function Get-TopProcesses($perfProcesses) {
