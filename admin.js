@@ -32,6 +32,7 @@ let assetsRenderTimer = null;
 let hardwareView = "cards";
 let hardwareSort = { key: "nome", dir: "asc" };
 let hardwareHealthFilter = "";
+let hardwareLiveFilter = "";
 
 function debounce(fn, wait) {
   let timer;
@@ -66,12 +67,29 @@ document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
   document.querySelector(".admin-sidebar").classList.toggle("collapsed");
 });
 
-// Filtro por saude: clicar nas caixas abre as maquinas daquele estado.
+// Filtros clicaveis: caixas de saude e caixas de estado ao vivo (um por vez).
+function updateFilterActiveClasses() {
+  document.querySelectorAll(".health-filter").forEach((b) => b.classList.toggle("active", b.dataset.health === hardwareHealthFilter && hardwareHealthFilter !== ""));
+  document.querySelectorAll(".live-filter").forEach((b) => b.classList.toggle("active", b.dataset.live === hardwareLiveFilter && hardwareLiveFilter !== ""));
+}
+
 document.querySelectorAll(".health-filter").forEach((box) => {
   box.addEventListener("click", () => {
     const h = box.dataset.health;
     hardwareHealthFilter = (h === "all" || hardwareHealthFilter === h) ? "" : h;
-    document.querySelectorAll(".health-filter").forEach((b) => b.classList.toggle("active", b.dataset.health === hardwareHealthFilter && hardwareHealthFilter !== ""));
+    hardwareLiveFilter = "";
+    updateFilterActiveClasses();
+    renderAssets();
+    document.getElementById("hardwareCards")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+});
+
+document.querySelectorAll(".live-filter").forEach((box) => {
+  box.addEventListener("click", () => {
+    const v = box.dataset.live;
+    hardwareLiveFilter = hardwareLiveFilter === v ? "" : v;
+    hardwareHealthFilter = "";
+    updateFilterActiveClasses();
     renderAssets();
     document.getElementById("hardwareCards")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
   });
@@ -476,6 +494,20 @@ function isMachineOnline(live) {
   return Boolean(live && Date.now() - new Date(live.last_seen).getTime() <= 90 * 1000);
 }
 
+function assetMatchesLive(asset, filter) {
+  const live = getLiveStatus(asset.computer_name);
+  const online = isMachineOnline(live);
+  if (filter === "online") return online;
+  if (filter === "offline") return !online;
+  if (filter === "alertas") {
+    return performanceAlerts.some((a) => normalizeText(a.computer_name) === normalizeText(asset.computer_name) && a.status === "Ativo");
+  }
+  if (filter === "cpu") return online && Number(live.cpu_percent || 0) >= 80;
+  if (filter === "memoria") return online && Number(live.memory_percent || 0) >= 80;
+  if (filter === "disco") return online && Number(live.disk_percent || 0) >= 80;
+  return true;
+}
+
 function metricLevel(value) {
   const number = Number(value || 0);
   if (number >= 98) return "critical";
@@ -506,9 +538,12 @@ function renderAssets() {
   const filteredAssets = getFilteredHardwareAssets();
   updateHardwareSummary(filteredAssets);
 
-  const displayAssets = hardwareHealthFilter
-    ? filteredAssets.filter((asset) => suggestedHealth(asset, getAssetSignals(asset).monthCount) === hardwareHealthFilter)
-    : filteredAssets;
+  let displayAssets = filteredAssets;
+  if (hardwareHealthFilter) {
+    displayAssets = filteredAssets.filter((asset) => suggestedHealth(asset, getAssetSignals(asset).monthCount) === hardwareHealthFilter);
+  } else if (hardwareLiveFilter) {
+    displayAssets = filteredAssets.filter((asset) => assetMatchesLive(asset, hardwareLiveFilter));
+  }
 
   if (!hardwareAssets.length) {
     assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina enviou inventário ainda. Baixe o coletor e execute nos computadores.</td></tr>';
@@ -660,6 +695,8 @@ function updateHardwareSummary(assets = getFilteredHardwareAssets()) {
 
   const online = hardwareLiveStatus.filter((live) => computerNames.has(normalizeText(live.computer_name)) && isMachineOnline(live));
   document.getElementById("hwOnline").innerText = online.length;
+  const offEl = document.getElementById("hwOffline");
+  if (offEl) offEl.innerText = Math.max(0, assets.length - online.length);
   document.getElementById("hwActiveAlerts").innerText = performanceAlerts.filter((alert) => computerNames.has(normalizeText(alert.computer_name)) && alert.status === "Ativo").length;
   document.getElementById("hwCpuHigh").innerText = online.filter((item) => Number(item.cpu_percent) >= 80).length;
   document.getElementById("hwMemoryHigh").innerText = online.filter((item) => Number(item.memory_percent) >= 80).length;

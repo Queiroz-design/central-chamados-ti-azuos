@@ -215,11 +215,12 @@
     </div>
 
     <div class="live-summary">
-      <div><span class="live-dot"></span><strong id="hwOnline">0</strong><small>online agora</small></div>
-      <div><strong id="hwActiveAlerts">0</strong><small>alertas ativos</small></div>
-      <div><strong id="hwCpuHigh">0</strong><small>CPU elevada</small></div>
-      <div><strong id="hwMemoryHigh">0</strong><small>memória elevada</small></div>
-      <div><strong id="hwDiskHigh">0</strong><small>disco elevado</small></div>
+      <div class="live-filter" data-live="online" title="Ver máquinas online"><span class="live-dot"></span><strong id="hwOnline">0</strong><small>online agora</small></div>
+      <div class="live-filter" data-live="offline" title="Ver máquinas offline"><strong id="hwOffline">0</strong><small>offline</small></div>
+      <div class="live-filter" data-live="alertas" title="Ver máquinas com alerta ativo"><strong id="hwActiveAlerts">0</strong><small>alertas ativos</small></div>
+      <div class="live-filter" data-live="cpu" title="Ver máquinas com CPU elevada"><strong id="hwCpuHigh">0</strong><small>CPU elevada</small></div>
+      <div class="live-filter" data-live="memoria" title="Ver máquinas com memória elevada"><strong id="hwMemoryHigh">0</strong><small>memória elevada</small></div>
+      <div class="live-filter" data-live="disco" title="Ver máquinas com disco elevado"><strong id="hwDiskHigh">0</strong><small>disco elevado</small></div>
     </div>
     <div id="performanceSetupNotice" class="setup-notice hidden">
       O monitoramento em tempo real ainda precisa ser ativado no Supabase.

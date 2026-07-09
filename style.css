@@ -343,6 +343,9 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .health-filter{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .health-filter:hover{transform:translateY(-2px)}
 .health-filter.active{outline:2px solid #38bdf8;outline-offset:2px}
+.live-filter{cursor:pointer;border-radius:8px;transition:background .12s ease}
+.live-filter:hover{background:rgba(56,189,248,.08)}
+.live-filter.active{outline:2px solid #38bdf8;outline-offset:2px;background:rgba(56,189,248,.10)}
 /* Tabela de inventario estilo planilha (Excel) profissional */
 .admin-body .assets-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.03)}
 .admin-body .assets-table tbody tr:hover td{background:rgba(56,189,248,.10)}
