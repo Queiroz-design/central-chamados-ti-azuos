@@ -31,6 +31,7 @@ let signalsCache = new Map();
 let assetsRenderTimer = null;
 let hardwareView = "cards";
 let hardwareSort = { key: "nome", dir: "asc" };
+let hardwareHealthFilter = "";
 
 function debounce(fn, wait) {
   let timer;
@@ -65,11 +66,15 @@ document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
   document.querySelector(".admin-sidebar").classList.toggle("collapsed");
 });
 
-// Tema claro/escuro (lembra a escolha).
-try { if (localStorage.getItem("adminTheme") === "light") document.body.classList.add("light"); } catch (e) {}
-document.getElementById("btnTheme")?.addEventListener("click", () => {
-  const isLight = document.body.classList.toggle("light");
-  try { localStorage.setItem("adminTheme", isLight ? "light" : "dark"); } catch (e) {}
+// Filtro por saude: clicar nas caixas abre as maquinas daquele estado.
+document.querySelectorAll(".health-filter").forEach((box) => {
+  box.addEventListener("click", () => {
+    const h = box.dataset.health;
+    hardwareHealthFilter = (h === "all" || hardwareHealthFilter === h) ? "" : h;
+    document.querySelectorAll(".health-filter").forEach((b) => b.classList.toggle("active", b.dataset.health === hardwareHealthFilter && hardwareHealthFilter !== ""));
+    renderAssets();
+    document.getElementById("hardwareCards")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
 });
 
 function showTab(tabName) {
@@ -501,6 +506,10 @@ function renderAssets() {
   const filteredAssets = getFilteredHardwareAssets();
   updateHardwareSummary(filteredAssets);
 
+  const displayAssets = hardwareHealthFilter
+    ? filteredAssets.filter((asset) => suggestedHealth(asset, getAssetSignals(asset).monthCount) === hardwareHealthFilter)
+    : filteredAssets;
+
   if (!hardwareAssets.length) {
     assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina enviou inventário ainda. Baixe o coletor e execute nos computadores.</td></tr>';
     hardwareCards.innerHTML = '<div class="empty-state">Aguardando primeira coleta de hardware.</div>';
@@ -508,13 +517,13 @@ function renderAssets() {
     return;
   }
 
-  if (!filteredAssets.length) {
-    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina encontrada neste departamento.</td></tr>';
-    hardwareCards.innerHTML = '<div class="empty-state">Nenhuma máquina encontrada neste departamento.</div>';
+  if (!displayAssets.length) {
+    assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina neste filtro.</td></tr>';
+    hardwareCards.innerHTML = '<div class="empty-state">Nenhuma máquina neste filtro.</div>';
     return;
   }
 
-  hardwareCards.innerHTML = filteredAssets.map((asset) => {
+  hardwareCards.innerHTML = displayAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
     const score = Number(asset.health_score || 0);
@@ -545,7 +554,7 @@ function renderAssets() {
     `;
   }).join("");
 
-  assetsBody.innerHTML = filteredAssets.map((asset) => {
+  assetsBody.innerHTML = displayAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
 

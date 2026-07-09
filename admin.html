@@ -17,7 +17,6 @@
     <p>Gerencie chamados, computadores e alertas de recorrência</p>
   </div>
   <div class="header-actions">
-    <button id="btnTheme" class="btn secondary" type="button" title="Alternar tema claro/escuro">Tema</button>
     <a class="btn secondary" href="index.html">Abrir chamado</a>
     <button id="btnLogout" class="danger">Sair</button>
   </div>
@@ -197,19 +196,19 @@
     </div>
 
     <div class="hardware-summary">
-      <div class="stat-box">
+      <div class="stat-box health-filter" data-health="all" title="Ver todas as máquinas">
         <span>Máquinas inventariadas</span>
         <strong id="hwTotal">0</strong>
       </div>
-      <div class="stat-box good-stat">
+      <div class="stat-box good-stat health-filter" data-health="Boa" title="Ver as máquinas com saúde boa">
         <span>Saúde boa</span>
         <strong id="hwGood">0</strong>
       </div>
-      <div class="stat-box warning">
+      <div class="stat-box warning health-filter" data-health="Atencao" title="Ver as máquinas em atenção">
         <span>Em atenção</span>
         <strong id="hwWarning">0</strong>
       </div>
-      <div class="stat-box danger-stat">
+      <div class="stat-box danger-stat health-filter" data-health="Critica" title="Ver as máquinas críticas">
         <span>Críticas</span>
         <strong id="hwCritical">0</strong>
       </div>

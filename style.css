@@ -2,7 +2,7 @@
 :root{--azul:#183a83;--azul-escuro:#0f2a63;--azul-vivo:#0057d8;--amarelo:#f2e600;--fundo:#f4f7fb;--texto:#0f172a;--borda:#d6deea}
 body{margin:0;font-family:Arial,Helvetica,sans-serif;background:linear-gradient(180deg,#fff 0%,#f4f7fb 45%,#f7f9fc 100%);color:var(--texto)}
 .top-header{background:#fff;min-height:145px;padding:24px 38px 26px;display:grid;grid-template-columns:260px 1fr 260px;align-items:center;gap:20px;border-bottom:3px solid var(--azul-vivo);box-shadow:0 2px 16px rgba(18,63,140,.06)}
-.brand-logo{width:230px;max-width:100%;display:block}
+.brand-logo{height:46px;width:auto;max-width:230px;display:block}
 .header-title{text-align:center}
 .header-title h1{margin:0 0 12px;color:var(--azul-escuro);font-size:38px;font-weight:800}
 .header-title p{margin:0;font-size:18px;color:#475569}
@@ -339,3 +339,15 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .admin-body.light .stat-box,.admin-body.light .legend-row,.admin-body.light .empty-state,.admin-body.light .ticket-metric{background:#f4f7fb;border-color:#e2e8f0;color:#334155}
 .admin-body.light .inventory-toolbar{background:#f4f7fb;border-color:#e2e8f0}
 .admin-body.light .ticket-row:hover td{background:#f1f6ff}
+/* Caixas de saude clicaveis (filtro) */
+.health-filter{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+.health-filter:hover{transform:translateY(-2px)}
+.health-filter.active{outline:2px solid #38bdf8;outline-offset:2px}
+/* Tabela de inventario estilo planilha (Excel) profissional */
+.admin-body .assets-table tbody tr:nth-child(even) td{background:rgba(255,255,255,.03)}
+.admin-body .assets-table tbody tr:hover td{background:rgba(56,189,248,.10)}
+.assets-table th,.assets-table td{border-right:1px solid rgba(148,163,184,.12)}
+.assets-table th:last-child,.assets-table td:last-child{border-right:0}
+.assets-table th{white-space:nowrap}
+.admin-body.light .assets-table tbody tr:nth-child(even) td{background:#f7f9fc}
+.admin-body.light .assets-table tbody tr:hover td{background:#eaf2ff}
