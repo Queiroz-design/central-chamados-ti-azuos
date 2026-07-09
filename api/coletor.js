@@ -117,6 +117,20 @@ module.exports = async function handler(req, res) {
   };
   if (prefer) headers.Prefer = prefer;
 
+  // Rejeita maquinas bloqueadas (nao autorizadas).
+  const computerName = payload && typeof payload === "object" ? payload.computer_name : null;
+  if (computerName && (method === "POST" || method === "PATCH")) {
+    try {
+      const chk = await fetch(`${supabaseUrl}/rest/v1/coletores_bloqueados?computer_name=eq.${encodeURIComponent(computerName)}&select=computer_name`, { headers });
+      const blocked = await chk.json();
+      if (Array.isArray(blocked) && blocked.length) {
+        return res.status(403).json({ error: "Maquina bloqueada" });
+      }
+    } catch (e) {
+      // Se a checagem falhar, deixa passar para nao travar a coleta legitima.
+    }
+  }
+
   const options = { method, headers };
   if (method !== "GET" && payload !== undefined) {
     options.body = JSON.stringify(payload);
