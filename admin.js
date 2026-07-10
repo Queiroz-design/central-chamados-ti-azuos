@@ -1313,7 +1313,7 @@ client
   .subscribe();
 
 // ===== Deposito de hardware (estoque: entrada e saida) =====
-const DEPOSITO_CATEGORIAS = ["SSD", "Memória", "Monitor", "Teclado", "Mouse", "Adaptador DisplayPort → VGA", "Adaptador HDMI → VGA", "Máquina (CPU)", "Outro"];
+const DEPOSITO_CATEGORIAS = ["SSD", "Memória", "Monitor", "Teclado", "Mouse", "Fone de ouvido", "Adaptador DisplayPort → VGA", "Adaptador HDMI → VGA", "Máquina (CPU)", "Outro"];
 let depositoItens = [];
 let depositoMovs = [];
 let depositoLoadError = "";
@@ -1354,7 +1354,17 @@ function renderDeposito() {
   }
 
   const filterCat = document.getElementById("depositoCategoryFilter").value;
-  const items = filterCat ? depositoItens.filter((i) => i.categoria === filterCat) : depositoItens;
+  const condEl = document.getElementById("depositoCondFilter");
+  const filterCond = condEl ? condEl.value : "";
+  const condOf = (i) => ((i.condicao || "Novo") === "Usado" ? "Usado" : "Novo");
+  const items = depositoItens
+    .filter((i) => (!filterCat || i.categoria === filterCat) && (!filterCond || condOf(i) === filterCond))
+    .slice()
+    .sort((a, b) =>
+      String(a.categoria).localeCompare(String(b.categoria), "pt-BR", { numeric: true }) ||
+      condOf(a).localeCompare(condOf(b)) ||
+      String(a.nome).localeCompare(String(b.nome), "pt-BR", { numeric: true })
+    );
 
   const totalUnidades = depositoItens.reduce((s, i) => s + Number(i.quantidade || 0), 0);
   const zerados = depositoItens.filter((i) => Number(i.quantidade || 0) <= 0).length;
@@ -1422,6 +1432,7 @@ document.getElementById("btnAddDepositoItem")?.addEventListener("click", () => {
 document.getElementById("btnCloseDepositoItem")?.addEventListener("click", () => document.getElementById("depositoItemModal").classList.add("hidden"));
 document.getElementById("btnCloseDepositoMov")?.addEventListener("click", () => document.getElementById("depositoMovModal").classList.add("hidden"));
 document.getElementById("depositoCategoryFilter")?.addEventListener("change", renderDeposito);
+document.getElementById("depositoCondFilter")?.addEventListener("change", renderDeposito);
 
 document.getElementById("depositoItemForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();

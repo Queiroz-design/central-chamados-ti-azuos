@@ -264,16 +264,23 @@
           <option value="">Todas as categorias</option>
         </select>
       </label>
+      <label>Condição
+        <select id="depositoCondFilter">
+          <option value="">Todas</option>
+          <option value="Novo">Novo</option>
+          <option value="Usado">Usado</option>
+        </select>
+      </label>
     </div>
     <div class="table-wrap">
-      <table class="deposito-table">
-        <thead><tr><th>Categoria</th><th>Item</th><th>Condição</th><th>Em estoque</th><th>Ações</th></tr></thead>
+      <table class="deposito-table pro-table">
+        <thead><tr><th>Categoria</th><th>Descrição</th><th>Condição</th><th>Em estoque</th><th>Ações</th></tr></thead>
         <tbody id="depositoBody"></tbody>
       </table>
     </div>
     <h3 class="deposito-mov-title">Últimas movimentações</h3>
     <div class="table-wrap">
-      <table class="deposito-mov-table">
+      <table class="deposito-mov-table pro-table">
         <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th></tr></thead>
         <tbody id="depositoMovBody"></tbody>
       </table>
@@ -291,7 +298,7 @@
     <div id="manutencaoMetrics" class="ticket-metrics"></div>
     <h3 class="deposito-mov-title">Manutenções por computador</h3>
     <div class="table-wrap">
-      <table class="deposito-table">
+      <table class="deposito-table pro-table">
         <thead><tr><th>Computador</th><th>No mês</th><th>Total</th></tr></thead>
         <tbody id="manutencaoRankBody"></tbody>
       </table>
@@ -303,7 +310,7 @@
     </div>
     <h3 class="deposito-mov-title">Histórico</h3>
     <div class="table-wrap">
-      <table class="deposito-mov-table">
+      <table class="deposito-mov-table pro-table">
         <thead><tr><th>Data</th><th>Computador</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th><th>Ações</th></tr></thead>
         <tbody id="manutencaoBody"></tbody>
       </table>
@@ -413,7 +420,7 @@
         <button type="button" id="btnCloseDepositoItem" class="secondary small">Fechar</button>
       </div>
       <form id="depositoItemForm">
-        <label>Nome do item<input type="text" id="depositoItemNome" placeholder="Ex: SSD 240GB, Monitor LG 22" required></label>
+        <label>Descrição do item<input type="text" id="depositoItemNome" placeholder="Ex: SSD 240GB Kingston, Monitor LG 22, Fone com microfone" required></label>
         <label>Categoria<select id="depositoItemCategoria"></select></label>
         <label>Condição<select id="depositoItemCondicao"><option value="Novo">Novo</option><option value="Usado">Usado</option></select></label>
         <label>Quantidade inicial<input type="number" id="depositoItemQtd" min="0" value="0"></label>
