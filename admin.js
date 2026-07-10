@@ -1018,13 +1018,20 @@ function renderTicketMetrics() {
     const min = Math.round(durations.reduce((a, b) => a + b, 0) / durations.length / 60000);
     avg = min < 60 ? `${min} min` : `${Math.floor(min / 60)}h ${min % 60}m`;
   }
+  const cur = filterStatus.value;
   target.innerHTML = `
-    <div class="ticket-metric"><span>Abertos</span><strong>${open}</strong></div>
-    <div class="ticket-metric"><span>Em atendimento</span><strong>${inProgress}</strong></div>
-    <div class="ticket-metric"><span>Resolvidos hoje</span><strong>${resolvedToday}</strong></div>
+    <div class="ticket-metric m-open clickable ${cur === "Aberto" ? "active" : ""}" onclick="filtrarChamados('Aberto')" title="Clique para ver os chamados abertos"><span>Abertos</span><strong>${open}</strong></div>
+    <div class="ticket-metric m-prog clickable ${cur === "Em atendimento" ? "active" : ""}" onclick="filtrarChamados('Em atendimento')" title="Clique para ver os que estão em atendimento"><span>Em atendimento</span><strong>${inProgress}</strong></div>
+    <div class="ticket-metric m-done clickable ${cur === "Resolvido" ? "active" : ""}" onclick="filtrarChamados('Resolvido')" title="Clique para ver os resolvidos"><span>Resolvidos hoje</span><strong>${resolvedToday}</strong></div>
     <div class="ticket-metric" title="Média do tempo entre 'Em atendimento' e 'Resolvido'"><span>Tempo médio</span><strong>${avg}</strong></div>
   `;
 }
+
+window.filtrarChamados = function filtrarChamados(status) {
+  filterStatus.value = filterStatus.value === status ? "" : status;
+  ticketsPage = 1;
+  renderTickets();
+};
 
 function renderTicketsPager(total, totalPages) {
   const pager = document.getElementById("ticketsPager");
@@ -1548,10 +1555,11 @@ function renderManutencoes() {
   const isMonth = (d) => { const x = new Date(d); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); };
 
   const machineLabel = (m) => `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
+  const ALERTA_MIN = 3;
   const byMachine = {};
   manutencoes.forEach((m) => {
     const key = m.computer_name || m.computer_label || "Sem identificação";
-    if (!byMachine[key]) byMachine[key] = { total: 0, mes: 0, label: machineLabel(m) };
+    if (!byMachine[key]) byMachine[key] = { total: 0, mes: 0, label: machineLabel(m), key };
     byMachine[key].total += 1;
     if (isMonth(m.data)) byMachine[key].mes += 1;
   });
@@ -1559,22 +1567,38 @@ function renderManutencoes() {
 
   if (metrics) {
     const totalMes = manutencoes.filter((m) => isMonth(m.data)).length;
-    const topLabel = ranking.length ? ranking[0].label : "-";
+    const top = ranking[0];
+    const topLabel = top ? top.label : "-";
     metrics.innerHTML = `
       <div class="ticket-metric"><span>Manutenções no mês</span><strong>${totalMes}</strong></div>
       <div class="ticket-metric"><span>Total de registros</span><strong>${manutencoes.length}</strong></div>
-      <div class="ticket-metric"><span>Máquina mais mexida</span><strong style="font-size:16px">${escapeHtml(topLabel)}</strong></div>
+      <div class="ticket-metric metric-attention ${top ? "clickable" : ""}" ${top ? `id="metricTopMachine" data-key="${escapeHtml(top.key)}" title="Clique para ver o histórico dela"` : ""}><span>Máquina mais mexida</span><strong style="font-size:15px">${escapeHtml(topLabel)}</strong></div>
     `;
+    const topBox = document.getElementById("metricTopMachine");
+    if (topBox) topBox.addEventListener("click", () => filtrarManutencao(topBox.dataset.key));
+  }
+
+  const alertBox = document.getElementById("manutencaoAlertas");
+  if (alertBox) {
+    const criticas = ranking.filter((c) => c.total >= ALERTA_MIN);
+    alertBox.innerHTML = criticas.map((c) => `
+      <div class="manut-alert clickable" data-key="${escapeHtml(c.key)}" title="Clique para ver o histórico dela">
+        <span>⚠️ <strong>${escapeHtml(c.label)}</strong> já tem <strong>${c.total}</strong> manutenções registradas. Avalie se ainda compensa mantê-la na operação.</span>
+        <span class="manut-alert-link">Ver histórico →</span>
+      </div>
+    `).join("");
+    alertBox.querySelectorAll(".manut-alert.clickable").forEach((el) => el.addEventListener("click", () => filtrarManutencao(el.dataset.key)));
   }
 
   if (rankBody) {
     rankBody.innerHTML = ranking.length ? ranking.map((c) => `
-      <tr>
+      <tr class="rank-row clickable" data-key="${escapeHtml(c.key)}" title="Clique para ver o histórico dela">
         <td><strong>${escapeHtml(c.label)}</strong></td>
         <td>${c.mes}</td>
-        <td><span class="estoque-badge ${c.total >= 4 ? "zero" : ""}">${c.total}</span></td>
+        <td><span class="estoque-badge ${c.total >= ALERTA_MIN ? "zero" : ""}">${c.total}</span></td>
       </tr>
     `).join("") : '<tr><td colspan="3">Nenhuma manutenção registrada.</td></tr>';
+    rankBody.querySelectorAll(".rank-row.clickable").forEach((el) => el.addEventListener("click", () => filtrarManutencao(el.dataset.key)));
   }
 
   const filter = document.getElementById("manutencaoFilter").value;
@@ -1590,6 +1614,14 @@ function renderManutencoes() {
     </tr>
   `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
 }
+
+window.filtrarManutencao = function filtrarManutencao(key) {
+  const sel = document.getElementById("manutencaoFilter");
+  if (!sel || !key) return;
+  sel.value = sel.value === key ? "" : key;
+  renderManutencoes();
+  document.getElementById("manutencaoBody")?.closest(".table-wrap")?.scrollIntoView({ behavior: "smooth", block: "center" });
+};
 
 window.excluirManutencao = async function excluirManutencao(id) {
   if (!confirm("Excluir este registro de manutenção?")) return;

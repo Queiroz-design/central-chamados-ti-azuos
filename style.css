@@ -357,6 +357,30 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .admin-body.light .stat-box,.admin-body.light .legend-row,.admin-body.light .empty-state,.admin-body.light .ticket-metric{background:#f4f7fb;border-color:#e2e8f0;color:#334155}
 .admin-body.light .inventory-toolbar{background:#f4f7fb;border-color:#e2e8f0}
 .admin-body.light .ticket-row:hover td{background:#f1f6ff}
+/* Cards de metrica clicaveis (chamados e manutencao) */
+.ticket-metric.clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+.ticket-metric.clickable:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
+.ticket-metric.active{outline:2px solid #38bdf8;outline-offset:2px}
+/* Acento de cor por status nos cards de chamado */
+.ticket-metric.m-open{border-top:3px solid #d9a406}
+.ticket-metric.m-open strong{color:#fde68a}
+.ticket-metric.m-prog{border-top:3px solid #185fa5}
+.ticket-metric.m-prog strong{color:#93c5fd}
+.ticket-metric.m-done{border-top:3px solid #16a34a}
+.ticket-metric.m-done strong{color:#bbf7d0}
+/* Manutencao: card "maquina mais mexida" em amarelo (atencao) */
+.ticket-metric.metric-attention{border:1px solid #a16207;background:linear-gradient(180deg,rgba(161,98,7,.20),rgba(161,98,7,.05))}
+.ticket-metric.metric-attention span{color:#fbbf24}
+.ticket-metric.metric-attention strong{color:#fde68a}
+/* Manutencao: banner de alerta (3+ manutencoes) */
+.manut-alertas:empty{display:none}
+.manut-alert{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#3a2c08;border:1px solid #a16207;color:#fde68a;border-radius:10px;padding:11px 14px;margin-bottom:8px;font-size:13.5px}
+.manut-alert strong{color:#fff}
+.manut-alert.clickable{cursor:pointer;transition:filter .12s ease}
+.manut-alert.clickable:hover{filter:brightness(1.12)}
+.manut-alert-link{white-space:nowrap;font-weight:bold;color:#fbbf24}
+.rank-row.clickable{cursor:pointer}
+.admin-body .rank-row.clickable:hover td{background:rgba(56,189,248,.10)}
 /* Caixas de saude clicaveis (filtro) */
 .health-filter{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .health-filter:hover{transform:translateY(-2px)}
