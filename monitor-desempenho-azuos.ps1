@@ -2,7 +2,7 @@
 param()
 
 $ErrorActionPreference = "SilentlyContinue"
-$AgentVersion = "1.1.0"
+$AgentVersion = "1.1.2"
 $SampleSeconds = 30
 $HistoryEveryCycles = 10
 $AlertThreshold = 98
@@ -103,7 +103,8 @@ while ($true) {
     $disk = Get-CimInstance Win32_PerfFormattedData_PerfDisk_PhysicalDisk -Filter "Name='_Total'"
     $os = Get-CimInstance Win32_OperatingSystem
     $system = Get-CimInstance Win32_ComputerSystem
-    $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='C:'"
+    $sysDrive = if ($env:SystemDrive) { $env:SystemDrive } else { "C:" }
+    $volume = Get-CimInstance Win32_LogicalDisk -Filter "DeviceID='$sysDrive'"
     $perfProcesses = @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process)
     $activity = Get-ActivityInfo
     $tops = Get-TopProcesses $perfProcesses
@@ -113,6 +114,7 @@ while ($true) {
     $memoryUsedGb = [math]::Round(([double]($os.TotalVisibleMemorySize - $os.FreePhysicalMemory) / 1MB), 2)
     $memoryPercent = Clamp-Percent (($memoryUsedGb / [math]::Max(.01, $memoryTotalGb)) * 100)
     $diskPercent = Clamp-Percent $disk.PercentDiskTime
+    # Espaco livre SEMPRE do disco do Windows (o disco real). Ignora Google Drive, pendrives, etc.
     $diskFreePercent = if ($volume.Size) { [math]::Round(([double]$volume.FreeSpace / [double]$volume.Size) * 100, 1) } else { $null }
     $uptimeSeconds = [int64]((Get-Date) - $os.LastBootUpTime).TotalSeconds
     $now = (Get-Date).ToString("o")
@@ -142,7 +144,7 @@ while ($true) {
       Invoke-Supabase "Post" "hardware_performance_history" $historyPayload "" $false | Out-Null
     }
 
-    # Disco vira % de espaco OCUPADO (100 - livre). CPU/Memoria seguem sendo % de uso.
+    # Disco vira % de espaco OCUPADO do disco do Windows (100 - livre). CPU/Memoria seguem sendo % de uso.
     $diskUsedSpace = if ($null -ne $diskFreePercent) { [math]::Round(100 - [double]$diskFreePercent, 1) } else { 0 }
     $values = @{ CPU=$cpuPercent; Memoria=$memoryPercent; Disco=$diskUsedSpace }
     foreach ($metric in @("CPU","Memoria","Disco")) {
@@ -156,7 +158,7 @@ while ($true) {
       if ($breachCounts[$metric] -ge $ConsecutiveRequired -and -not $activeAlerts.ContainsKey($metric)) {
         if ($metric -eq "Disco") {
           $cause = $null
-          $freeTxt = if ($null -ne $diskFreePercent) { "$diskFreePercent% livre" } else { "espaco baixo" }
+          $freeTxt = if ($null -ne $diskFreePercent) { "$sysDrive $diskFreePercent% livre" } else { "espaco baixo" }
           $message = "Disco quase cheio ($freeTxt). Libere espaco ou avalie ampliar/trocar o disco."
         } else {
           $cause = Get-CauseProcess $metric $tops

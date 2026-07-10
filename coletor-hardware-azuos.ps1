@@ -39,7 +39,9 @@ $windowsProductId = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\Curre
 $memoryModules = @(Get-CimInstance Win32_PhysicalMemory)
 $diskDrives = @(Get-CimInstance Win32_DiskDrive)
 $physicalDisks = @(Get-PhysicalDisk)
-$volumes = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3")
+# So o disco onde o Windows esta instalado (o disco real). Ignora Google Drive, pendrives, etc.
+$sysDrive = if ($env:SystemDrive) { $env:SystemDrive } else { "C:" }
+$volumes = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3 AND DeviceID='$sysDrive'")
 $battery = Get-CimInstance Win32_Battery | Select-Object -First 1
 $warnings = New-Object System.Collections.Generic.List[object]
 
