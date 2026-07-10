@@ -2,12 +2,15 @@
 param()
 
 $ErrorActionPreference = "SilentlyContinue"
-$AgentVersion = "1.0.0"
+$AgentVersion = "1.1.0"
 $SampleSeconds = 30
 $HistoryEveryCycles = 10
 $AlertThreshold = 98
 $RecoveryThreshold = 90
 $ConsecutiveRequired = 2
+# Limites por recurso. Disco agora e por ESPACO cheio (100 - % livre), nao por uso/leitura.
+$AlertThresholds = @{ CPU = 98; Memoria = 98; Disco = 90 }      # Disco: alerta com menos de 10% livre
+$RecoveryThresholds = @{ CPU = 90; Memoria = 90; Disco = 85 }   # Disco: recupera com mais de 15% livre
 # Envio agora passa pelo proxy serverless (a service key fica so na Vercel).
 $ProxyUrl = "https://central-chamados-ti-azuos.vercel.app/api/coletor"
 $ColetorSecret = "azuos-coletor-gfz8q9w0bqb7"
@@ -139,19 +142,29 @@ while ($true) {
       Invoke-Supabase "Post" "hardware_performance_history" $historyPayload "" $false | Out-Null
     }
 
-    $values = @{ CPU=$cpuPercent; Memoria=$memoryPercent; Disco=$diskPercent }
+    # Disco vira % de espaco OCUPADO (100 - livre). CPU/Memoria seguem sendo % de uso.
+    $diskUsedSpace = if ($null -ne $diskFreePercent) { [math]::Round(100 - [double]$diskFreePercent, 1) } else { 0 }
+    $values = @{ CPU=$cpuPercent; Memoria=$memoryPercent; Disco=$diskUsedSpace }
     foreach ($metric in @("CPU","Memoria","Disco")) {
       $value = [double]$values[$metric]
+      $th = [double]$AlertThresholds[$metric]
+      $rec = [double]$RecoveryThresholds[$metric]
       if ($value -ge 100) { $breachCounts[$metric] = $ConsecutiveRequired }
-      elseif ($value -ge $AlertThreshold) { $breachCounts[$metric]++ }
+      elseif ($value -ge $th) { $breachCounts[$metric]++ }
       else { $breachCounts[$metric] = 0 }
 
       if ($breachCounts[$metric] -ge $ConsecutiveRequired -and -not $activeAlerts.ContainsKey($metric)) {
-        $cause = Get-CauseProcess $metric $tops
-        $message = "$metric atingiu $value%. Possivel causa: $cause. Atividade: $($activity.category)."
+        if ($metric -eq "Disco") {
+          $cause = $null
+          $freeTxt = if ($null -ne $diskFreePercent) { "$diskFreePercent% livre" } else { "espaco baixo" }
+          $message = "Disco quase cheio ($freeTxt). Libere espaco ou avalie ampliar/trocar o disco."
+        } else {
+          $cause = Get-CauseProcess $metric $tops
+          $message = "$metric atingiu $value%. Possivel causa: $cause. Atividade: $($activity.category)."
+        }
         $alertPayload = [ordered]@{
           computer_name=$ComputerName; metric=$metric; peak_value=$value
-          threshold=$AlertThreshold; status="Ativo"; started_at=$now
+          threshold=$th; status="Ativo"; started_at=$now
           cause_process=$cause; activity_category=$activity.category
           top_processes=$tops; message=$message
         }
@@ -162,7 +175,7 @@ while ($true) {
       if ($activeAlerts.ContainsKey($metric)) {
         $active = $activeAlerts[$metric]
         if ($value -gt [double]$active.peak_value) { $active.peak_value = $value }
-        if ($value -lt $RecoveryThreshold) { $recoveryCounts[$metric]++ } else { $recoveryCounts[$metric] = 0 }
+        if ($value -lt $rec) { $recoveryCounts[$metric]++ } else { $recoveryCounts[$metric] = 0 }
         if ($recoveryCounts[$metric] -ge 2) {
           $duration = [int]((Get-Date) - [datetime]$active.started_at).TotalSeconds
           $patch = [ordered]@{ status="Recuperado"; recovered_at=$now; duration_seconds=$duration; peak_value=$active.peak_value }
