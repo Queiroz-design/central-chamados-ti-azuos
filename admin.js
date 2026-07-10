@@ -570,7 +570,7 @@ function renderAssets() {
         <div class="hardware-card-top">
           <div>
             <strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong>
-            <span>${escapeHtml(getAssetDepartment(asset))} - ${escapeHtml(asset.model || "-")}</span>
+            <span>${escapeHtml(getAssetDepartment(asset))} - ${escapeHtml(asset.responsible_name || asset.model || "-")}</span>
           </div>
           <span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span>
         </div>
