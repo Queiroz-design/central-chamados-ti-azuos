@@ -108,6 +108,20 @@ function showTab(tabName) {
   });
 }
 
+// Abre uma aba de forma direta (usado pelos quadros clicaveis).
+window.irParaAba = function irParaAba(tabName) {
+  document.querySelectorAll(".side-tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tabName));
+  document.querySelectorAll(".tab-panel").forEach((p) => p.classList.toggle("active", p.id === `tab-${tabName}`));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+};
+
+// Escopo do dashboard: qual conjunto de chamados alimenta o mapa/graficos.
+let dashScope = "mes";
+window.setDashScope = function setDashScope(scope) {
+  dashScope = dashScope === scope ? "mes" : scope;
+  renderDashboard();
+};
+
 function formatTicketNumber(value) {
   return "CH-" + String(value).padStart(4, "0");
 }
@@ -272,37 +286,68 @@ function buildRecurringAlerts(monthTickets) {
     .sort((a, b) => b.count - a.count);
 }
 
+// Maquinas com muita manutencao (3+ registros) = alerta de atencao.
+function getManutencaoAlertas(minCount = 3) {
+  const byMachine = {};
+  (manutencoes || []).forEach((m) => {
+    const key = m.computer_name || m.computer_label || "Sem identificação";
+    const label = `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
+    if (!byMachine[key]) byMachine[key] = { key, label, total: 0 };
+    byMachine[key].total += 1;
+  });
+  return Object.values(byMachine).filter((c) => c.total >= minCount).sort((a, b) => b.total - a.total);
+}
+
 function renderDashboard() {
   const monthTickets = allTickets.filter(isThisMonth);
   const openTickets = allTickets.filter((ticket) => ticket.status !== "Resolvido");
   const alerts = buildRecurringAlerts(monthTickets);
+  const machineAlerts = getManutencaoAlertas(3);
 
   document.getElementById("statMonth").innerText = monthTickets.length;
   document.getElementById("statOpen").innerText = openTickets.length;
   document.getElementById("statDevices").innerText = hardwareAssets.length;
-  document.getElementById("statAlerts").innerText = alerts.length;
+  document.getElementById("statAlerts").innerText = alerts.length + machineAlerts.length;
 
-  renderAlerts(alerts);
-  const typeEntries = topEntries(groupCount(monthTickets, (ticket) => ticket.tipo), 7);
+  // O mapa e os graficos respondem ao quadro selecionado (mes / abertos / recorrencia).
+  const recurringSet = new Set();
+  alerts.forEach((a) => monthTickets.forEach((t) => { if (t.nome === a.nome && t.tipo === a.tipo) recurringSet.add(t); }));
+  let scoped = monthTickets;
+  if (dashScope === "abertos") scoped = openTickets;
+  else if (dashScope === "recorrencia") scoped = [...recurringSet];
+
+  document.querySelectorAll(".dash-filter").forEach((b) => b.classList.toggle("active", b.dataset.scope === dashScope && dashScope !== "mes"));
+
+  renderAlerts(alerts, machineAlerts);
+  const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
   renderBars("typeChart", typeEntries, true);
-  renderBars("deptChart", topEntries(groupCount(monthTickets, (ticket) => ticket.departamento)), true);
+  renderBars("deptChart", topEntries(groupCount(scoped, (ticket) => ticket.departamento)), true);
 }
 
-function renderAlerts(alerts) {
+function renderAlerts(alerts, machineAlerts = []) {
   const alertsList = document.getElementById("alertsList");
 
-  if (!alerts.length) {
-    alertsList.innerHTML = '<div class="empty-state">Nenhuma recorrência crítica neste mês.</div>';
+  if (!alerts.length && !machineAlerts.length) {
+    alertsList.innerHTML = '<div class="empty-state">Nenhum alerta neste mês.</div>';
     return;
   }
 
-  alertsList.innerHTML = alerts.map((alert) => `
+  const ticketHtml = alerts.map((alert) => `
     <article class="alert-item">
       <strong>${escapeHtml(alert.nome)} abriu ${alert.count} chamados de ${escapeHtml(alert.tipo)}</strong>
       <span>${escapeHtml(alert.departamento || "Departamento não informado")} precisa de verificação preventiva.</span>
     </article>
   `).join("");
+
+  const machineHtml = machineAlerts.map((c) => `
+    <article class="alert-item alert-machine">
+      <strong>🔧 ${escapeHtml(c.label)} — ${c.total} manutenções</strong>
+      <span>Máquina com muita manutenção. Avalie se ainda compensa mantê-la na operação.</span>
+    </article>
+  `).join("");
+
+  alertsList.innerHTML = ticketHtml + machineHtml;
 }
 
 function renderProblemDonut(entries) {
@@ -1321,6 +1366,11 @@ client
 
 // ===== Deposito de hardware (estoque: entrada e saida) =====
 const DEPOSITO_CATEGORIAS = ["SSD", "Memória", "Monitor", "Teclado", "Mouse", "Fone de ouvido", "Adaptador DisplayPort → VGA", "Adaptador HDMI → VGA", "Máquina (CPU)", "Outro"];
+let depositoStockFilter = ""; // "", "com" (com estoque), "zerados"
+window.filtrarDepositoStock = function filtrarDepositoStock(f) {
+  depositoStockFilter = depositoStockFilter === f ? "" : f;
+  renderDeposito();
+};
 let depositoItens = [];
 let depositoMovs = [];
 let depositoLoadError = "";
@@ -1364,8 +1414,9 @@ function renderDeposito() {
   const condEl = document.getElementById("depositoCondFilter");
   const filterCond = condEl ? condEl.value : "";
   const condOf = (i) => ((i.condicao || "Novo") === "Usado" ? "Usado" : "Novo");
+  const stockOk = (i) => depositoStockFilter === "" || (depositoStockFilter === "com" ? Number(i.quantidade || 0) > 0 : Number(i.quantidade || 0) <= 0);
   const items = depositoItens
-    .filter((i) => (!filterCat || i.categoria === filterCat) && (!filterCond || condOf(i) === filterCond))
+    .filter((i) => (!filterCat || i.categoria === filterCat) && (!filterCond || condOf(i) === filterCond) && stockOk(i))
     .slice()
     .sort((a, b) =>
       String(a.categoria).localeCompare(String(b.categoria), "pt-BR", { numeric: true }) ||
@@ -1376,9 +1427,9 @@ function renderDeposito() {
   const totalUnidades = depositoItens.reduce((s, i) => s + Number(i.quantidade || 0), 0);
   const zerados = depositoItens.filter((i) => Number(i.quantidade || 0) <= 0).length;
   if (metrics) metrics.innerHTML = `
-    <div class="ticket-metric"><span>Tipos de item</span><strong>${depositoItens.length}</strong></div>
-    <div class="ticket-metric"><span>Unidades em estoque</span><strong>${totalUnidades}</strong></div>
-    <div class="ticket-metric"><span>Itens zerados</span><strong>${zerados}</strong></div>
+    <div class="ticket-metric clickable ${depositoStockFilter === "" ? "active" : ""}" onclick="filtrarDepositoStock('')" title="Ver todos os itens"><span>Tipos de item</span><strong>${depositoItens.length}</strong></div>
+    <div class="ticket-metric clickable ${depositoStockFilter === "com" ? "active" : ""}" onclick="filtrarDepositoStock('com')" title="Ver só itens com estoque"><span>Unidades em estoque</span><strong>${totalUnidades}</strong></div>
+    <div class="ticket-metric clickable ${depositoStockFilter === "zerados" ? "active" : ""}" onclick="filtrarDepositoStock('zerados')" title="Ver só itens zerados"><span>Itens zerados</span><strong>${zerados}</strong></div>
   `;
 
   listBody.innerHTML = items.length ? items.map((item) => `
@@ -1510,6 +1561,8 @@ async function loadManutencoes() {
   if (error) { manutencoesLoadError = error.message; manutencoes = []; }
   else { manutencoesLoadError = ""; manutencoes = data || []; }
   renderManutencoes();
+  // Atualiza o dashboard para refletir os alertas de maquinas.
+  if (document.getElementById("statAlerts")) renderDashboard();
 }
 
 function fillManutencaoComputers() {
@@ -1580,7 +1633,7 @@ function renderManutencoes() {
 
   const alertBox = document.getElementById("manutencaoAlertas");
   if (alertBox) {
-    const criticas = ranking.filter((c) => c.total >= ALERTA_MIN);
+    const criticas = getManutencaoAlertas(ALERTA_MIN);
     alertBox.innerHTML = criticas.map((c) => `
       <div class="manut-alert clickable" data-key="${escapeHtml(c.key)}" title="Clique para ver o histórico dela">
         <span>⚠️ <strong>${escapeHtml(c.label)}</strong> já tem <strong>${c.total}</strong> manutenções registradas. Avalie se ainda compensa mantê-la na operação.</span>

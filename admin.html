@@ -79,19 +79,19 @@
     </div>
 
     <div class="stats-grid">
-      <div class="stat-box">
+      <div class="stat-box dash-filter clickable" data-scope="mes" onclick="setDashScope('mes')" title="Mostrar todos os chamados do mês no mapa">
         <span>Chamados no mês</span>
         <strong id="statMonth">0</strong>
       </div>
-      <div class="stat-box">
+      <div class="stat-box dash-filter clickable" data-scope="abertos" onclick="setDashScope('abertos')" title="Mostrar só os chamados abertos no mapa">
         <span>Chamados abertos</span>
         <strong id="statOpen">0</strong>
       </div>
-      <div class="stat-box">
+      <div class="stat-box clickable" onclick="irParaAba('inventario')" title="Ir para o inventário das máquinas monitoradas">
         <span>Computadores monitorados</span>
         <strong id="statDevices">0</strong>
       </div>
-      <div class="stat-box warning">
+      <div class="stat-box warning dash-filter clickable" data-scope="recorrencia" onclick="setDashScope('recorrencia')" title="Mostrar só os chamados recorrentes no mapa">
         <span>Alertas de recorrência</span>
         <strong id="statAlerts">0</strong>
       </div>
@@ -106,7 +106,7 @@
         </div>
       </section>
       <section class="panel">
-        <h3>Alertas do mês</h3>
+        <h3>Alertas do mês (chamados e máquinas)</h3>
         <div id="alertsList" class="alert-list"></div>
       </section>
     </div>

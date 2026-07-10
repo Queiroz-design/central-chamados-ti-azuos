@@ -70,6 +70,10 @@ button:hover,.btn:hover{filter:brightness(.97);transform:translateY(-1px)}
 .alert-item{border-left:4px solid #dc2626;background:#fef2f2;border-radius:8px;padding:12px}
 .alert-item strong{display:block;color:#7f1d1d}
 .alert-item span,.muted{color:#64748b}
+.alert-item.alert-machine{border-left-color:#d9a406;background:#3a2c08}
+.alert-item.alert-machine strong{color:#fde68a}
+.admin-body .alert-item.alert-machine{background:#3a2c08;border-left-color:#d9a406}
+.admin-body .alert-item.alert-machine strong{color:#fde68a}
 .empty-state{color:#64748b;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:14px}
 .bar-meta{display:flex;justify-content:space-between;gap:12px;font-size:14px;color:#334155}
 .bar-track{height:9px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin-top:7px}
@@ -357,6 +361,10 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .admin-body.light .stat-box,.admin-body.light .legend-row,.admin-body.light .empty-state,.admin-body.light .ticket-metric{background:#f4f7fb;border-color:#e2e8f0;color:#334155}
 .admin-body.light .inventory-toolbar{background:#f4f7fb;border-color:#e2e8f0}
 .admin-body.light .ticket-row:hover td{background:#f1f6ff}
+/* Stat-box clicaveis (dashboard) */
+.stat-box.clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
+.stat-box.clickable:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
+.stat-box.clickable.active{outline:2px solid #38bdf8;outline-offset:2px}
 /* Cards de metrica clicaveis (chamados e manutencao) */
 .ticket-metric.clickable{cursor:pointer;transition:transform .12s ease,box-shadow .12s ease}
 .ticket-metric.clickable:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
