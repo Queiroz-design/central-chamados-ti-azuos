@@ -267,7 +267,7 @@
     </div>
     <div class="table-wrap">
       <table class="deposito-table">
-        <thead><tr><th>Categoria</th><th>Item</th><th>Em estoque</th><th>Ações</th></tr></thead>
+        <thead><tr><th>Categoria</th><th>Item</th><th>Condição</th><th>Em estoque</th><th>Ações</th></tr></thead>
         <tbody id="depositoBody"></tbody>
       </table>
     </div>
@@ -415,6 +415,7 @@
       <form id="depositoItemForm">
         <label>Nome do item<input type="text" id="depositoItemNome" placeholder="Ex: SSD 240GB, Monitor LG 22" required></label>
         <label>Categoria<select id="depositoItemCategoria"></select></label>
+        <label>Condição<select id="depositoItemCondicao"><option value="Novo">Novo</option><option value="Usado">Usado</option></select></label>
         <label>Quantidade inicial<input type="number" id="depositoItemQtd" min="0" value="0"></label>
         <button type="submit">Adicionar</button>
       </form>
@@ -446,6 +447,7 @@
       </div>
       <form id="manutencaoForm">
         <label>Computador<select id="manutencaoComputador"></select></label>
+        <label id="manutencaoOutroWrap" class="hidden">Nome/identificação da máquina<input type="text" id="manutencaoComputadorOutro" placeholder="Ex: Notebook antigo da recepção"></label>
         <label>Tipo<select id="manutencaoTipo"></select></label>
         <label>O que foi feito<textarea id="manutencaoDescricao" placeholder="Ex: Troca de SSD; limpeza interna; troca de memória"></textarea></label>
         <label>Responsável <span class="optional">(opcional)</span><input type="text" id="manutencaoResp" placeholder="Quem fez a manutenção"></label>

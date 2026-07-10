@@ -1347,7 +1347,7 @@ function renderDeposito() {
   const movBody = document.getElementById("depositoMovBody");
 
   if (depositoLoadError) {
-    listBody.innerHTML = '<tr><td colspan="4">Depósito ainda não disponível. Rode o SQL supabase-deposito.sql no Supabase.</td></tr>';
+    listBody.innerHTML = '<tr><td colspan="5">Depósito ainda não disponível. Rode o SQL supabase-deposito.sql no Supabase.</td></tr>';
     if (metrics) metrics.innerHTML = "";
     if (movBody) movBody.innerHTML = "";
     return;
@@ -1368,6 +1368,7 @@ function renderDeposito() {
     <tr>
       <td>${escapeHtml(item.categoria)}</td>
       <td><strong>${escapeHtml(item.nome)}</strong></td>
+      <td><span class="cond-badge ${(item.condicao || "Novo") === "Usado" ? "usado" : "novo"}">${escapeHtml(item.condicao || "Novo")}</span></td>
       <td><span class="estoque-badge ${Number(item.quantidade) <= 0 ? "zero" : ""}">${Number(item.quantidade || 0)}</span></td>
       <td><div class="table-actions">
         <button class="secondary small" onclick="movimentarDeposito('${item.id}','entrada')">Entrada</button>
@@ -1375,7 +1376,7 @@ function renderDeposito() {
         <button class="secondary small remove-hw" onclick="excluirDepositoItem('${item.id}')">Excluir</button>
       </div></td>
     </tr>
-  `).join("") : '<tr><td colspan="4">Nenhum item cadastrado. Clique em "Adicionar item".</td></tr>';
+  `).join("") : '<tr><td colspan="5">Nenhum item cadastrado. Clique em "Adicionar item".</td></tr>';
 
   if (movBody) {
     const nameById = {};
@@ -1427,8 +1428,9 @@ document.getElementById("depositoItemForm")?.addEventListener("submit", async (e
   const nome = document.getElementById("depositoItemNome").value.trim();
   const categoria = document.getElementById("depositoItemCategoria").value;
   const quantidade = Math.max(0, parseInt(document.getElementById("depositoItemQtd").value, 10) || 0);
+  const condicao = document.getElementById("depositoItemCondicao").value || "Novo";
   if (!nome) return;
-  const { error } = await client.from("deposito_itens").insert({ nome, categoria, quantidade });
+  const { error } = await client.from("deposito_itens").insert({ nome, categoria, quantidade, condicao });
   if (error) { alert("Erro ao adicionar item: " + error.message); return; }
   document.getElementById("depositoItemModal").classList.add("hidden");
   await loadDeposito();
@@ -1464,19 +1466,24 @@ function fillManutencaoComputers() {
   const modalSel = document.getElementById("manutencaoComputador");
   if (modalSel) {
     const machines = [...hardwareAssets]
-      .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name }))
+      .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name, dept: getAssetDepartment(a) }))
       .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { numeric: true }));
-    modalSel.innerHTML = machines.length
-      ? machines.map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.label)}</option>`).join("")
-      : '<option value="">Nenhuma máquina no inventário</option>';
+    const opts = machines
+      .map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.label)}${m.dept ? " — " + escapeHtml(m.dept) : ""} (${escapeHtml(m.name)})</option>`)
+      .join("");
+    modalSel.innerHTML = opts + '<option value="__outro__">— Outro / máquina fora da operação —</option>';
   }
   const filterSel = document.getElementById("manutencaoFilter");
   if (filterSel) {
     const current = filterSel.value;
-    const labels = [...new Set(manutencoes.map((m) => m.computer_label || m.computer_name).filter(Boolean))]
-      .sort((a, b) => String(a).localeCompare(String(b), "pt-BR", { numeric: true }));
-    filterSel.innerHTML = '<option value="">Todos os computadores</option>' + labels.map((l) => `<option>${escapeHtml(l)}</option>`).join("");
-    if (labels.includes(current)) filterSel.value = current;
+    const uniq = {};
+    manutencoes.forEach((m) => {
+      const key = m.computer_name || m.computer_label;
+      if (key && !uniq[key]) uniq[key] = `${m.computer_label || key}${m.computer_department ? " — " + m.computer_department : ""}`;
+    });
+    const entries = Object.entries(uniq).sort((a, b) => String(a[1]).localeCompare(String(b[1]), "pt-BR", { numeric: true }));
+    filterSel.innerHTML = '<option value="">Todos os computadores</option>' + entries.map(([k, label]) => `<option value="${escapeHtml(k)}">${escapeHtml(label)}</option>`).join("");
+    if (uniq[current]) filterSel.value = current;
   }
 }
 
@@ -1497,18 +1504,19 @@ function renderManutencoes() {
   const now = new Date();
   const isMonth = (d) => { const x = new Date(d); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); };
 
+  const machineLabel = (m) => `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
   const byMachine = {};
   manutencoes.forEach((m) => {
-    const key = m.computer_label || m.computer_name || "Sem identificação";
-    if (!byMachine[key]) byMachine[key] = { total: 0, mes: 0 };
+    const key = m.computer_name || m.computer_label || "Sem identificação";
+    if (!byMachine[key]) byMachine[key] = { total: 0, mes: 0, label: machineLabel(m) };
     byMachine[key].total += 1;
     if (isMonth(m.data)) byMachine[key].mes += 1;
   });
-  const ranking = Object.entries(byMachine).sort((a, b) => b[1].total - a[1].total);
+  const ranking = Object.values(byMachine).sort((a, b) => b.total - a.total);
 
   if (metrics) {
     const totalMes = manutencoes.filter((m) => isMonth(m.data)).length;
-    const topLabel = ranking.length ? ranking[0][0] : "-";
+    const topLabel = ranking.length ? ranking[0].label : "-";
     metrics.innerHTML = `
       <div class="ticket-metric"><span>Manutenções no mês</span><strong>${totalMes}</strong></div>
       <div class="ticket-metric"><span>Total de registros</span><strong>${manutencoes.length}</strong></div>
@@ -1517,9 +1525,9 @@ function renderManutencoes() {
   }
 
   if (rankBody) {
-    rankBody.innerHTML = ranking.length ? ranking.map(([label, c]) => `
+    rankBody.innerHTML = ranking.length ? ranking.map((c) => `
       <tr>
-        <td><strong>${escapeHtml(label)}</strong></td>
+        <td><strong>${escapeHtml(c.label)}</strong></td>
         <td>${c.mes}</td>
         <td><span class="estoque-badge ${c.total >= 4 ? "zero" : ""}">${c.total}</span></td>
       </tr>
@@ -1527,11 +1535,11 @@ function renderManutencoes() {
   }
 
   const filter = document.getElementById("manutencaoFilter").value;
-  const rows = filter ? manutencoes.filter((m) => (m.computer_label || m.computer_name) === filter) : manutencoes;
+  const rows = filter ? manutencoes.filter((m) => (m.computer_name || m.computer_label) === filter) : manutencoes;
   body.innerHTML = rows.length ? rows.map((m) => `
     <tr>
       <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
-      <td><strong>${escapeHtml(m.computer_label || m.computer_name || "-")}</strong></td>
+      <td><strong>${escapeHtml(machineLabel(m))}</strong></td>
       <td><span class="mov-badge entrada">${escapeHtml(m.tipo || "-")}</span></td>
       <td>${escapeHtml(m.descricao || "-")}</td>
       <td>${escapeHtml(m.responsavel || "-")}</td>
@@ -1547,27 +1555,47 @@ window.excluirManutencao = async function excluirManutencao(id) {
   await loadManutencoes();
 };
 
+function toggleManutencaoOutro() {
+  const sel = document.getElementById("manutencaoComputador");
+  const wrap = document.getElementById("manutencaoOutroWrap");
+  if (!sel || !wrap) return;
+  wrap.classList.toggle("hidden", sel.value !== "__outro__");
+}
+
 document.getElementById("btnAddManutencao")?.addEventListener("click", () => {
   document.getElementById("manutencaoForm").reset();
   document.getElementById("manutencaoTipo").innerHTML = MANUTENCAO_TIPOS.map((t) => `<option>${escapeHtml(t)}</option>`).join("");
   fillManutencaoComputers();
+  toggleManutencaoOutro();
   document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
   document.getElementById("manutencaoModal").classList.remove("hidden");
 });
+document.getElementById("manutencaoComputador")?.addEventListener("change", toggleManutencaoOutro);
 document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
 document.getElementById("manutencaoFilter")?.addEventListener("change", renderManutencoes);
 
 document.getElementById("manutencaoForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const sel = document.getElementById("manutencaoComputador");
-  const computer_name = sel.value || null;
-  const computer_label = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].text : computer_name;
+  let computer_name, computer_label, computer_department = null;
+  if (sel.value === "__outro__") {
+    const outro = document.getElementById("manutencaoComputadorOutro").value.trim();
+    if (!outro) { alert("Digite o nome/identificação da máquina."); return; }
+    computer_name = outro;
+    computer_label = outro;
+    computer_department = "Fora da operação";
+  } else {
+    computer_name = sel.value || null;
+    const asset = hardwareAssets.find((a) => a.computer_name === computer_name);
+    computer_label = asset ? (asset.display_name || asset.computer_name) : computer_name;
+    computer_department = asset ? getAssetDepartment(asset) : null;
+  }
   const tipo = document.getElementById("manutencaoTipo").value;
   const descricao = document.getElementById("manutencaoDescricao").value.trim() || null;
   const responsavel = document.getElementById("manutencaoResp").value.trim() || null;
   const dataStr = document.getElementById("manutencaoData").value;
   const data = dataStr ? new Date(dataStr + "T12:00:00").toISOString() : new Date().toISOString();
-  const { error } = await client.from("manutencoes").insert({ computer_name, computer_label, tipo, descricao, responsavel, data });
+  const { error } = await client.from("manutencoes").insert({ computer_name, computer_label, computer_department, tipo, descricao, responsavel, data });
   if (error) { alert("Erro ao salvar: " + error.message); return; }
   document.getElementById("manutencaoModal").classList.add("hidden");
   await loadManutencoes();
