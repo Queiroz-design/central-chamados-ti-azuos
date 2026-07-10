@@ -1383,18 +1383,24 @@ function renderDeposito() {
       <td><div class="table-actions">
         <button class="secondary small" onclick="movimentarDeposito('${item.id}','entrada')">Entrada</button>
         <button class="secondary small" onclick="movimentarDeposito('${item.id}','saida')">Saída</button>
+        <button class="secondary small" onclick="editarDepositoItem('${item.id}')">Editar</button>
         <button class="secondary small remove-hw" onclick="excluirDepositoItem('${item.id}')">Excluir</button>
       </div></td>
     </tr>
   `).join("") : '<tr><td colspan="5">Nenhum item cadastrado. Clique em "Adicionar item".</td></tr>';
 
   if (movBody) {
-    const nameById = {};
-    depositoItens.forEach((i) => { nameById[i.id] = i.nome; });
+    const infoById = {};
+    depositoItens.forEach((i) => { infoById[i.id] = { nome: i.nome, condicao: (i.condicao || "Novo") === "Usado" ? "Usado" : "Novo" }; });
+    const movItemCell = (m) => {
+      const info = infoById[m.item_id];
+      if (!info) return escapeHtml(m.item_nome || "-");
+      return `${escapeHtml(info.nome)} <span class="cond-badge ${info.condicao === "Usado" ? "usado" : "novo"}">${info.condicao}</span>`;
+    };
     movBody.innerHTML = depositoMovs.length ? depositoMovs.map((m) => `
       <tr>
         <td>${escapeHtml(new Date(m.created_at).toLocaleString("pt-BR"))}</td>
-        <td>${escapeHtml(nameById[m.item_id] || "-")}</td>
+        <td>${movItemCell(m)}</td>
         <td><span class="mov-badge ${m.tipo}">${m.tipo === "entrada" ? "Entrada" : "Saída"}</span></td>
         <td>${Number(m.quantidade)}</td>
         <td>${escapeHtml(m.responsavel || "-")}</td>
@@ -1415,6 +1421,32 @@ window.movimentarDeposito = function movimentarDeposito(itemId, tipo) {
   document.getElementById("depositoMovObs").value = "";
   document.getElementById("depositoMovModal").classList.remove("hidden");
 };
+
+window.editarDepositoItem = function editarDepositoItem(id) {
+  const item = depositoItens.find((i) => i.id === id);
+  if (!item) return;
+  document.getElementById("depositoEditId").value = item.id;
+  document.getElementById("depositoEditNome").value = item.nome || "";
+  fillCategorySelect(document.getElementById("depositoEditCategoria"), false);
+  document.getElementById("depositoEditCategoria").value = item.categoria || "Outro";
+  document.getElementById("depositoEditCondicao").value = (item.condicao || "Novo") === "Usado" ? "Usado" : "Novo";
+  document.getElementById("depositoEditModal").classList.remove("hidden");
+};
+
+document.getElementById("btnCloseDepositoEdit")?.addEventListener("click", () => document.getElementById("depositoEditModal").classList.add("hidden"));
+
+document.getElementById("depositoEditForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = document.getElementById("depositoEditId").value;
+  const nome = document.getElementById("depositoEditNome").value.trim();
+  const categoria = document.getElementById("depositoEditCategoria").value;
+  const condicao = document.getElementById("depositoEditCondicao").value || "Novo";
+  if (!nome) return;
+  const { error } = await client.from("deposito_itens").update({ nome, categoria, condicao }).eq("id", id);
+  if (error) { alert("Erro ao salvar: " + error.message); return; }
+  document.getElementById("depositoEditModal").classList.add("hidden");
+  await loadDeposito();
+});
 
 window.excluirDepositoItem = async function excluirDepositoItem(id) {
   const item = depositoItens.find((i) => i.id === id);

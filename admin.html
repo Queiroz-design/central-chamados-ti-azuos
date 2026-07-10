@@ -429,6 +429,22 @@
     </section>
   </div>
 
+  <div id="depositoEditModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true">
+      <div class="admin-top">
+        <h2>Editar item</h2>
+        <button type="button" id="btnCloseDepositoEdit" class="secondary small">Fechar</button>
+      </div>
+      <form id="depositoEditForm">
+        <input type="hidden" id="depositoEditId">
+        <label>Descrição do item<input type="text" id="depositoEditNome" placeholder="Ex: Memória Notebook 8GB DDR4 2666MHz" required></label>
+        <label>Categoria<select id="depositoEditCategoria"></select></label>
+        <label>Condição<select id="depositoEditCondicao"><option value="Novo">Novo</option><option value="Usado">Usado</option></select></label>
+        <button type="submit">Salvar alterações</button>
+      </form>
+    </section>
+  </div>
+
   <div id="depositoMovModal" class="modal-backdrop hidden">
     <section class="modal-card" role="dialog" aria-modal="true">
       <div class="admin-top">
