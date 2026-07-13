@@ -15,6 +15,16 @@ $LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 Set-Content -Path $LogPath -Value "Coleta iniciada em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))" -Encoding UTF8
 
+# Rede de seguranca do monitor: como este coletor roda todo dia (tarefa agendada),
+# ele garante que o monitor de desempenho volte a rodar mesmo sem um login novo do Windows.
+# O proprio monitor tem um mutex, entao se ja estiver rodando a nova instancia sai sozinha.
+try {
+  $perfAgent = Join-Path $LogDir "agente-desempenho-azuos.ps1"
+  if (Test-Path $perfAgent) {
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$perfAgent`""
+  }
+} catch {}
+
 function ConvertTo-Gb($bytes) {
   if (-not $bytes) { return 0 }
   return [math]::Round(([double]$bytes / 1GB), 2)
