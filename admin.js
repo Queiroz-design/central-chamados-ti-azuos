@@ -536,7 +536,7 @@ function getLiveStatus(computerName) {
 }
 
 function isMachineOnline(live) {
-  return Boolean(live && Date.now() - new Date(live.last_seen).getTime() <= 90 * 1000);
+  return Boolean(live && Date.now() - new Date(live.last_seen).getTime() <= 150 * 1000);
 }
 
 function assetMatchesLive(asset, filter) {

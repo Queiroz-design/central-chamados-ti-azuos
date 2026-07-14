@@ -15,13 +15,30 @@ $LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 Set-Content -Path $LogPath -Value "Coleta iniciada em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))" -Encoding UTF8
 
-# Rede de seguranca do monitor: como este coletor roda todo dia (tarefa agendada),
-# ele garante que o monitor de desempenho volte a rodar mesmo sem um login novo do Windows.
-# O proprio monitor tem um mutex, entao se ja estiver rodando a nova instancia sai sozinha.
+# Instala/atualiza o monitor no MODELO CURTO (v2): baixa o monitor e garante uma
+# tarefa agendada que o executa a cada 1 minuto (coleta rapida que abre e fecha).
+# Como este coletor roda todo dia e se atualiza sozinho, ele distribui o modelo novo
+# para toda a frota sem precisar mexer em cada maquina.
 try {
-  $perfAgent = Join-Path $LogDir "agente-desempenho-azuos.ps1"
-  if (Test-Path $perfAgent) {
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$perfAgent`""
+  $monitorPath = Join-Path $LogDir "monitor-desempenho-azuos.ps1"
+  $monitorUrl = "https://central-chamados-ti-azuos.vercel.app/monitor-desempenho-azuos.ps1"
+  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+  try { Invoke-WebRequest -UseBasicParsing -Uri $monitorUrl -OutFile $monitorPath -ErrorAction Stop }
+  catch { & curl.exe --ssl-no-revoke -fsSL $monitorUrl -o $monitorPath }
+
+  $taskName = "Grupo Azuos - Monitor Desempenho"
+  $taskCmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$monitorPath`""
+  $taskExists = & schtasks /Query /TN $taskName 2>$null
+  if (-not $taskExists) {
+    & schtasks /Create /TN $taskName /TR $taskCmd /SC MINUTE /MO 1 /F 2>$null | Out-Null
+  }
+
+  # Remove o modelo ANTIGO (PowerShell oculto rodando sem parar), que o antivirus bloqueava.
+  & reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /f 2>$null | Out-Null
+
+  # Dispara uma coleta agora (nao espera o proximo minuto).
+  if (Test-Path $monitorPath) {
+    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$monitorPath`""
   }
 } catch {}
 
