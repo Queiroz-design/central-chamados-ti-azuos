@@ -66,7 +66,21 @@ form.addEventListener("submit", async (event) => {
     });
     const result = await response.json();
     if (!response.ok) throw new Error(result.error || "Erro ao abrir chamado");
-    showMessage(`Chamado aberto com sucesso! Número: <strong>${escapeHtml(formatTicketNumber(result.chamado.id))}</strong>`);
+    const num = formatTicketNumber(result.chamado.id);
+    const digits = (record.contato || "").replace(/\D/g, "");
+    let extra = "";
+    if (digits.length >= 8) {
+      const wa = digits.length <= 11 ? "55" + digits : digits;
+      const txt = encodeURIComponent(`Protocolo do meu chamado no Grupo Azuos: ${num}. Guarde este número para acompanhar.`);
+      extra = `<a class="wa-btn" href="https://wa.me/${wa}?text=${txt}" target="_blank" rel="noopener">📱 Receber no WhatsApp</a>`;
+    }
+    showMessage(`
+      <div class="protocolo-box">
+        <span>Chamado aberto com sucesso! Seu protocolo é:</span>
+        <strong class="protocolo-num">${escapeHtml(num)}</strong>
+        <span class="protocolo-hint">Guarde este número. Clique no botão para salvar no seu WhatsApp.</span>
+        ${extra}
+      </div>`);
     form.reset();
   } catch (err) {
     showMessage(`Erro ao abrir chamado: ${escapeHtml(err.message)}`, "error");
