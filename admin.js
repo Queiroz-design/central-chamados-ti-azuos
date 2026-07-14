@@ -1463,8 +1463,9 @@ function renderDeposito() {
         <td>${Number(m.quantidade)}</td>
         <td>${escapeHtml(m.responsavel || "-")}</td>
         <td>${escapeHtml(m.observacao || "-")}</td>
+        <td><button class="secondary small" onclick="editarMovObs('${m.id}')">Editar</button></td>
       </tr>
-    `).join("") : '<tr><td colspan="6">Nenhuma movimentação ainda.</td></tr>';
+    `).join("") : '<tr><td colspan="7">Nenhuma movimentação ainda.</td></tr>';
   }
 }
 
@@ -1547,6 +1548,27 @@ document.getElementById("depositoMovForm")?.addEventListener("submit", async (ev
   const { error } = await client.from("deposito_movimentacoes").insert({ item_id, tipo, quantidade, responsavel, observacao });
   if (error) { alert("Erro ao registrar movimentação: " + error.message); return; }
   document.getElementById("depositoMovModal").classList.add("hidden");
+  await loadDeposito();
+});
+
+// Editar apenas a observacao/responsavel de uma movimentacao (nao mexe no estoque).
+window.editarMovObs = function editarMovObs(id) {
+  const mov = depositoMovs.find((m) => String(m.id) === String(id));
+  if (!mov) return;
+  document.getElementById("depositoMovEditId").value = mov.id;
+  document.getElementById("depositoMovEditResp").value = mov.responsavel || "";
+  document.getElementById("depositoMovEditObs").value = mov.observacao || "";
+  document.getElementById("depositoMovEditModal").classList.remove("hidden");
+};
+document.getElementById("btnCloseDepositoMovEdit")?.addEventListener("click", () => document.getElementById("depositoMovEditModal").classList.add("hidden"));
+document.getElementById("depositoMovEditForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = document.getElementById("depositoMovEditId").value;
+  const responsavel = document.getElementById("depositoMovEditResp").value.trim() || null;
+  const observacao = document.getElementById("depositoMovEditObs").value.trim() || null;
+  const { error } = await client.from("deposito_movimentacoes").update({ responsavel, observacao }).eq("id", id);
+  if (error) { alert("Erro ao salvar: " + error.message); return; }
+  document.getElementById("depositoMovEditModal").classList.add("hidden");
   await loadDeposito();
 });
 

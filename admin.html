@@ -281,7 +281,7 @@
     <h3 class="deposito-mov-title">Últimas movimentações</h3>
     <div class="table-wrap">
       <table class="deposito-mov-table pro-table">
-        <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th></tr></thead>
+        <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th><th>Ações</th></tr></thead>
         <tbody id="depositoMovBody"></tbody>
       </table>
     </div>
@@ -459,6 +459,21 @@
         <label>Responsável <span class="optional">(opcional)</span><input type="text" id="depositoMovResp" placeholder="Quem retirou ou repôs"></label>
         <label>Observação <span class="optional">(opcional)</span><input type="text" id="depositoMovObs" placeholder="Ex: entregue para Fulano, sala 3"></label>
         <button type="submit" id="depositoMovSubmit">Confirmar</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="depositoMovEditModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true">
+      <div class="admin-top">
+        <h2>Editar movimentação</h2>
+        <button type="button" id="btnCloseDepositoMovEdit" class="secondary small">Fechar</button>
+      </div>
+      <form id="depositoMovEditForm">
+        <input type="hidden" id="depositoMovEditId">
+        <label>Responsável <span class="optional">(opcional)</span><input type="text" id="depositoMovEditResp" placeholder="Quem movimentou"></label>
+        <label>Observação<textarea id="depositoMovEditObs" placeholder="Ex: Colocado na máquina Computador 07"></textarea></label>
+        <button type="submit">Salvar</button>
       </form>
     </section>
   </div>
