@@ -9,7 +9,7 @@ const hardwareEditForm = document.getElementById("hardwareEditForm");
 const hardwareDetailModal = document.getElementById("hardwareDetailModal");
 const networkAlertsBody = document.getElementById("networkAlertsBody");
 const ticketDetailModal = document.getElementById("ticketDetailModal");
-const chartColors = ["#0057d8", "#16a34a", "#f59e0b", "#dc2626", "#7c3aed", "#0891b2", "#db2777"];
+const chartColors = ["#f59e0b", "#10b981", "#a855f7", "#ec4899", "#ef4444", "#eab308", "#14b8a6"];
 const companyDepartments = [
   "ANALYZE", "CERTIFICADO", "COMERCIAL", "CONT\u00c1BIL", "CS", "FINANCEIRO",
   "FISCAL", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH",
