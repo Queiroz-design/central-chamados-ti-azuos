@@ -15,38 +15,6 @@ $LogPath = Join-Path $LogDir "ultima-coleta-status.txt"
 if (-not (Test-Path $LogDir)) { New-Item -ItemType Directory -Path $LogDir -Force | Out-Null }
 Set-Content -Path $LogPath -Value "Coleta iniciada em $((Get-Date).ToString('dd/MM/yyyy HH:mm:ss'))" -Encoding UTF8
 
-# Instala/atualiza o monitor no MODELO CURTO (v2): baixa o monitor e garante uma
-# tarefa agendada que o executa a cada 1 minuto (coleta rapida que abre e fecha).
-# Como este coletor roda todo dia e se atualiza sozinho, ele distribui o modelo novo
-# para toda a frota sem precisar mexer em cada maquina.
-try {
-  # Nome NOVO (o Norton pos o antigo 'monitor-desempenho-azuos' em quarentena por IDP.Generic).
-  # Este nome novo, com comportamento curto igual ao coletor, nao carrega aquela marca.
-  $monitorPath = Join-Path $LogDir "coletor-desempenho-azuos.ps1"
-  $monitorUrl = "https://central-chamados-ti-azuos.vercel.app/coletor-desempenho-azuos.ps1"
-  [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-  try { Invoke-WebRequest -UseBasicParsing -Uri $monitorUrl -OutFile $monitorPath -TimeoutSec 20 -ErrorAction Stop }
-  catch { & curl.exe --ssl-no-revoke --max-time 20 -fsSL $monitorUrl -o $monitorPath }
-
-  $taskName = "Grupo Azuos - Coleta Desempenho"
-  $taskCmd = "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$monitorPath`""
-  $taskExists = & schtasks /Query /TN $taskName 2>$null
-  if (-not $taskExists) {
-    & schtasks /Create /TN $taskName /TR $taskCmd /SC MINUTE /MO 1 /F 2>$null | Out-Null
-  }
-
-  # Limpa o modelo ANTIGO (que o antivirus bloqueava): atalho de inicio, tarefa e arquivos antigos.
-  & reg delete "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /f 2>$null | Out-Null
-  & schtasks /Delete /TN "Grupo Azuos - Monitor Desempenho" /F 2>$null | Out-Null
-  Remove-Item (Join-Path $LogDir "monitor-desempenho-azuos.ps1") -Force -ErrorAction SilentlyContinue
-  Remove-Item (Join-Path $LogDir "agente-desempenho-azuos.ps1") -Force -ErrorAction SilentlyContinue
-
-  # Dispara uma coleta agora (nao espera o proximo minuto).
-  if (Test-Path $monitorPath) {
-    Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$monitorPath`""
-  }
-} catch {}
-
 function ConvertTo-Gb($bytes) {
   if (-not $bytes) { return 0 }
   return [math]::Round(([double]$bytes / 1GB), 2)
