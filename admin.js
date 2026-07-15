@@ -470,6 +470,16 @@ function assetSortValue(asset, key) {
   return normalizeText(asset.display_name || asset.computer_name);
 }
 
+let hardwareTypeFilter = ""; // "", "computador", "notebook"
+function getAssetType(asset) {
+  const label = String(asset.display_name || asset.computer_name || "");
+  return /notebook/i.test(label) ? "notebook" : "computador";
+}
+function getAssetNumber(asset) {
+  const m = String(asset.display_name || asset.computer_name || "").match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : 999999;
+}
+
 function getFilteredHardwareAssets() {
   const department = normalizeText(hardwareDepartmentFilter.value);
   const searchInput = document.getElementById("hardwareSearch");
@@ -477,6 +487,7 @@ function getFilteredHardwareAssets() {
   let list = department
     ? hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department)
     : hardwareAssets.slice();
+  if (hardwareTypeFilter) list = list.filter((asset) => getAssetType(asset) === hardwareTypeFilter);
   if (search) {
     list = list.filter((asset) =>
       `${asset.display_name || ""} ${asset.computer_name || ""} ${getAssetDepartment(asset)} ${asset.model || ""} ${asset.cpu_name || ""} ${asset.manufacturer || ""}`
@@ -484,12 +495,23 @@ function getFilteredHardwareAssets() {
     );
   }
   const dir = hardwareSort.dir === "desc" ? -1 : 1;
-  list.sort((a, b) => {
-    const va = assetSortValue(a, hardwareSort.key);
-    const vb = assetSortValue(b, hardwareSort.key);
-    if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
-    return String(va).localeCompare(String(vb), "pt-BR", { numeric: true }) * dir;
-  });
+  if (hardwareSort.key === "nome") {
+    // Ordena por NUMERO (Computador 01 e Notebook 01 juntos), depois computador antes de notebook.
+    list.sort((a, b) => {
+      const na = getAssetNumber(a), nb = getAssetNumber(b);
+      if (na !== nb) return (na - nb) * dir;
+      const ta = getAssetType(a), tb = getAssetType(b);
+      if (ta !== tb) return (ta === "computador" ? -1 : 1) * dir;
+      return String(a.display_name || a.computer_name).localeCompare(String(b.display_name || b.computer_name), "pt-BR", { numeric: true }) * dir;
+    });
+  } else {
+    list.sort((a, b) => {
+      const va = assetSortValue(a, hardwareSort.key);
+      const vb = assetSortValue(b, hardwareSort.key);
+      if (typeof va === "number" && typeof vb === "number") return (va - vb) * dir;
+      return String(va).localeCompare(String(vb), "pt-BR", { numeric: true }) * dir;
+    });
+  }
   return list;
 }
 
@@ -1235,6 +1257,16 @@ try { hardwareView = localStorage.getItem("hardwareView") || "cards"; } catch (e
 document.getElementById("hardwareSearch")?.addEventListener("input", debounce(renderAssets, 250));
 document.getElementById("btnViewCards")?.addEventListener("click", () => { hardwareView = "cards"; try { localStorage.setItem("hardwareView", "cards"); } catch (e) {} applyHardwareView(); });
 document.getElementById("btnViewTable")?.addEventListener("click", () => { hardwareView = "table"; try { localStorage.setItem("hardwareView", "table"); } catch (e) {} applyHardwareView(); });
+
+function applyTypeFilterButtons() {
+  document.getElementById("btnTypeAll")?.classList.toggle("active", hardwareTypeFilter === "");
+  document.getElementById("btnTypeDesktop")?.classList.toggle("active", hardwareTypeFilter === "computador");
+  document.getElementById("btnTypeNotebook")?.classList.toggle("active", hardwareTypeFilter === "notebook");
+}
+function setHardwareType(t) { hardwareTypeFilter = t; applyTypeFilterButtons(); renderAssets(); }
+document.getElementById("btnTypeAll")?.addEventListener("click", () => setHardwareType(""));
+document.getElementById("btnTypeDesktop")?.addEventListener("click", () => setHardwareType("computador"));
+document.getElementById("btnTypeNotebook")?.addEventListener("click", () => setHardwareType("notebook"));
 document.querySelectorAll(".assets-table th.sortable").forEach((th) => {
   th.addEventListener("click", () => {
     const key = th.dataset.sort;
