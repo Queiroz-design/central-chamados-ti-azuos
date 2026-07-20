@@ -1191,6 +1191,9 @@ window.openTicketDetails = function openTicketDetails(id) {
       <label>Responsável do TI
         <input type="text" id="ticketDetailResponsible" value="${escapeHtml(ticket.responsavel || "")}" placeholder="Quem está cuidando">
       </label>
+      <label style="grid-column:1/-1">O que o TI fez (solução)
+        <textarea id="ticketDetailSolucao" placeholder="Descreva o que foi feito para resolver o problema...">${escapeHtml(ticket.solucao || "")}</textarea>
+      </label>
     </div>
     <div class="ticket-detail-actions">
       <button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>
@@ -1244,7 +1247,8 @@ window.saveTicketMeta = async function saveTicketMeta(id) {
   const prioridade = document.getElementById("ticketDetailPriority").value;
   const responsavel = document.getElementById("ticketDetailResponsible").value.trim() || null;
   const tipo = document.getElementById("ticketDetailTipo").value;
-  const { error } = await client.from("chamados").update({ prioridade, responsavel, tipo }).eq("id", id);
+  const solucao = document.getElementById("ticketDetailSolucao").value.trim() || null;
+  const { error } = await client.from("chamados").update({ prioridade, responsavel, tipo, solucao }).eq("id", id);
   if (error) {
     alert("Erro ao salvar: " + error.message);
     return;
