@@ -1081,7 +1081,7 @@ function renderTickets() {
         ${waNotifyButton(ticket)}
       </td>
       <td class="desc-cell">${truncateText(ticket.descricao, 60)}</td>
-      <td onclick="event.stopPropagation()" class="actions-cell">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : ""}<button type="button" class="ticket-delete" title="Excluir chamado" onclick="deleteTicket('${ticket.id}')">Excluir</button></td>
+      <td onclick="event.stopPropagation()" class="actions-cell">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : "-"}</td>
     </tr>
   `).join("");
   renderTicketMetrics();
@@ -1189,9 +1189,8 @@ window.openTicketDetails = function openTicketDetails(id) {
         </label>
       </div>`;
   const actionsSection = resolvido
-    ? `<button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>`
-    : `<button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>
-       <button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>`;
+    ? ``
+    : `<button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>`;
   document.getElementById("ticketDetailBody").innerHTML = `
     <div class="ticket-detail-grid">
       ${ticketDetailRow("Status", ticket.status)}
