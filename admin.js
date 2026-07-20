@@ -1071,11 +1071,13 @@ function renderTickets() {
       <td>${escapeHtml(ticket.tipo)}</td>
       <td>${escapeHtml(ticket.anydesk || "-")}</td>
       <td onclick="event.stopPropagation()">
-        <select class="status" data-status="${escapeHtml(ticket.status)}" onchange="changeStatus(${ticket.id}, this.value)">
+        ${ticket.status === "Resolvido"
+          ? `<span class="status-locked" title="Chamado finalizado">✔ Resolvido</span>`
+          : `<select class="status" data-status="${escapeHtml(ticket.status)}" onchange="changeStatus(${ticket.id}, this.value)">
           <option ${ticket.status === "Aberto" ? "selected" : ""}>Aberto</option>
           <option ${ticket.status === "Em atendimento" ? "selected" : ""}>Em atendimento</option>
           <option ${ticket.status === "Resolvido" ? "selected" : ""}>Resolvido</option>
-        </select>
+        </select>`}
         ${waNotifyButton(ticket)}
       </td>
       <td class="desc-cell">${truncateText(ticket.descricao, 60)}</td>
@@ -1155,6 +1157,41 @@ window.openTicketDetails = function openTicketDetails(id) {
   const printBlock = ticket.print_url
     ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank" rel="noopener"><img class="ticket-detail-print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>`
     : "Sem print anexado.";
+  const resolvido = ticket.status === "Resolvido";
+  const editSection = resolvido
+    ? `<div class="ticket-detail-grid">
+        ${ticketDetailRow("Prioridade", priorityLabel(ticket.prioridade))}
+        ${ticketDetailRow("Responsável do TI", ticket.responsavel || "Não informado")}
+      </div>
+      <div class="ticket-detail-block">
+        <span>Solução (o que o TI fez)</span>
+        <p>${escapeHtml(ticket.solucao || "Não informado")}</p>
+      </div>
+      <div class="resolved-lock">🔒 Chamado finalizado (Resolvido). As informações não podem mais ser alteradas.</div>`
+    : `<div class="ticket-detail-edit">
+        <label>Tipo de problema
+          <select id="ticketDetailTipo">
+            ${(TICKET_TIPOS.includes(ticket.tipo) ? TICKET_TIPOS : [ticket.tipo, ...TICKET_TIPOS]).map((t) => `<option ${ticket.tipo === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}
+          </select>
+        </label>
+        <label>Prioridade
+          <select id="ticketDetailPriority">
+            <option ${priorityLabel(ticket.prioridade) === "Alta" ? "selected" : ""}>Alta</option>
+            <option ${priorityLabel(ticket.prioridade) === "Média" ? "selected" : ""}>Média</option>
+            <option ${priorityLabel(ticket.prioridade) === "Baixa" ? "selected" : ""}>Baixa</option>
+          </select>
+        </label>
+        <label>Responsável do TI
+          <input type="text" id="ticketDetailResponsible" value="${escapeHtml(ticket.responsavel || "")}" placeholder="Quem está cuidando">
+        </label>
+        <label style="grid-column:1/-1">O que o TI fez (solução)
+          <textarea id="ticketDetailSolucao" placeholder="Descreva o que foi feito para resolver o problema...">${escapeHtml(ticket.solucao || "")}</textarea>
+        </label>
+      </div>`;
+  const actionsSection = resolvido
+    ? `<button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>`
+    : `<button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>
+       <button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>`;
   document.getElementById("ticketDetailBody").innerHTML = `
     <div class="ticket-detail-grid">
       ${ticketDetailRow("Status", ticket.status)}
@@ -1175,29 +1212,9 @@ window.openTicketDetails = function openTicketDetails(id) {
       <span>Print do erro</span>
       <div>${printBlock}</div>
     </div>
-    <div class="ticket-detail-edit">
-      <label>Tipo de problema
-        <select id="ticketDetailTipo">
-          ${(TICKET_TIPOS.includes(ticket.tipo) ? TICKET_TIPOS : [ticket.tipo, ...TICKET_TIPOS]).map((t) => `<option ${ticket.tipo === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}
-        </select>
-      </label>
-      <label>Prioridade
-        <select id="ticketDetailPriority">
-          <option ${priorityLabel(ticket.prioridade) === "Alta" ? "selected" : ""}>Alta</option>
-          <option ${priorityLabel(ticket.prioridade) === "Média" ? "selected" : ""}>Média</option>
-          <option ${priorityLabel(ticket.prioridade) === "Baixa" ? "selected" : ""}>Baixa</option>
-        </select>
-      </label>
-      <label>Responsável do TI
-        <input type="text" id="ticketDetailResponsible" value="${escapeHtml(ticket.responsavel || "")}" placeholder="Quem está cuidando">
-      </label>
-      <label style="grid-column:1/-1">O que o TI fez (solução)
-        <textarea id="ticketDetailSolucao" placeholder="Descreva o que foi feito para resolver o problema...">${escapeHtml(ticket.solucao || "")}</textarea>
-      </label>
-    </div>
+    ${editSection}
     <div class="ticket-detail-actions">
-      <button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>
-      <button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>
+      ${actionsSection}
     </div>
   `;
   ticketDetailModal.classList.remove("hidden");
@@ -1216,6 +1233,15 @@ ticketDetailModal.addEventListener("click", (event) => {
 
 window.changeStatus = async function changeStatus(id, status) {
   const ticket = allTickets.find((item) => String(item.id) === String(id));
+  if (ticket && ticket.status === "Resolvido") {
+    alert("Este chamado já foi finalizado (Resolvido) e não pode mais ser alterado.");
+    await loadTickets();
+    return;
+  }
+  if (status === "Resolvido" && !confirm("Marcar como RESOLVIDO finaliza o chamado — depois disso ele não poderá mais ser alterado. Confirmar?")) {
+    await loadTickets();
+    return;
+  }
   const now = new Date().toISOString();
   const changes = { status };
   if (status === "Em atendimento" && ticket && !ticket.atendimento_em) changes.atendimento_em = now;
