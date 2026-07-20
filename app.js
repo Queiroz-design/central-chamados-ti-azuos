@@ -56,6 +56,7 @@ form.addEventListener("submit", async (event) => {
       anydesk: document.getElementById("anydesk").value.trim(),
       prioridade: document.getElementById("prioridade").value,
       contato: document.getElementById("contato").value.trim(),
+      avisar_whatsapp: document.getElementById("avisarWhatsapp").checked,
       descricao: document.getElementById("descricao").value.trim(),
       print_url: printUrl,
     };
@@ -69,7 +70,7 @@ form.addEventListener("submit", async (event) => {
     const num = formatTicketNumber(result.chamado.id);
     const digits = (record.contato || "").replace(/\D/g, "");
     let extra = "";
-    if (digits.length >= 8) {
+    if (record.avisar_whatsapp && digits.length >= 8) {
       const wa = digits.length <= 11 ? "55" + digits : digits;
       const txt = encodeURIComponent(`Protocolo do meu chamado no Grupo Azuos: ${num}. Guarde este número para acompanhar.`);
       extra = `<a class="wa-btn" href="https://wa.me/${wa}?text=${txt}" target="_blank" rel="noopener">📱 Receber no WhatsApp</a>`;

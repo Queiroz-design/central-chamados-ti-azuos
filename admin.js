@@ -1026,6 +1026,22 @@ function renderNetworkAlerts() {
   }).join("");
 }
 
+// Botao "Avisar no WhatsApp" - so aparece nos chamados em que a pessoa OPTOU por receber avisos.
+function waNotifyButton(ticket) {
+  if (!ticket.avisar_whatsapp) return "";
+  const digits = String(ticket.contato || "").replace(/\D/g, "");
+  if (digits.length < 8) return "";
+  const wa = digits.length <= 11 ? "55" + digits : digits;
+  const proto = formatTicketNumber(ticket.id);
+  const msgs = {
+    "Aberto": `Ola! Seu chamado ${proto} no Grupo Azuos foi registrado. Guarde este numero para acompanhar.`,
+    "Em atendimento": `Ola! Seu chamado ${proto} entrou em ATENDIMENTO. Ja estamos cuidando dele.`,
+    "Resolvido": `Ola! Seu chamado ${proto} foi RESOLVIDO. Qualquer coisa, e so abrir um novo chamado.`,
+  };
+  const txt = encodeURIComponent(msgs[ticket.status] || msgs["Aberto"]);
+  return `<a class="wa-notify" href="https://wa.me/${wa}?text=${txt}" target="_blank" rel="noopener" title="Avisar a pessoa no WhatsApp (${escapeHtml(ticket.status)})" onclick="event.stopPropagation()">📱 Avisar</a>`;
+}
+
 function renderTickets() {
   const text = filterText.value.trim().toLowerCase();
   const status = filterStatus.value;
@@ -1060,6 +1076,7 @@ function renderTickets() {
           <option ${ticket.status === "Em atendimento" ? "selected" : ""}>Em atendimento</option>
           <option ${ticket.status === "Resolvido" ? "selected" : ""}>Resolvido</option>
         </select>
+        ${waNotifyButton(ticket)}
       </td>
       <td class="desc-cell">${truncateText(ticket.descricao, 60)}</td>
       <td onclick="event.stopPropagation()" class="actions-cell">${ticket.print_url ? `<a href="${escapeHtml(ticket.print_url)}" target="_blank"><img class="print-img" src="${escapeHtml(ticket.print_url)}" alt="Print do chamado"></a>` : ""}<button type="button" class="ticket-delete" title="Excluir chamado" onclick="deleteTicket('${ticket.id}')">Excluir</button></td>

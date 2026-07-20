@@ -312,10 +312,15 @@ select.status{border-radius:8px;font-weight:bold;min-width:170px;width:auto;padd
 /* Confirmacao de chamado: protocolo em destaque + botao WhatsApp */
 .protocolo-box{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center}
 .protocolo-num{font-size:30px;font-weight:bold;letter-spacing:1px;color:#183a83;background:#fff;border:2px solid #183a83;border-radius:10px;padding:8px 18px}
-.admin-body .protocolo-num,.public-dark .protocolo-num{color:#bbf7d0;background:rgba(255,255,255,.06);border-color:#2f855a}
+.admin-body .protocolo-num{color:#bbf7d0;background:rgba(255,255,255,.06);border-color:#2f855a}
+.public-dark .protocolo-num{color:#0f2a63;background:#fff;border-color:#183a83}
 .protocolo-hint{font-size:13px;opacity:.85}
 .wa-btn{display:inline-block;margin-top:6px;background:#25d366;color:#062e16;font-weight:bold;text-decoration:none;padding:10px 18px;border-radius:10px;font-size:15px}
 .wa-btn:hover{background:#1eb457}
+.wa-notify{display:inline-block;margin-top:6px;background:#25d366;color:#062e16;font-weight:bold;text-decoration:none;padding:4px 10px;border-radius:8px;font-size:12px;white-space:nowrap}
+.wa-notify:hover{background:#1eb457}
+.check-line{display:flex;flex-direction:row;align-items:center;gap:8px;font-size:14px;cursor:pointer;font-weight:normal}
+.check-line input{width:auto;margin:0;flex:none}
 select.status[data-status="Aberto"]{background:#3a2c08;color:#fde68a;border-color:#854f0b}
 select.status[data-status="Em atendimento"]{background:#0f2436;color:#93c5fd;border-color:#185fa5}
 select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-color:#16a34a}
