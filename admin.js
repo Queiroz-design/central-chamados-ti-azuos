@@ -1146,6 +1146,8 @@ function ticketDetailRow(label, value) {
   return `<div class="ticket-detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? "-")}</strong></div>`;
 }
 
+const TICKET_TIPOS = ["Internet / Rede", "Computador lento", "Impressora", "E-mail", "Sistema interno", "Certificado digital", "Instalação de programa", "AnyDesk / Acesso remoto", "Outro"];
+
 window.openTicketDetails = function openTicketDetails(id) {
   const ticket = allTickets.find((item) => String(item.id) === String(id));
   if (!ticket) return;
@@ -1174,6 +1176,11 @@ window.openTicketDetails = function openTicketDetails(id) {
       <div>${printBlock}</div>
     </div>
     <div class="ticket-detail-edit">
+      <label>Tipo de problema
+        <select id="ticketDetailTipo">
+          ${(TICKET_TIPOS.includes(ticket.tipo) ? TICKET_TIPOS : [ticket.tipo, ...TICKET_TIPOS]).map((t) => `<option ${ticket.tipo === t ? "selected" : ""}>${escapeHtml(t)}</option>`).join("")}
+        </select>
+      </label>
       <label>Prioridade
         <select id="ticketDetailPriority">
           <option ${priorityLabel(ticket.prioridade) === "Alta" ? "selected" : ""}>Alta</option>
@@ -1186,7 +1193,7 @@ window.openTicketDetails = function openTicketDetails(id) {
       </label>
     </div>
     <div class="ticket-detail-actions">
-      <button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar prioridade e responsável</button>
+      <button type="button" id="btnSaveTicketMeta" onclick="saveTicketMeta('${ticket.id}')">Salvar alterações</button>
       <button type="button" class="danger" onclick="deleteTicket('${ticket.id}')">Excluir chamado</button>
     </div>
   `;
@@ -1236,7 +1243,8 @@ window.deleteTicket = async function deleteTicket(id) {
 window.saveTicketMeta = async function saveTicketMeta(id) {
   const prioridade = document.getElementById("ticketDetailPriority").value;
   const responsavel = document.getElementById("ticketDetailResponsible").value.trim() || null;
-  const { error } = await client.from("chamados").update({ prioridade, responsavel }).eq("id", id);
+  const tipo = document.getElementById("ticketDetailTipo").value;
+  const { error } = await client.from("chamados").update({ prioridade, responsavel, tipo }).eq("id", id);
   if (error) {
     alert("Erro ao salvar: " + error.message);
     return;
