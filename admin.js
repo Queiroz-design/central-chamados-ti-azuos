@@ -1599,8 +1599,8 @@ function renderDeposito() {
   }
 }
 
-function fillDepositoMovComputers() {
-  const sel = document.getElementById("depositoMovComputador");
+function fillDepositoMovComputers(selectId) {
+  const sel = document.getElementById(selectId);
   if (!sel) return;
   const machines = [...hardwareAssets]
     .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name, dept: getAssetDepartment(a) }))
@@ -1618,7 +1618,7 @@ window.movimentarDeposito = function movimentarDeposito(itemId, tipo) {
   document.getElementById("depositoMovQtd").value = 1;
   document.getElementById("depositoMovResp").value = "";
   document.getElementById("depositoMovObs").value = "";
-  fillDepositoMovComputers();
+  fillDepositoMovComputers("depositoMovComputador");
   document.getElementById("depositoMovComputador").value = "";
   document.getElementById("depositoMovModal").classList.remove("hidden");
 };
@@ -1707,6 +1707,8 @@ window.editarMovObs = function editarMovObs(id) {
   document.getElementById("depositoMovEditId").value = mov.id;
   document.getElementById("depositoMovEditResp").value = mov.responsavel || "";
   document.getElementById("depositoMovEditObs").value = mov.observacao || "";
+  fillDepositoMovComputers("depositoMovEditComputador");
+  document.getElementById("depositoMovEditComputador").value = mov.computer_name || "";
   document.getElementById("depositoMovEditModal").classList.remove("hidden");
 };
 document.getElementById("btnCloseDepositoMovEdit")?.addEventListener("click", () => document.getElementById("depositoMovEditModal").classList.add("hidden"));
@@ -1715,7 +1717,14 @@ document.getElementById("depositoMovEditForm")?.addEventListener("submit", async
   const id = document.getElementById("depositoMovEditId").value;
   const responsavel = document.getElementById("depositoMovEditResp").value.trim() || null;
   const observacao = document.getElementById("depositoMovEditObs").value.trim() || null;
-  const { error } = await client.from("deposito_movimentacoes").update({ responsavel, observacao }).eq("id", id);
+  const compSel = document.getElementById("depositoMovEditComputador");
+  const computer_name = compSel && compSel.value ? compSel.value : null;
+  let computer_label = null;
+  if (computer_name) {
+    const asset = hardwareAssets.find((a) => a.computer_name === computer_name);
+    computer_label = asset ? (asset.display_name || asset.computer_name) : computer_name;
+  }
+  const { error } = await client.from("deposito_movimentacoes").update({ responsavel, observacao, computer_name, computer_label }).eq("id", id);
   if (error) { alert("Erro ao salvar: " + error.message); return; }
   document.getElementById("depositoMovEditModal").classList.add("hidden");
   await loadDeposito();
