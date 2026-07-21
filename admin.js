@@ -910,11 +910,15 @@ function renderDeviceDeposit(asset) {
   const rows = (typeof depositoMovs !== "undefined" ? depositoMovs : [])
     .filter((mv) => machineMatchesAsset(mv, asset))
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  // Perspectiva da MÁQUINA: saída do depósito = peça INSTALADA nela; entrada no depósito = peça RETIRADA dela.
+  const movMaquina = (tipo) => tipo === "saida"
+    ? '<span class="mov-badge entrada">Instalada</span>'
+    : '<span class="mov-badge saida">Retirada</span>';
   body.innerHTML = rows.length ? rows.map((mv) => `
     <tr>
       <td>${escapeHtml(new Date(mv.created_at).toLocaleDateString("pt-BR"))}</td>
       <td>${escapeHtml(nameById[mv.item_id] || "-")}</td>
-      <td><span class="mov-badge ${mv.tipo}">${mv.tipo === "entrada" ? "Entrada" : "Saída"}</span></td>
+      <td>${movMaquina(mv.tipo)}</td>
       <td>${Number(mv.quantidade)}</td>
       <td>${escapeHtml(mv.observacao || "-")}</td>
     </tr>`).join("") : '<tr><td colspan="5">Nenhuma peça do depósito registrada para esta máquina.</td></tr>';
@@ -1664,7 +1668,10 @@ function renderDeposito() {
         <td>${Number(m.quantidade)}</td>
         <td>${escapeHtml(m.responsavel || "-")}</td>
         <td>${escapeHtml(m.observacao || "-")}</td>
-        <td><button class="secondary small" onclick="editarMovObs('${m.id}')">Editar</button></td>
+        <td><div class="table-actions">
+          <button class="secondary small" onclick="editarMovObs('${m.id}')">Editar</button>
+          <button class="secondary small remove-hw" onclick="excluirMovimentacao('${m.id}')">Excluir</button>
+        </div></td>
       </tr>
     `).join("") : '<tr><td colspan="7">Nenhuma movimentação ainda.</td></tr>';
   }
@@ -1770,6 +1777,13 @@ document.getElementById("depositoMovForm")?.addEventListener("submit", async (ev
   document.getElementById("depositoMovModal").classList.add("hidden");
   await loadDeposito();
 });
+
+window.excluirMovimentacao = async function excluirMovimentacao(id) {
+  if (!confirm("Excluir esta movimentação?\n\nO estoque será ajustado de volta (a entrada/saída será desfeita).")) return;
+  const { error } = await client.from("deposito_movimentacoes").delete().eq("id", id);
+  if (error) { alert("Erro ao excluir: " + error.message); return; }
+  await loadDeposito();
+};
 
 // Editar apenas a observacao/responsavel de uma movimentacao (nao mexe no estoque).
 window.editarMovObs = function editarMovObs(id) {
