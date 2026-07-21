@@ -406,6 +406,26 @@
           </table>
         </div>
       </section>
+
+      <section class="detail-section">
+        <h3>Manutenções desta máquina</h3>
+        <div class="table-wrap">
+          <table class="performance-alerts-table">
+            <thead><tr><th>Data</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th></tr></thead>
+            <tbody id="deviceMaintBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Peças do depósito nesta máquina</h3>
+        <div class="table-wrap">
+          <table class="performance-alerts-table">
+            <thead><tr><th>Data</th><th>Peça</th><th>Movimento</th><th>Qtd</th><th>Observação</th></tr></thead>
+            <tbody id="deviceDepositBody"></tbody>
+          </table>
+        </div>
+      </section>
     </section>
   </div>
 
@@ -461,6 +481,7 @@
         <input type="hidden" id="depositoMovItemId">
         <input type="hidden" id="depositoMovTipo">
         <label>Quantidade<input type="number" id="depositoMovQtd" min="1" value="1" required></label>
+        <label>Computador <span class="optional">(para qual máquina, opcional)</span><select id="depositoMovComputador"></select></label>
         <label>Responsável <span class="optional">(opcional)</span><input type="text" id="depositoMovResp" placeholder="Quem retirou ou repôs"></label>
         <label>Observação <span class="optional">(opcional)</span><input type="text" id="depositoMovObs" placeholder="Ex: entregue para Fulano, sala 3"></label>
         <button type="submit" id="depositoMovSubmit">Confirmar</button>

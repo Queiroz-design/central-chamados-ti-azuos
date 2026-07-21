@@ -878,6 +878,47 @@ function renderPerformanceAlerts(computerName) {
   `).join("");
 }
 
+function machineMatchesAsset(record, asset) {
+  const an = normalizeText(asset.computer_name);
+  const al = normalizeText(asset.display_name || asset.computer_name);
+  const rn = normalizeText(record.computer_name);
+  const rl = normalizeText(record.computer_label);
+  return (rn && (rn === an || rn === al)) || (rl && (rl === al || rl === an));
+}
+
+function renderDeviceMaintenance(asset) {
+  const body = document.getElementById("deviceMaintBody");
+  if (!body) return;
+  const rows = (typeof manutencoes !== "undefined" ? manutencoes : [])
+    .filter((m) => machineMatchesAsset(m, asset))
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+  body.innerHTML = rows.length ? rows.map((m) => `
+    <tr>
+      <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
+      <td><span class="mov-badge entrada">${escapeHtml(m.tipo || "-")}</span></td>
+      <td>${escapeHtml(m.descricao || "-")}</td>
+      <td>${escapeHtml(m.responsavel || "-")}</td>
+    </tr>`).join("") : '<tr><td colspan="4">Nenhuma manutenção registrada para esta máquina.</td></tr>';
+}
+
+function renderDeviceDeposit(asset) {
+  const body = document.getElementById("deviceDepositBody");
+  if (!body) return;
+  const nameById = {};
+  (typeof depositoItens !== "undefined" ? depositoItens : []).forEach((i) => { nameById[i.id] = i.nome; });
+  const rows = (typeof depositoMovs !== "undefined" ? depositoMovs : [])
+    .filter((mv) => machineMatchesAsset(mv, asset))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  body.innerHTML = rows.length ? rows.map((mv) => `
+    <tr>
+      <td>${escapeHtml(new Date(mv.created_at).toLocaleDateString("pt-BR"))}</td>
+      <td>${escapeHtml(nameById[mv.item_id] || "-")}</td>
+      <td><span class="mov-badge ${mv.tipo}">${mv.tipo === "entrada" ? "Entrada" : "Saída"}</span></td>
+      <td>${Number(mv.quantidade)}</td>
+      <td>${escapeHtml(mv.observacao || "-")}</td>
+    </tr>`).join("") : '<tr><td colspan="5">Nenhuma peça do depósito registrada para esta máquina.</td></tr>';
+}
+
 function renderHardwareDetails() {
   const asset = hardwareAssets.find((item) => item.id === selectedHardwareId);
   if (!asset) return;
@@ -911,6 +952,8 @@ function renderHardwareDetails() {
   renderSparkline("diskHistoryChart", selectedHistory, "disk_percent", "#f59e0b");
   renderDeviceProperties(asset, live);
   renderPerformanceAlerts(asset.computer_name);
+  renderDeviceMaintenance(asset);
+  renderDeviceDeposit(asset);
 }
 
 window.openHardwareDetails = async function openHardwareDetails(id) {
@@ -1538,8 +1581,9 @@ function renderDeposito() {
     depositoItens.forEach((i) => { infoById[i.id] = { nome: i.nome, condicao: (i.condicao || "Novo") === "Usado" ? "Usado" : "Novo" }; });
     const movItemCell = (m) => {
       const info = infoById[m.item_id];
-      if (!info) return escapeHtml(m.item_nome || "-");
-      return `${escapeHtml(info.nome)} <span class="cond-badge ${info.condicao === "Usado" ? "usado" : "novo"}">${info.condicao}</span>`;
+      const base = info ? `${escapeHtml(info.nome)} <span class="cond-badge ${info.condicao === "Usado" ? "usado" : "novo"}">${info.condicao}</span>` : escapeHtml(m.item_nome || "-");
+      const maq = m.computer_label ? ` <span class="muted">→ ${escapeHtml(m.computer_label)}</span>` : "";
+      return base + maq;
     };
     movBody.innerHTML = depositoMovs.length ? depositoMovs.map((m) => `
       <tr>
@@ -1555,6 +1599,16 @@ function renderDeposito() {
   }
 }
 
+function fillDepositoMovComputers() {
+  const sel = document.getElementById("depositoMovComputador");
+  if (!sel) return;
+  const machines = [...hardwareAssets]
+    .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name, dept: getAssetDepartment(a) }))
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { numeric: true }));
+  sel.innerHTML = '<option value="">— Nenhum / estoque geral —</option>'
+    + machines.map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.label)}${m.dept ? " — " + escapeHtml(m.dept) : ""} (${escapeHtml(m.name)})</option>`).join("");
+}
+
 window.movimentarDeposito = function movimentarDeposito(itemId, tipo) {
   const item = depositoItens.find((i) => i.id === itemId);
   if (!item) return;
@@ -1564,6 +1618,8 @@ window.movimentarDeposito = function movimentarDeposito(itemId, tipo) {
   document.getElementById("depositoMovQtd").value = 1;
   document.getElementById("depositoMovResp").value = "";
   document.getElementById("depositoMovObs").value = "";
+  fillDepositoMovComputers();
+  document.getElementById("depositoMovComputador").value = "";
   document.getElementById("depositoMovModal").classList.remove("hidden");
 };
 
@@ -1631,7 +1687,14 @@ document.getElementById("depositoMovForm")?.addEventListener("submit", async (ev
   const quantidade = Math.max(1, parseInt(document.getElementById("depositoMovQtd").value, 10) || 1);
   const responsavel = document.getElementById("depositoMovResp").value.trim() || null;
   const observacao = document.getElementById("depositoMovObs").value.trim() || null;
-  const { error } = await client.from("deposito_movimentacoes").insert({ item_id, tipo, quantidade, responsavel, observacao });
+  const compSel = document.getElementById("depositoMovComputador");
+  const computer_name = compSel && compSel.value ? compSel.value : null;
+  let computer_label = null;
+  if (computer_name) {
+    const asset = hardwareAssets.find((a) => a.computer_name === computer_name);
+    computer_label = asset ? (asset.display_name || asset.computer_name) : computer_name;
+  }
+  const { error } = await client.from("deposito_movimentacoes").insert({ item_id, tipo, quantidade, responsavel, observacao, computer_name, computer_label });
   if (error) { alert("Erro ao registrar movimentação: " + error.message); return; }
   document.getElementById("depositoMovModal").classList.add("hidden");
   await loadDeposito();
