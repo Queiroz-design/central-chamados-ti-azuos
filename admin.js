@@ -21,6 +21,7 @@ let hardwareLoadError = "";
 let hardwareLiveStatus = [];
 let performanceAlerts = [];
 let performanceLoadError = "";
+let transferencias = [];
 let selectedHardwareId = null;
 let selectedHistory = [];
 let networkAlerts = [];
@@ -919,6 +920,21 @@ function renderDeviceDeposit(asset) {
     </tr>`).join("") : '<tr><td colspan="5">Nenhuma peça do depósito registrada para esta máquina.</td></tr>';
 }
 
+function renderDeviceTransfers(asset) {
+  const body = document.getElementById("deviceTransferBody");
+  if (!body) return;
+  const rows = (transferencias || [])
+    .filter((t) => machineMatchesAsset(t, asset))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  body.innerHTML = rows.length ? rows.map((t) => `
+    <tr>
+      <td>${escapeHtml(new Date(t.created_at).toLocaleString("pt-BR"))}</td>
+      <td>${escapeHtml(t.de_departamento || "-")} → <strong>${escapeHtml(t.para_departamento || "-")}</strong></td>
+      <td>${escapeHtml(t.responsavel || "-")}</td>
+      <td>${escapeHtml(t.observacao || "-")}</td>
+    </tr>`).join("") : '<tr><td colspan="4">Nenhuma transferência registrada — está no departamento atual desde o início.</td></tr>';
+}
+
 function renderHardwareDetails() {
   const asset = hardwareAssets.find((item) => item.id === selectedHardwareId);
   if (!asset) return;
@@ -954,6 +970,7 @@ function renderHardwareDetails() {
   renderPerformanceAlerts(asset.computer_name);
   renderDeviceMaintenance(asset);
   renderDeviceDeposit(asset);
+  renderDeviceTransfers(asset);
 }
 
 window.openHardwareDetails = async function openHardwareDetails(id) {
@@ -987,6 +1004,60 @@ function closeHardwareDetails() {
 document.getElementById("btnCloseHardwareDetail").addEventListener("click", closeHardwareDetails);
 hardwareDetailModal.addEventListener("click", (event) => {
   if (event.target === hardwareDetailModal) closeHardwareDetails();
+});
+
+// ===== Transferencia de departamento =====
+async function loadTransferencias() {
+  const { data } = await client.from("transferencias").select("*").order("created_at", { ascending: false }).limit(500);
+  transferencias = data || [];
+  if (selectedHardwareId) {
+    const asset = hardwareAssets.find((a) => a.id === selectedHardwareId);
+    if (asset) renderDeviceTransfers(asset);
+  }
+}
+
+window.transferirMaquina = function transferirMaquina(id) {
+  const asset = hardwareAssets.find((a) => a.id === id);
+  if (!asset) return;
+  document.getElementById("transferAssetId").value = id;
+  document.getElementById("transferInfo").innerText = `${asset.display_name || asset.computer_name} — atualmente em: ${getAssetDepartment(asset)}`;
+  const sel = document.getElementById("transferPara");
+  sel.innerHTML = companyDepartments.map((d) => `<option>${escapeHtml(d)}</option>`).join("");
+  const cur = getAssetDepartment(asset);
+  if (companyDepartments.includes(cur)) sel.value = cur;
+  document.getElementById("transferResp").value = "";
+  document.getElementById("transferObs").value = "";
+  document.getElementById("transferModal").classList.remove("hidden");
+};
+
+document.getElementById("btnTransferDept")?.addEventListener("click", () => { if (selectedHardwareId) transferirMaquina(selectedHardwareId); });
+document.getElementById("btnCloseTransfer")?.addEventListener("click", () => document.getElementById("transferModal").classList.add("hidden"));
+
+document.getElementById("transferForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = document.getElementById("transferAssetId").value;
+  const asset = hardwareAssets.find((a) => a.id === id);
+  if (!asset) return;
+  const para = document.getElementById("transferPara").value;
+  const de = getAssetDepartment(asset);
+  if (!para || para === de) { alert("Escolha um departamento diferente do atual."); return; }
+  const responsavel = document.getElementById("transferResp").value.trim() || null;
+  const observacao = document.getElementById("transferObs").value.trim() || null;
+  const { error: e1 } = await client.from("transferencias").insert({
+    computer_name: asset.computer_name,
+    computer_label: asset.display_name || asset.computer_name,
+    de_departamento: de,
+    para_departamento: para,
+    responsavel,
+    observacao,
+  });
+  if (e1) { alert("Erro ao registrar transferência: " + e1.message); return; }
+  const { error: e2 } = await client.from("hardware_inventory").update({ department: para }).eq("id", id);
+  if (e2) { alert("Transferência registrada, mas erro ao atualizar o departamento: " + e2.message); }
+  document.getElementById("transferModal").classList.add("hidden");
+  await loadTransferencias();
+  await loadTickets();
+  if (selectedHardwareId) renderHardwareDetails();
 });
 
 function isNetworkRecovery(alert) {
@@ -1920,6 +1991,7 @@ async function initAdmin() {
   loadTickets();
   loadDeposito();
   loadManutencoes();
+  loadTransferencias();
 }
 
 client.auth.onAuthStateChange((event) => {

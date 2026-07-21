@@ -351,7 +351,10 @@
           <h2 id="deviceDetailTitle">Computador</h2>
           <p id="deviceDetailSubtitle" class="section-note"></p>
         </div>
-        <button type="button" id="btnCloseHardwareDetail" class="secondary">Fechar</button>
+        <div class="detail-header-actions">
+          <button type="button" id="btnTransferDept" class="secondary">Transferir departamento</button>
+          <button type="button" id="btnCloseHardwareDetail" class="secondary">Fechar</button>
+        </div>
       </header>
 
       <div class="live-metrics-grid">
@@ -426,6 +429,33 @@
           </table>
         </div>
       </section>
+
+      <section class="detail-section">
+        <h3>Departamentos por onde passou (transferências)</h3>
+        <div class="table-wrap">
+          <table class="performance-alerts-table">
+            <thead><tr><th>Data</th><th>De → Para</th><th>Responsável</th><th>Observação</th></tr></thead>
+            <tbody id="deviceTransferBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+  </div>
+
+  <div id="transferModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true">
+      <div class="admin-top">
+        <h2>Transferir de departamento</h2>
+        <button type="button" id="btnCloseTransfer" class="secondary small">Fechar</button>
+      </div>
+      <form id="transferForm">
+        <input type="hidden" id="transferAssetId">
+        <p class="section-note" id="transferInfo"></p>
+        <label>Novo departamento<select id="transferPara"></select></label>
+        <label>Responsável <span class="optional">(opcional)</span><input type="text" id="transferResp" placeholder="Quem fez a transferência"></label>
+        <label>Observação <span class="optional">(opcional)</span><input type="text" id="transferObs" placeholder="Ex: emprestada para cobrir falta no Fiscal"></label>
+        <button type="submit">Confirmar transferência</button>
+      </form>
     </section>
   </div>
 
