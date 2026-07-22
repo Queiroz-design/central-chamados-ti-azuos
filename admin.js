@@ -34,6 +34,7 @@ let hardwareView = "cards";
 let hardwareSort = { key: "nome", dir: "asc" };
 let hardwareHealthFilter = "";
 let hardwareLiveFilter = "";
+let orcMachineFilter = ""; // filtro vindo do Orcamento: "", "ram-notebook", "ram-desktop", "ssd"
 
 function debounce(fn, wait) {
   let timer;
@@ -83,6 +84,7 @@ document.querySelectorAll(".health-filter").forEach((box) => {
     const h = box.dataset.health;
     hardwareHealthFilter = (h === "all" || hardwareHealthFilter === h) ? "" : h;
     hardwareLiveFilter = "";
+    orcMachineFilter = "";
     updateFilterActiveClasses();
     renderAssets();
     document.getElementById("hardwareCards")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -94,6 +96,7 @@ document.querySelectorAll(".live-filter").forEach((box) => {
     const v = box.dataset.live;
     hardwareLiveFilter = hardwareLiveFilter === v ? "" : v;
     hardwareHealthFilter = "";
+    orcMachineFilter = "";
     updateFilterActiveClasses();
     renderAssets();
     document.getElementById("hardwareCards")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
@@ -617,6 +620,8 @@ function renderAssets() {
   } else if (hardwareLiveFilter) {
     displayAssets = filteredAssets.filter((asset) => assetMatchesLive(asset, hardwareLiveFilter));
   }
+  if (orcMachineFilter) displayAssets = displayAssets.filter((asset) => assetNeedsOrc(asset, orcMachineFilter));
+  updateOrcFilterNotice();
 
   if (!hardwareAssets.length) {
     assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina enviou inventário ainda. Baixe o coletor e execute nos computadores.</td></tr>';
@@ -1031,9 +1036,11 @@ window.transferirMaquina = function transferirMaquina(id) {
   document.getElementById("transferAssetId").value = id;
   document.getElementById("transferInfo").innerText = `${asset.display_name || asset.computer_name} — atualmente em: ${getAssetDepartment(asset)}`;
   const sel = document.getElementById("transferPara");
-  sel.innerHTML = companyDepartments.map((d) => `<option>${escapeHtml(d)}</option>`).join("");
+  sel.innerHTML =
+    companyDepartments.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("") +
+    `<option value="Reserva">🔖 Reserva (sem departamento — estoque)</option>`;
   const cur = getAssetDepartment(asset);
-  if (companyDepartments.includes(cur)) sel.value = cur;
+  sel.value = cur;
   document.getElementById("transferResp").value = "";
   document.getElementById("transferObs").value = "";
   document.getElementById("transferModal").classList.remove("hidden");
@@ -1429,9 +1436,9 @@ document.getElementById("btnExport").addEventListener("click", () => {
   link.click();
 });
 
-hardwareDepartmentFilter.addEventListener("change", renderAssets);
+hardwareDepartmentFilter.addEventListener("change", () => { orcMachineFilter = ""; renderAssets(); });
 try { hardwareView = localStorage.getItem("hardwareView") || "cards"; } catch (e) {}
-document.getElementById("hardwareSearch")?.addEventListener("input", debounce(renderAssets, 250));
+document.getElementById("hardwareSearch")?.addEventListener("input", debounce(() => { orcMachineFilter = ""; renderAssets(); }, 250));
 document.getElementById("btnViewCards")?.addEventListener("click", () => { hardwareView = "cards"; try { localStorage.setItem("hardwareView", "cards"); } catch (e) {} applyHardwareView(); });
 document.getElementById("btnViewTable")?.addEventListener("click", () => { hardwareView = "table"; try { localStorage.setItem("hardwareView", "table"); } catch (e) {} applyHardwareView(); });
 
@@ -1440,7 +1447,7 @@ function applyTypeFilterButtons() {
   document.getElementById("btnTypeDesktop")?.classList.toggle("active", hardwareTypeFilter === "computador");
   document.getElementById("btnTypeNotebook")?.classList.toggle("active", hardwareTypeFilter === "notebook");
 }
-function setHardwareType(t) { hardwareTypeFilter = t; applyTypeFilterButtons(); renderAssets(); }
+function setHardwareType(t) { hardwareTypeFilter = t; orcMachineFilter = ""; applyTypeFilterButtons(); renderAssets(); }
 document.getElementById("btnTypeAll")?.addEventListener("click", () => setHardwareType(""));
 document.getElementById("btnTypeDesktop")?.addEventListener("click", () => setHardwareType("computador"));
 document.getElementById("btnTypeNotebook")?.addEventListener("click", () => setHardwareType("notebook"));
@@ -2196,23 +2203,60 @@ function getOrcamentoNecessidades() {
   const precisaSsd = hardwareAssets.filter((a) => !assetHasSSD(a) || (maxDiskGb(a) > 0 && maxDiskGb(a) < 200)).length;
   const estoque = (matchFn) => (depositoItens || []).filter(matchFn).reduce((s, i) => s + Number(i.quantidade || 0), 0);
   return [
-    { label: "Memória 16GB (Notebook)", need: notebooksRam, have: estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome)), min: 480, max: 900, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook" },
-    { label: "Memória 16GB (Desktop)", need: desktopsRam, have: estoque((i) => /mem/i.test(i.nome) && /desktop/i.test(i.nome) && /16/.test(i.nome)), min: 450, max: 850, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop" },
-    { label: "SSD 240GB", need: precisaSsd, have: estoque((i) => /ssd/i.test(i.nome) && diskGbFromName(i.nome) >= 240), min: 250, max: 420, url: "https://www.kabum.com.br/busca/ssd-240gb" },
+    { key: "ram-notebook", label: "Memória 16GB (Notebook)", need: notebooksRam, have: estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome)), min: 480, max: 900, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook" },
+    { key: "ram-desktop", label: "Memória 16GB (Desktop)", need: desktopsRam, have: estoque((i) => /mem/i.test(i.nome) && /desktop/i.test(i.nome) && /16/.test(i.nome)), min: 450, max: 850, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop" },
+    { key: "ssd", label: "SSD 240GB", need: precisaSsd, have: estoque((i) => /ssd/i.test(i.nome) && diskGbFromName(i.nome) >= 240), min: 250, max: 420, url: "https://www.kabum.com.br/busca/ssd-240gb" },
   ];
 }
+// Filtra o inventario para as maquinas que precisam do item do orcamento (mesma logica das contagens).
+function assetNeedsOrc(asset, key) {
+  if (key === "ram-notebook") return getAssetType(asset) === "notebook" && Number(asset.memory_total_gb || 0) > 0 && Number(asset.memory_total_gb) < 16;
+  if (key === "ram-desktop") return getAssetType(asset) === "computador" && Number(asset.memory_total_gb || 0) > 0 && Number(asset.memory_total_gb) < 16;
+  if (key === "ssd") return !assetHasSSD(asset) || (maxDiskGb(asset) > 0 && maxDiskGb(asset) < 200);
+  return true;
+}
+const ORC_FILTER_LABELS = {
+  "ram-notebook": "que precisam de memória 16GB (Notebook)",
+  "ram-desktop": "que precisam de memória 16GB (Desktop)",
+  ssd: "que precisam trocar/instalar SSD 240GB",
+};
+window.abrirInventarioOrc = function abrirInventarioOrc(key) {
+  hardwareLiveFilter = "";
+  hardwareHealthFilter = "";
+  hardwareTypeFilter = "";
+  applyTypeFilterButtons();
+  updateFilterActiveClasses();
+  const searchInput = document.getElementById("hardwareSearch");
+  if (searchInput) searchInput.value = "";
+  if (hardwareDepartmentFilter) hardwareDepartmentFilter.value = "";
+  orcMachineFilter = key;
+  window.irParaAba("inventario");
+  renderAssets();
+  document.getElementById("orcFilterNotice")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+};
+function updateOrcFilterNotice() {
+  const notice = document.getElementById("orcFilterNotice");
+  const text = document.getElementById("orcFilterNoticeText");
+  if (!notice) return;
+  if (!orcMachineFilter) { notice.classList.add("hidden"); return; }
+  const count = hardwareAssets.filter((a) => assetNeedsOrc(a, orcMachineFilter)).length;
+  if (text) text.innerHTML = `🛒 Orçamento: mostrando só as <strong>${count}</strong> máquina(s) ${escapeHtml(ORC_FILTER_LABELS[orcMachineFilter] || "")}.`;
+  notice.classList.remove("hidden");
+}
+document.getElementById("btnClearOrcFilter")?.addEventListener("click", () => { orcMachineFilter = ""; renderAssets(); });
 function renderOrcamentoNecessidades() {
   const comprarEl = document.getElementById("orcamentoComprar");
   const estoqueEl = document.getElementById("orcamentoEstoque");
   if (!comprarEl || !estoqueEl) return;
+  const verMaquinas = (n) => `<button type="button" class="orc-ver-maquinas" onclick="abrirInventarioOrc('${n.key}')">👁 ver as ${n.need} máquina(s) no inventário</button>`;
   const linhaComprar = (n) =>
     n.have > 0
-      ? `<div class="orc-line warn"><strong>${escapeHtml(n.label)}</strong>: ${n.need} precisam, o depósito tem ${n.have} — faltam <strong>${n.need - n.have}</strong>. <a href="${n.url}" target="_blank" rel="noopener">🛒 ver preços</a></div>`
-      : `<div class="orc-line buy"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${n.need}. <a href="${n.url}" target="_blank" rel="noopener">ver preços</a></div>`;
+      ? `<div class="orc-line warn"><strong>${escapeHtml(n.label)}</strong>: ${n.need} precisam, o depósito tem ${n.have} — faltam <strong>${n.need - n.have}</strong>. <a href="${n.url}" target="_blank" rel="noopener">🛒 ver preços</a> ${verMaquinas(n)}</div>`
+      : `<div class="orc-line buy"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${n.need}. <a href="${n.url}" target="_blank" rel="noopener">ver preços</a> ${verMaquinas(n)}</div>`;
   const linhaEstoque = (n) =>
     n.need <= 0
       ? `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: nenhuma máquina precisando agora.</div>`
-      : `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o depósito TEM ${n.have} em estoque — ✅ não precisa comprar.</div>`;
+      : `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o depósito TEM ${n.have} em estoque — ✅ não precisa comprar. ${verMaquinas(n)}</div>`;
   const necessidades = getOrcamentoNecessidades();
   const comprar = necessidades.filter((n) => n.need > 0 && n.have < n.need);
   const estoque = necessidades.filter((n) => n.need <= 0 || n.have >= n.need);
