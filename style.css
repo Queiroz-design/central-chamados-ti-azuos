@@ -220,6 +220,21 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .intel-nav-badge{font-size:12px;font-weight:bold;background:#0f2436;color:#93c5fd;padding:3px 10px;border-radius:20px}
 .intel-nav-badge.pendencia{background:#3b1118;color:#fca5a5}
 .intel-nav-badge.ok{background:#052e20;color:#bbf7d0}
+/* Orcamento */
+.orc-line{border:1px solid #26364a;border-left-width:4px;border-radius:8px;padding:11px 14px;margin-bottom:9px;background:#16213e;font-size:14px;color:#e2e8f0}
+.orc-line.ok{border-left-color:#16a34a}
+.orc-line.warn{border-left-color:#d9a406}
+.orc-line.buy{border-left-color:#dc2626}
+.orc-line a{color:#7dd3fc;font-weight:bold;margin-left:6px}
+.orc-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.orc-comp{border:1px solid #26364a;border-radius:10px;padding:12px 14px;background:#16213e}
+.orc-comp-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.orc-comp-top strong{color:#f8fafc;font-size:14px}
+.orc-faixa{font-size:12.5px;font-weight:bold;background:#0f2436;color:#93c5fd;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.orc-comp-links{display:flex;gap:8px;flex-wrap:wrap}
+.orc-comp-links a{background:#25314f;color:#cbd5e1;text-decoration:none;font-weight:bold;font-size:12.5px;padding:5px 12px;border-radius:8px}
+.orc-comp-links a:hover{background:#2f3d61}
+@media(max-width:760px){.orc-links{grid-template-columns:1fr}}
 .intel-detail-panel{background:#101a30;border:1px solid #2c3d5c;border-radius:12px;padding:18px 20px}
 .intel-item{border:1px solid #26364a;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#16213e}
 @media(max-width:820px){.intel-cards-grid{grid-template-columns:1fr}}

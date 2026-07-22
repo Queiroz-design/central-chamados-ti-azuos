@@ -31,6 +31,7 @@
     <button class="side-tab" data-tab="deposito"><span>04</span>Depósito</button>
     <button class="side-tab" data-tab="manutencao"><span>05</span>Manutenção</button>
     <button class="side-tab" data-tab="inteligencia"><span>06</span>Inteligência</button>
+    <button class="side-tab" data-tab="orcamento"><span>07</span>Orçamento</button>
   </aside>
 
   <div class="admin-content">
@@ -369,6 +370,26 @@
         <div id="intelChamados"></div>
       </div>
     </div>
+  </section>
+
+  <section id="tab-orcamento" class="card tab-panel">
+    <div class="admin-top">
+      <div>
+        <h2>Orçamento</h2>
+        <p class="section-note">Cruza as necessidades das máquinas com o depósito e diz o que comprar (e o que já tem em estoque). Com preços de referência e links de compra.</p>
+      </div>
+      <button id="btnRefreshOrcamento" class="secondary">Atualizar</button>
+    </div>
+    <section class="panel">
+      <h3>O que comprar (necessidades × depósito)</h3>
+      <p class="section-note">Compara o que as máquinas precisam com o estoque do depósito e avisa: já tem, faltam algumas, ou estoque vazio (comprar).</p>
+      <div id="orcamentoNecessidades"></div>
+    </section>
+    <section class="panel">
+      <h3>Onde comprar — referência de preços e links</h3>
+      <p class="section-note">Valores aproximados (variam com o dia/promoção). Os links abrem a busca atual na loja, sempre com o preço de hoje.</p>
+      <div id="orcamentoLinks" class="orc-links"></div>
+    </section>
   </section>
 
   <div id="hardwareEditModal" class="modal-backdrop hidden">

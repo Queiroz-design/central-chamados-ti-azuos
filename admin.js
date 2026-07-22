@@ -64,6 +64,7 @@ document.querySelectorAll(".side-tab").forEach((button) => {
   button.addEventListener("click", () => {
     showTab(button.dataset.tab);
     if (button.dataset.tab === "inteligencia" && typeof renderInteligencia === "function") renderInteligencia();
+    if (button.dataset.tab === "orcamento" && typeof renderOrcamento === "function") renderOrcamento();
   });
 });
 
@@ -2156,6 +2157,60 @@ document.querySelectorAll(".intel-filter button[data-upg]").forEach((b) => {
     renderIntelUpgrade();
   });
 });
+
+// ===== Orcamento (necessidades x deposito + precos/links) =====
+function diskGbFromName(nome) {
+  const s = String(nome || "");
+  const tb = s.match(/(\d+(?:[.,]\d+)?)\s*t/i);
+  if (tb) return Math.round(parseFloat(tb[1].replace(",", ".")) * 1000);
+  const gb = s.match(/(\d{2,4})\s*g/i);
+  return gb ? parseInt(gb[1], 10) : 0;
+}
+const ORC_COMPONENTES = [
+  { nome: "Memória DDR4 8GB — Desktop (UDIMM)", faixa: "~ R$ 120–180", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+desktop"]] },
+  { nome: "Memória DDR4 16GB — Desktop (UDIMM)", faixa: "~ R$ 200–330", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+desktop"]] },
+  { nome: "Memória DDR4 8GB — Notebook (SO-DIMM)", faixa: "~ R$ 120–190", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+notebook"]] },
+  { nome: "Memória DDR4 16GB — Notebook (SO-DIMM)", faixa: "~ R$ 210–340", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+notebook"]] },
+  { nome: "SSD 240GB SATA 2.5\"", faixa: "~ R$ 100–150", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-240gb-sata"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+240gb+sata"]] },
+  { nome: "SSD 240/250GB NVMe M.2", faixa: "~ R$ 130–190", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb-nvme"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-nvme-240gb"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+nvme+240gb"]] },
+  { nome: "Desktop Dell OptiPlex — i5 9ª geração ou mais nova", faixa: "~ R$ 1.900–4.000", links: [["Dell", "https://www.dell.com/pt-br/shop/desktop-e-all-in-one/scr/desktops"], ["Mercado Livre", "https://lista.mercadolivre.com.br/dell-optiplex-i5"], ["Amazon", "https://www.amazon.com.br/s?k=dell+optiplex+i5"]] },
+  { nome: "Desktop Lenovo ThinkCentre — i5 9ª geração ou mais nova", faixa: "~ R$ 1.900–4.000", links: [["Lenovo", "https://www.lenovo.com/br/pt/desktops-y-all-in-one/c/DESKTOPS"], ["Mercado Livre", "https://lista.mercadolivre.com.br/lenovo-thinkcentre-i5"], ["Amazon", "https://www.amazon.com.br/s?k=lenovo+thinkcentre+i5"]] },
+];
+function renderOrcamentoLinks() {
+  const target = document.getElementById("orcamentoLinks");
+  if (!target) return;
+  target.innerHTML = ORC_COMPONENTES.map((c) => `
+    <div class="orc-comp">
+      <div class="orc-comp-top"><strong>${escapeHtml(c.nome)}</strong><span class="orc-faixa">${escapeHtml(c.faixa)}</span></div>
+      <div class="orc-comp-links">${c.links.map(([nome, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(nome)}</a>`).join("")}</div>
+    </div>`).join("");
+}
+function renderOrcamentoNecessidades() {
+  const target = document.getElementById("orcamentoNecessidades");
+  if (!target) return;
+  const notebooksRam = hardwareAssets.filter((a) => getAssetType(a) === "notebook" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
+  const desktopsRam = hardwareAssets.filter((a) => getAssetType(a) === "computador" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
+  const precisaSsd = hardwareAssets.filter((a) => !assetHasSSD(a) || (maxDiskGb(a) > 0 && maxDiskGb(a) < 200)).length;
+  const estoque = (matchFn) => (depositoItens || []).filter(matchFn).reduce((s, i) => s + Number(i.quantidade || 0), 0);
+  const stMemNb = estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome));
+  const stMemDt = estoque((i) => /mem/i.test(i.nome) && /desktop/i.test(i.nome) && /16/.test(i.nome));
+  const stSsd = estoque((i) => /ssd/i.test(i.nome) && diskGbFromName(i.nome) >= 240);
+  const linha = (label, need, have, buscaUrl) => {
+    if (need <= 0) return `<div class="orc-line ok"><strong>${escapeHtml(label)}</strong>: nenhuma máquina precisando agora.</div>`;
+    if (have >= need) return `<div class="orc-line ok"><strong>${escapeHtml(label)}</strong>: ${need} máquina(s) precisam e o depósito TEM ${have} em estoque — ✅ não precisa comprar.</div>`;
+    if (have > 0) return `<div class="orc-line warn"><strong>${escapeHtml(label)}</strong>: ${need} precisam, o depósito tem ${have} — faltam <strong>${need - have}</strong>. <a href="${buscaUrl}" target="_blank" rel="noopener">🛒 ver preços</a></div>`;
+    return `<div class="orc-line buy"><strong>${escapeHtml(label)}</strong>: ${need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${need}. <a href="${buscaUrl}" target="_blank" rel="noopener">ver preços</a></div>`;
+  };
+  target.innerHTML =
+    linha("Memória 16GB (Notebook)", notebooksRam, stMemNb, "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook") +
+    linha("Memória 16GB (Desktop)", desktopsRam, stMemDt, "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop") +
+    linha("SSD 240GB", precisaSsd, stSsd, "https://www.kabum.com.br/busca/ssd-240gb");
+}
+function renderOrcamento() {
+  renderOrcamentoNecessidades();
+  renderOrcamentoLinks();
+}
+document.getElementById("btnRefreshOrcamento")?.addEventListener("click", renderOrcamento);
 
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
