@@ -390,8 +390,29 @@
     <div id="orcamentoCardsView">
       <section class="panel">
         <h3>O que comprar (necessidades × depósito)</h3>
-        <p class="section-note">Compara o que as máquinas precisam com o estoque do depósito e avisa: já tem, faltam algumas, ou estoque vazio (comprar).</p>
-        <div id="orcamentoNecessidades"></div>
+        <p class="section-note">Cruza o que as máquinas precisam com o estoque do depósito. Clique em um card para ver os itens.</p>
+        <div class="intel-cards-grid orc-cards-grid">
+          <button type="button" class="intel-nav-card" data-orc="comprar">
+            <span class="intel-nav-icon">🛒</span>
+            <span class="intel-nav-title">Precisa comprar</span>
+            <span class="intel-nav-badge" id="orcComprarCount"></span>
+          </button>
+          <button type="button" class="intel-nav-card" data-orc="estoque">
+            <span class="intel-nav-icon">✅</span>
+            <span class="intel-nav-title">Já em estoque — não precisa comprar</span>
+            <span class="intel-nav-badge" id="orcEstoqueCount"></span>
+          </button>
+        </div>
+        <div class="intel-detail-panel hidden" id="orcNecessidadesPanel">
+          <div class="orc-pane hidden" data-orcpane="comprar">
+            <p class="section-note">Máquinas que precisam de peça e o depósito NÃO cobre (faltam ou estoque vazio).</p>
+            <div id="orcamentoComprar"></div>
+          </div>
+          <div class="orc-pane hidden" data-orcpane="estoque">
+            <p class="section-note">Necessidades que o depósito já cobre — não precisa comprar agora.</p>
+            <div id="orcamentoEstoque"></div>
+          </div>
+        </div>
       </section>
       <section class="panel">
         <h3>Onde comprar — referência de preços e links</h3>

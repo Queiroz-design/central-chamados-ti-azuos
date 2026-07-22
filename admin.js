@@ -2202,16 +2202,41 @@ function getOrcamentoNecessidades() {
   ];
 }
 function renderOrcamentoNecessidades() {
-  const target = document.getElementById("orcamentoNecessidades");
-  if (!target) return;
-  const linha = (n) => {
-    if (n.need <= 0) return `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: nenhuma máquina precisando agora.</div>`;
-    if (n.have >= n.need) return `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o depósito TEM ${n.have} em estoque — ✅ não precisa comprar.</div>`;
-    if (n.have > 0) return `<div class="orc-line warn"><strong>${escapeHtml(n.label)}</strong>: ${n.need} precisam, o depósito tem ${n.have} — faltam <strong>${n.need - n.have}</strong>. <a href="${n.url}" target="_blank" rel="noopener">🛒 ver preços</a></div>`;
-    return `<div class="orc-line buy"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${n.need}. <a href="${n.url}" target="_blank" rel="noopener">ver preços</a></div>`;
-  };
-  target.innerHTML = getOrcamentoNecessidades().map(linha).join("");
+  const comprarEl = document.getElementById("orcamentoComprar");
+  const estoqueEl = document.getElementById("orcamentoEstoque");
+  if (!comprarEl || !estoqueEl) return;
+  const linhaComprar = (n) =>
+    n.have > 0
+      ? `<div class="orc-line warn"><strong>${escapeHtml(n.label)}</strong>: ${n.need} precisam, o depósito tem ${n.have} — faltam <strong>${n.need - n.have}</strong>. <a href="${n.url}" target="_blank" rel="noopener">🛒 ver preços</a></div>`
+      : `<div class="orc-line buy"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${n.need}. <a href="${n.url}" target="_blank" rel="noopener">ver preços</a></div>`;
+  const linhaEstoque = (n) =>
+    n.need <= 0
+      ? `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: nenhuma máquina precisando agora.</div>`
+      : `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o depósito TEM ${n.have} em estoque — ✅ não precisa comprar.</div>`;
+  const necessidades = getOrcamentoNecessidades();
+  const comprar = necessidades.filter((n) => n.need > 0 && n.have < n.need);
+  const estoque = necessidades.filter((n) => n.need <= 0 || n.have >= n.need);
+  comprarEl.innerHTML = comprar.length ? comprar.map(linhaComprar).join("") : '<p class="section-note">Nada a comprar no momento — o depósito cobre as necessidades atuais. 👍</p>';
+  estoqueEl.innerHTML = estoque.length ? estoque.map(linhaEstoque).join("") : '<p class="section-note">Nenhum item coberto pelo estoque no momento.</p>';
+  const cCount = document.getElementById("orcComprarCount");
+  const eCount = document.getElementById("orcEstoqueCount");
+  if (cCount) { cCount.innerText = comprar.length ? comprar.length + " para comprar" : "tudo ok"; cCount.className = "intel-nav-badge " + (comprar.length ? "pendencia" : "ok"); }
+  if (eCount) { eCount.innerText = estoque.length + " coberto(s)"; eCount.className = "intel-nav-badge ok"; }
 }
+function selectOrcCard(which) {
+  const cards = document.querySelectorAll(".orc-cards-grid .intel-nav-card");
+  const panel = document.getElementById("orcNecessidadesPanel");
+  const panes = document.querySelectorAll("#orcNecessidadesPanel .orc-pane");
+  const active = document.querySelector('.orc-cards-grid .intel-nav-card[data-orc="' + which + '"]');
+  const isOpen = active && active.classList.contains("active");
+  cards.forEach((c) => c.classList.remove("active"));
+  panes.forEach((p) => p.classList.add("hidden"));
+  if (isOpen) { panel?.classList.add("hidden"); return; }
+  active?.classList.add("active");
+  panel?.classList.remove("hidden");
+  document.querySelector('#orcNecessidadesPanel .orc-pane[data-orcpane="' + which + '"]')?.classList.remove("hidden");
+}
+document.querySelectorAll(".orc-cards-grid .intel-nav-card").forEach((c) => c.addEventListener("click", () => selectOrcCard(c.dataset.orc)));
 function renderOrcamentoTabela() {
   const target = document.getElementById("orcamentoTabela");
   if (!target) return;
