@@ -2161,9 +2161,9 @@ document.getElementById("btnRefreshInteligencia")?.addEventListener("click", ren
 function selectIntelCard(key) {
   const card = document.querySelector(`.intel-nav-card[data-intel="${key}"]`);
   const willOpen = card && !card.classList.contains("active");
-  document.querySelectorAll(".intel-nav-card").forEach((c) => c.classList.remove("active"));
+  document.querySelectorAll(".intel-nav-card[data-intel]").forEach((c) => c.classList.remove("active"));
   document.querySelectorAll(".intel-pane").forEach((p) => p.classList.add("hidden"));
-  const panel = document.querySelector(".intel-detail-panel");
+  const panel = document.querySelector("#tab-inteligencia .intel-detail-panel");
   if (willOpen) {
     card.classList.add("active");
     document.querySelector(`.intel-pane[data-pane="${key}"]`)?.classList.remove("hidden");
@@ -2172,7 +2172,7 @@ function selectIntelCard(key) {
     panel.classList.add("hidden");
   }
 }
-document.querySelectorAll(".intel-nav-card").forEach((c) => c.addEventListener("click", () => selectIntelCard(c.dataset.intel)));
+document.querySelectorAll(".intel-nav-card[data-intel]").forEach((c) => c.addEventListener("click", () => selectIntelCard(c.dataset.intel)));
 
 // Filtros dentro de "Sugestoes de upgrade".
 document.querySelectorAll(".intel-filter button[data-upg]").forEach((b) => {
