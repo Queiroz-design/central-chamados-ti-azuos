@@ -2020,6 +2020,12 @@ function assetHasSSD(asset) {
   if (/hdd|hard\s*disk/.test(t)) return false;
   return true; // desconhecido: assume SSD (maioria hoje)
 }
+function maxDiskGb(asset) {
+  let mx = 0;
+  (Array.isArray(asset.disks) ? asset.disks : []).forEach((d) => { const g = Number(d.size_gb || 0); if (g > mx) mx = g; });
+  if (mx === 0) (Array.isArray(asset.volumes) ? asset.volumes : []).forEach((v) => { const g = Number(v.size_gb || 0); if (g > mx) mx = g; });
+  return mx;
+}
 function assetDiskFree(asset, live) {
   if (live && live.disk_free_percent != null) return Number(live.disk_free_percent);
   const vols = Array.isArray(asset.volumes) ? asset.volumes : [];
@@ -2075,6 +2081,9 @@ function renderIntelUpgrade() {
     const g = cpuGeneration(a.cpu_name), ram = Number(a.memory_total_gb || 0);
     if (refRam && ram && ram < refRam) needs.push(`RAM: ${ram}GB → ${refRam}GB`);
     if (!assetHasSSD(a) && refSsd) needs.push("Instalar SSD");
+    // Disco pequeno (120GB / abaixo de 240GB) precisa sair: minimo 240GB.
+    const disk = maxDiskGb(a);
+    if (disk > 0 && disk < 200) needs.push(`Disco de ~${Math.round(disk)}GB é pouco — trocar por SSD de 240GB (mínimo)`);
     // Troca só para 8ª geração ou mais antiga. 9ª+ é considerada OK.
     if (g && g <= 8) needs.push(`Processador ${g}ª geração — avaliar troca (9ª geração ou mais nova já é OK)`);
     return { a, needs };
