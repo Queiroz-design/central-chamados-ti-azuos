@@ -1999,6 +1999,7 @@ document.getElementById("manutencaoForm")?.addEventListener("submit", async (eve
 });
 
 // ===== Central de Inteligencia (auditoria automatica dos dados) =====
+let upgradeFilter = ""; // "", "troca", "memoria", "ssd"
 function cpuGeneration(name) {
   const s = String(name || "");
   const g = s.match(/(\d{1,2})\s*(?:st|nd|rd|th)\s*gen/i);
@@ -2077,29 +2078,31 @@ function renderIntelUpgrade() {
   const ref = machines.reduce((best, a) => (specScore(a) > specScore(best) ? a : best), machines[0]);
   const refGen = cpuGeneration(ref.cpu_name), refRam = Number(ref.memory_total_gb || 0), refSsd = assetHasSSD(ref);
   const rows = machines.filter((a) => a.id !== ref.id).map((a) => {
-    const needs = [];
+    const needs = []; const cats = new Set();
     const g = cpuGeneration(a.cpu_name), ram = Number(a.memory_total_gb || 0);
-    if (refRam && ram && ram < refRam) needs.push(`RAM: ${ram}GB → ${refRam}GB`);
-    if (!assetHasSSD(a) && refSsd) needs.push("Instalar SSD");
+    if (refRam && ram && ram < refRam) { needs.push(`RAM: ${ram}GB → ${refRam}GB`); cats.add("memoria"); }
+    if (!assetHasSSD(a) && refSsd) { needs.push("Instalar SSD"); cats.add("ssd"); }
     // Disco pequeno (120GB / abaixo de 240GB) precisa sair: minimo 240GB.
     const disk = maxDiskGb(a);
-    if (disk > 0 && disk < 200) needs.push(`Disco de ~${Math.round(disk)}GB é pouco — trocar por SSD de 240GB (mínimo)`);
+    if (disk > 0 && disk < 200) { needs.push(`Disco de ~${Math.round(disk)}GB é pouco — trocar por SSD de 240GB (mínimo)`); cats.add("ssd"); }
     // Troca só para 8ª geração ou mais antiga. 9ª+ é considerada OK.
-    if (g && g <= 8) needs.push(`Processador ${g}ª geração — avaliar troca (9ª geração ou mais nova já é OK)`);
-    return { a, needs };
+    if (g && g <= 8) { needs.push(`Processador ${g}ª geração — avaliar troca (9ª geração ou mais nova já é OK)`); cats.add("troca"); }
+    return { a, needs, cats };
   }).filter((r) => r.needs.length);
   const badge = document.getElementById("intelUpgradeCount");
   if (badge) {
     badge.innerText = rows.length ? `⚠ ${rows.length} máquina(s) em pendência` : "tudo ok";
     badge.className = "intel-nav-badge " + (rows.length ? "pendencia" : "ok");
   }
+  const shown = upgradeFilter ? rows.filter((r) => r.cats.has(upgradeFilter)) : rows;
+  const vazio = { "": "Todas as máquinas estão próximas da referência. 👍", troca: "Nenhuma máquina para trocar.", memoria: "Nenhuma máquina precisando de memória.", ssd: "Nenhuma máquina precisando de SSD/disco maior." };
   target.innerHTML = `
-    <p class="section-note">Referência (melhor máquina): <strong>${escapeHtml(ref.display_name || ref.computer_name)}</strong> — ${escapeHtml(ref.cpu_name || "-")}, ${refRam}GB, ${refSsd ? "SSD" : "sem SSD"}.</p>
-    ${rows.length ? rows.map((r) => `
+    <p class="section-note">Referência (melhor máquina): <strong>${escapeHtml(ref.display_name || ref.computer_name)}</strong> — ${escapeHtml(ref.cpu_name || "-")}, ${refRam}GB, ${refSsd ? "SSD" : "sem SSD"}. <strong>${shown.length}</strong> máquina(s) neste filtro.</p>
+    ${shown.length ? shown.map((r) => `
       <div class="intel-item">
         <strong>${escapeHtml(r.a.display_name || r.a.computer_name)}</strong> <span class="muted">— ${escapeHtml(getAssetDepartment(r.a))}</span>
         <ul>${r.needs.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>
-      </div>`).join("") : '<div class="empty-state">Todas as máquinas estão próximas da referência. 👍</div>'}
+      </div>`).join("") : `<div class="empty-state">${escapeHtml(vazio[upgradeFilter] || vazio[""])}</div>`}
     <p class="muted" style="font-size:12px;margin-top:8px">Obs: a geração do processador é estimada pelo nome do CPU — use como orientação, não valor exato.</p>`;
 }
 function renderIntelChamados() {
@@ -2144,6 +2147,15 @@ function selectIntelCard(key) {
   }
 }
 document.querySelectorAll(".intel-nav-card").forEach((c) => c.addEventListener("click", () => selectIntelCard(c.dataset.intel)));
+
+// Filtros dentro de "Sugestoes de upgrade".
+document.querySelectorAll(".intel-filter button[data-upg]").forEach((b) => {
+  b.addEventListener("click", () => {
+    upgradeFilter = b.dataset.upg;
+    document.querySelectorAll(".intel-filter button[data-upg]").forEach((x) => x.classList.toggle("active", x === b));
+    renderIntelUpgrade();
+  });
+});
 
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
