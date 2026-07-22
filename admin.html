@@ -332,27 +332,37 @@
       </div>
       <button id="btnRefreshInteligencia" class="secondary">Atualizar</button>
     </div>
-    <details class="intel-card" open>
-      <summary><span class="intel-card-title">🖥️ Inventário × Desempenho</span><span class="intel-card-badge" id="intelDesempenhoCount"></span></summary>
-      <div class="intel-card-body">
+    <div class="intel-cards-grid">
+      <button type="button" class="intel-nav-card active" data-intel="desempenho">
+        <span class="intel-nav-icon">🖥️</span>
+        <span class="intel-nav-title">Inventário × Desempenho</span>
+        <span class="intel-nav-badge" id="intelDesempenhoCount"></span>
+      </button>
+      <button type="button" class="intel-nav-card" data-intel="upgrade">
+        <span class="intel-nav-icon">⬆️</span>
+        <span class="intel-nav-title">Sugestões de upgrade</span>
+        <span class="intel-nav-badge" id="intelUpgradeCount"></span>
+      </button>
+      <button type="button" class="intel-nav-card" data-intel="chamados">
+        <span class="intel-nav-icon">📋</span>
+        <span class="intel-nav-title">Inteligência dos chamados</span>
+        <span class="intel-nav-badge">análise</span>
+      </button>
+    </div>
+    <div class="intel-detail-panel">
+      <div class="intel-pane" data-pane="desempenho">
         <p class="section-note">Cruza o hardware com o uso real (RAM, disco, CPU e chamados) e diz o que fazer em cada máquina.</p>
         <div id="intelDesempenho"></div>
       </div>
-    </details>
-    <details class="intel-card">
-      <summary><span class="intel-card-title">⬆️ Sugestões de upgrade</span><span class="intel-card-badge" id="intelUpgradeCount"></span></summary>
-      <div class="intel-card-body">
+      <div class="intel-pane hidden" data-pane="upgrade">
         <p class="section-note">Compara cada máquina com a de melhor desempenho que você tem e aponta o que falta pra chegar lá.</p>
         <div id="intelUpgrade"></div>
       </div>
-    </details>
-    <details class="intel-card">
-      <summary><span class="intel-card-title">📋 Inteligência dos chamados</span></summary>
-      <div class="intel-card-body">
+      <div class="intel-pane hidden" data-pane="chamados">
         <p class="section-note">Padrões nos chamados: o que mais dá problema, onde e com quem — com sugestões de ação preventiva.</p>
         <div id="intelChamados"></div>
       </div>
-    </details>
+    </div>
   </section>
 
   <div id="hardwareEditModal" class="modal-backdrop hidden">

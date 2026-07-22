@@ -2113,6 +2113,13 @@ function renderInteligencia() {
 }
 document.getElementById("btnRefreshInteligencia")?.addEventListener("click", renderInteligencia);
 
+// Clicar num card abre o painel daquela auditoria (os 3 cards ficam lado a lado).
+function selectIntelCard(key) {
+  document.querySelectorAll(".intel-nav-card").forEach((c) => c.classList.toggle("active", c.dataset.intel === key));
+  document.querySelectorAll(".intel-pane").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== key));
+}
+document.querySelectorAll(".intel-nav-card").forEach((c) => c.addEventListener("click", () => selectIntelCard(c.dataset.intel)));
+
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
   const { data: { session } } = await client.auth.getSession();
