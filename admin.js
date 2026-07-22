@@ -61,7 +61,10 @@ document.getElementById("btnRefresh").addEventListener("click", loadTickets);
 document.getElementById("btnNetworkRefresh").addEventListener("click", loadNetworkAlerts);
 
 document.querySelectorAll(".side-tab").forEach((button) => {
-  button.addEventListener("click", () => showTab(button.dataset.tab));
+  button.addEventListener("click", () => {
+    showTab(button.dataset.tab);
+    if (button.dataset.tab === "inteligencia" && typeof renderInteligencia === "function") renderInteligencia();
+  });
 });
 
 document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
@@ -461,6 +464,7 @@ function getNextComputerLabel() {
 
 function assetSortValue(asset, key) {
   if (key === "departamento") return normalizeText(getAssetDepartment(asset));
+  if (key === "processador") return normalizeText(asset.cpu_name);
   if (key === "memoria") return Number(asset.memory_total_gb || 0);
   if (key === "chamados") return getAssetSignals(asset).monthCount;
   if (key === "integridade") {
@@ -1993,6 +1997,115 @@ document.getElementById("manutencaoForm")?.addEventListener("submit", async (eve
   document.getElementById("manutencaoModal").classList.add("hidden");
   await loadManutencoes();
 });
+
+// ===== Central de Inteligencia (auditoria automatica dos dados) =====
+function cpuGeneration(name) {
+  const s = String(name || "");
+  const g = s.match(/(\d{1,2})\s*(?:st|nd|rd|th)\s*gen/i);
+  if (g) return parseInt(g[1], 10);
+  const intel = s.match(/i[3579]-(\d{3,5})/i);
+  if (intel) {
+    const model = intel[1];
+    if (model.length >= 5) return parseInt(model.slice(0, 2), 10);
+    return parseInt(model[0], 10);
+  }
+  const ryzen = s.match(/ryzen\s+\d+\s+(\d)\d{3}/i);
+  if (ryzen) return parseInt(ryzen[1], 10);
+  return 0;
+}
+function assetHasSSD(asset) {
+  const disks = Array.isArray(asset.disks) ? asset.disks : [];
+  const t = disks.map((d) => `${d.media_type || ""} ${d.model || ""}`).join(" ").toLowerCase();
+  if (/ssd|nvme/.test(t)) return true;
+  if (/hdd|hard\s*disk/.test(t)) return false;
+  return true; // desconhecido: assume SSD (maioria hoje)
+}
+function assetDiskFree(asset, live) {
+  if (live && live.disk_free_percent != null) return Number(live.disk_free_percent);
+  const vols = Array.isArray(asset.volumes) ? asset.volumes : [];
+  const sys = vols.find((v) => /c:/i.test(v.drive || "")) || vols[0];
+  return sys && sys.free_percent != null ? Number(sys.free_percent) : null;
+}
+function machineSuggestions(asset) {
+  const live = getLiveStatus(asset.computer_name);
+  const sugs = [];
+  const ramGb = Number(asset.memory_total_gb || (live && live.memory_total_gb) || 0);
+  const memAlerts = performanceAlerts.filter((a) => normalizeText(a.computer_name) === normalizeText(asset.computer_name) && a.metric === "Memoria").length;
+  const memHigh = live && Number(live.memory_percent || 0) >= 80;
+  if (ramGb && ramGb <= 8 && (memHigh || memAlerts > 0)) sugs.push(`Adicionar memória RAM (tem ${ramGb}GB e vive em uso alto)`);
+  const freeDisk = assetDiskFree(asset, live);
+  if (freeDisk != null && freeDisk < 15) sugs.push(`Disco quase cheio (${freeDisk}% livre) — liberar espaço ou ampliar/trocar o disco`);
+  if (!assetHasSSD(asset)) sugs.push("Trocar HD por SSD (ganho grande de velocidade)");
+  const lentos = getAssetMonthTickets(asset).filter((t) => normalizeText(t.tipo).includes("lento")).length;
+  const gen = cpuGeneration(asset.cpu_name);
+  if (lentos >= 2) sugs.push(`${lentos} chamados de lentidão no mês — investigar / avaliar upgrade`);
+  if (gen && gen <= 6 && lentos >= 1) sugs.push(`Processador antigo (${gen}ª geração) + lentidão — avaliar troca da máquina`);
+  return { asset, sugs };
+}
+function renderIntelDesempenho() {
+  const target = document.getElementById("intelDesempenho");
+  if (!target) return;
+  const results = hardwareAssets.map(machineSuggestions).filter((r) => r.sugs.length);
+  results.sort((a, b) => b.sugs.length - a.sugs.length);
+  if (!results.length) { target.innerHTML = '<div class="empty-state">Nenhuma máquina com sugestões no momento — tudo saudável. 👍</div>'; return; }
+  target.innerHTML = `<p class="section-note">${results.length} máquina(s) com sugestões:</p>` + results.map((r) => `
+    <div class="intel-item">
+      <strong>${escapeHtml(r.asset.display_name || r.asset.computer_name)}</strong> <span class="muted">— ${escapeHtml(getAssetDepartment(r.asset))}</span>
+      <ul>${r.sugs.map((s) => `<li>${escapeHtml(s)}</li>`).join("")}</ul>
+    </div>`).join("");
+}
+function specScore(asset) {
+  return cpuGeneration(asset.cpu_name) * 100 + Number(asset.memory_total_gb || 0) + (assetHasSSD(asset) ? 30 : 0);
+}
+function renderIntelUpgrade() {
+  const target = document.getElementById("intelUpgrade");
+  if (!target) return;
+  const machines = hardwareAssets.filter((a) => a.cpu_name);
+  if (!machines.length) { target.innerHTML = '<div class="empty-state">Sem dados de inventário suficientes.</div>'; return; }
+  const ref = machines.reduce((best, a) => (specScore(a) > specScore(best) ? a : best), machines[0]);
+  const refGen = cpuGeneration(ref.cpu_name), refRam = Number(ref.memory_total_gb || 0), refSsd = assetHasSSD(ref);
+  const rows = machines.filter((a) => a.id !== ref.id).map((a) => {
+    const needs = [];
+    const g = cpuGeneration(a.cpu_name), ram = Number(a.memory_total_gb || 0);
+    if (refRam && ram && ram < refRam) needs.push(`RAM: ${ram}GB → ${refRam}GB`);
+    if (!assetHasSSD(a) && refSsd) needs.push("Instalar SSD");
+    if (g && refGen && g < refGen - 2) needs.push(`Processador ${g}ª geração (referência é ${refGen}ª) — avaliar troca`);
+    return { a, needs };
+  }).filter((r) => r.needs.length);
+  target.innerHTML = `
+    <p class="section-note">Referência (melhor máquina): <strong>${escapeHtml(ref.display_name || ref.computer_name)}</strong> — ${escapeHtml(ref.cpu_name || "-")}, ${refRam}GB, ${refSsd ? "SSD" : "sem SSD"}.</p>
+    ${rows.length ? rows.map((r) => `
+      <div class="intel-item">
+        <strong>${escapeHtml(r.a.display_name || r.a.computer_name)}</strong> <span class="muted">— ${escapeHtml(getAssetDepartment(r.a))}</span>
+        <ul>${r.needs.map((n) => `<li>${escapeHtml(n)}</li>`).join("")}</ul>
+      </div>`).join("") : '<div class="empty-state">Todas as máquinas estão próximas da referência. 👍</div>'}
+    <p class="muted" style="font-size:12px;margin-top:8px">Obs: a geração do processador é estimada pelo nome do CPU — use como orientação, não valor exato.</p>`;
+}
+function renderIntelChamados() {
+  const target = document.getElementById("intelChamados");
+  if (!target) return;
+  if (!allTickets.length) { target.innerHTML = '<div class="empty-state">Ainda não há chamados suficientes para análise.</div>'; return; }
+  const porTipo = topEntries(groupCount(allTickets, (t) => t.tipo), 6);
+  const porDept = topEntries(groupCount(allTickets, (t) => t.departamento), 6);
+  const porNome = topEntries(groupCount(allTickets, (t) => t.nome), 8);
+  const insights = [];
+  if (porTipo[0]) insights.push(`"${porTipo[0][0]}" é o problema mais comum (${porTipo[0][1]} chamados). ${/lento/i.test(porTipo[0][0]) ? "Foque em upgrades/limpeza preventiva nas máquinas mais afetadas." : "Vale investigar a causa raiz."}`);
+  if (porDept[0]) insights.push(`Departamento que mais abre chamados: ${porDept[0][0]} (${porDept[0][1]}). Verificar equipamentos/rede desse setor.`);
+  const reincidentes = porNome.filter(([, c]) => c >= 3);
+  if (reincidentes.length) insights.push(`Reincidentes (3+ chamados): ${reincidentes.map(([n, c]) => `${n} (${c})`).join(", ")}. Pode ser máquina problemática ou necessidade de treinamento.`);
+  target.innerHTML = `
+    <ul class="intel-insights">${insights.map((i) => `<li>${escapeHtml(i)}</li>`).join("")}</ul>
+    <div class="intel-cols">
+      <div><h4>Tipos mais frequentes</h4><ul>${porTipo.map(([t, c]) => `<li>${escapeHtml(t || "-")} — <strong>${c}</strong></li>`).join("")}</ul></div>
+      <div><h4>Departamentos</h4><ul>${porDept.map(([d, c]) => `<li>${escapeHtml(d || "-")} — <strong>${c}</strong></li>`).join("")}</ul></div>
+    </div>`;
+}
+function renderInteligencia() {
+  renderIntelDesempenho();
+  renderIntelUpgrade();
+  renderIntelChamados();
+}
+document.getElementById("btnRefreshInteligencia")?.addEventListener("click", renderInteligencia);
 
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
