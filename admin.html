@@ -378,18 +378,36 @@
         <h2>Orçamento</h2>
         <p class="section-note">Cruza as necessidades das máquinas com o depósito e diz o que comprar (e o que já tem em estoque). Com preços de referência e links de compra.</p>
       </div>
-      <button id="btnRefreshOrcamento" class="secondary">Atualizar</button>
+      <div class="detail-header-actions">
+        <div class="view-toggle">
+          <button type="button" id="btnOrcCards" class="active">Cards</button>
+          <button type="button" id="btnOrcTabela">Tabela</button>
+        </div>
+        <button id="btnPrintOrcamento" class="secondary">🖨 Imprimir</button>
+        <button id="btnRefreshOrcamento" class="secondary">Atualizar</button>
+      </div>
     </div>
-    <section class="panel">
-      <h3>O que comprar (necessidades × depósito)</h3>
-      <p class="section-note">Compara o que as máquinas precisam com o estoque do depósito e avisa: já tem, faltam algumas, ou estoque vazio (comprar).</p>
-      <div id="orcamentoNecessidades"></div>
-    </section>
-    <section class="panel">
-      <h3>Onde comprar — referência de preços e links</h3>
-      <p class="section-note">Valores aproximados (variam com o dia/promoção). Os links abrem a busca atual na loja, sempre com o preço de hoje.</p>
-      <div id="orcamentoLinks" class="orc-links"></div>
-    </section>
+    <div id="orcamentoCardsView">
+      <section class="panel">
+        <h3>O que comprar (necessidades × depósito)</h3>
+        <p class="section-note">Compara o que as máquinas precisam com o estoque do depósito e avisa: já tem, faltam algumas, ou estoque vazio (comprar).</p>
+        <div id="orcamentoNecessidades"></div>
+      </section>
+      <section class="panel">
+        <h3>Onde comprar — referência de preços e links</h3>
+        <p class="section-note">Faixas aproximadas — referência jul/2026 (variam com o dia/promoção). Os links abrem a busca atual na loja, sempre com o preço de hoje.</p>
+        <div id="orcamentoLinks" class="orc-links"></div>
+      </section>
+    </div>
+    <div id="orcamentoTableView" class="hidden">
+      <div class="print-header">
+        <div>
+          <h2 class="print-title">Grupo Azuos — Orçamento de TI</h2>
+          <span id="orcPrintDate" class="section-note"></span>
+        </div>
+      </div>
+      <div id="orcamentoTabela"></div>
+    </div>
   </section>
 
   <div id="hardwareEditModal" class="modal-backdrop hidden">

@@ -2166,15 +2166,20 @@ function diskGbFromName(nome) {
   const gb = s.match(/(\d{2,4})\s*g/i);
   return gb ? parseInt(gb[1], 10) : 0;
 }
+// Faixas de referencia atualizadas em jul/2026 (DDR4 em alta pela descontinuacao; SSD tambem subiu).
 const ORC_COMPONENTES = [
-  { nome: "Memória DDR4 8GB — Desktop (UDIMM)", faixa: "~ R$ 120–180", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+desktop"]] },
-  { nome: "Memória DDR4 16GB — Desktop (UDIMM)", faixa: "~ R$ 200–330", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+desktop"]] },
-  { nome: "Memória DDR4 8GB — Notebook (SO-DIMM)", faixa: "~ R$ 120–190", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+notebook"]] },
-  { nome: "Memória DDR4 16GB — Notebook (SO-DIMM)", faixa: "~ R$ 210–340", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+notebook"]] },
-  { nome: "SSD 240GB SATA 2.5\"", faixa: "~ R$ 100–150", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-240gb-sata"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+240gb+sata"]] },
-  { nome: "SSD 240/250GB NVMe M.2", faixa: "~ R$ 130–190", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb-nvme"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-nvme-240gb"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+nvme+240gb"]] },
-  { nome: "Desktop Dell OptiPlex — i5 9ª geração ou mais nova", faixa: "~ R$ 1.900–4.000", links: [["Dell", "https://www.dell.com/pt-br/shop/desktop-e-all-in-one/scr/desktops"], ["Mercado Livre", "https://lista.mercadolivre.com.br/dell-optiplex-i5"], ["Amazon", "https://www.amazon.com.br/s?k=dell+optiplex+i5"]] },
-  { nome: "Desktop Lenovo ThinkCentre — i5 9ª geração ou mais nova", faixa: "~ R$ 1.900–4.000", links: [["Lenovo", "https://www.lenovo.com/br/pt/desktops-y-all-in-one/c/DESKTOPS"], ["Mercado Livre", "https://lista.mercadolivre.com.br/lenovo-thinkcentre-i5"], ["Amazon", "https://www.amazon.com.br/s?k=lenovo+thinkcentre+i5"]] },
+  { nome: "Memória DDR4 8GB — Desktop (UDIMM)", faixa: "~ R$ 230–430", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+desktop"]] },
+  { nome: "Memória DDR4 16GB — Desktop (UDIMM)", faixa: "~ R$ 450–850", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+desktop"]] },
+  { nome: "Memória DDR4 8GB — Notebook (SO-DIMM)", faixa: "~ R$ 240–450", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-8gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-8gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+8gb+notebook"]] },
+  { nome: "Memória DDR4 16GB — Notebook (SO-DIMM)", faixa: "~ R$ 480–900", links: [["Kabum", "https://www.kabum.com.br/busca/memoria-ddr4-16gb-notebook"], ["Mercado Livre", "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook"], ["Amazon", "https://www.amazon.com.br/s?k=memoria+ddr4+16gb+notebook"]] },
+  { nome: "SSD 240GB SATA 2.5\"", faixa: "~ R$ 250–420", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-240gb-sata"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+240gb+sata"]] },
+  { nome: "SSD 240/250GB NVMe M.2", faixa: "~ R$ 300–520", links: [["Kabum", "https://www.kabum.com.br/busca/ssd-240gb-nvme"], ["Mercado Livre", "https://lista.mercadolivre.com.br/ssd-nvme-240gb"], ["Amazon", "https://www.amazon.com.br/s?k=ssd+nvme+240gb"]] },
+  { nome: "Desktop Dell OptiPlex — i5 9ª geração ou mais nova", faixa: "~ R$ 2.500–6.000", links: [["Dell", "https://www.dell.com/pt-br/shop/desktop-e-all-in-one/scr/desktops"], ["Mercado Livre", "https://lista.mercadolivre.com.br/dell-optiplex-i5"], ["Amazon", "https://www.amazon.com.br/s?k=dell+optiplex+i5"]] },
+  { nome: "Desktop Lenovo ThinkCentre — i5 9ª geração ou mais nova", faixa: "~ R$ 2.500–6.000", links: [["Lenovo", "https://www.lenovo.com/br/pt/desktops-y-all-in-one/c/DESKTOPS"], ["Mercado Livre", "https://lista.mercadolivre.com.br/lenovo-thinkcentre-i5"], ["Amazon", "https://www.amazon.com.br/s?k=lenovo+thinkcentre+i5"]] },
+  { nome: "Adaptador DisplayPort → VGA", faixa: "~ R$ 30–80", links: [["Kabum", "https://www.kabum.com.br/busca/adaptador-displayport-vga"], ["Mercado Livre", "https://lista.mercadolivre.com.br/adaptador-displayport-vga"], ["Amazon", "https://www.amazon.com.br/s?k=adaptador+displayport+vga"]] },
+  { nome: "Adaptador HDMI → VGA", faixa: "~ R$ 25–70", links: [["Kabum", "https://www.kabum.com.br/busca/adaptador-hdmi-vga"], ["Mercado Livre", "https://lista.mercadolivre.com.br/adaptador-hdmi-vga"], ["Amazon", "https://www.amazon.com.br/s?k=adaptador+hdmi+vga"]] },
+  { nome: "Mouse Logitech (USB)", faixa: "~ R$ 40–110", links: [["Kabum", "https://www.kabum.com.br/busca/mouse-logitech"], ["Mercado Livre", "https://lista.mercadolivre.com.br/mouse-logitech"], ["Amazon", "https://www.amazon.com.br/s?k=mouse+logitech"]] },
+  { nome: "Teclado Logitech (USB)", faixa: "~ R$ 70–150", links: [["Kabum", "https://www.kabum.com.br/busca/teclado-logitech"], ["Mercado Livre", "https://lista.mercadolivre.com.br/teclado-logitech"], ["Amazon", "https://www.amazon.com.br/s?k=teclado+logitech"]] },
 ];
 function renderOrcamentoLinks() {
   const target = document.getElementById("orcamentoLinks");
@@ -2185,32 +2190,64 @@ function renderOrcamentoLinks() {
       <div class="orc-comp-links">${c.links.map(([nome, url]) => `<a href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(nome)}</a>`).join("")}</div>
     </div>`).join("");
 }
-function renderOrcamentoNecessidades() {
-  const target = document.getElementById("orcamentoNecessidades");
-  if (!target) return;
+function getOrcamentoNecessidades() {
   const notebooksRam = hardwareAssets.filter((a) => getAssetType(a) === "notebook" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
   const desktopsRam = hardwareAssets.filter((a) => getAssetType(a) === "computador" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
   const precisaSsd = hardwareAssets.filter((a) => !assetHasSSD(a) || (maxDiskGb(a) > 0 && maxDiskGb(a) < 200)).length;
   const estoque = (matchFn) => (depositoItens || []).filter(matchFn).reduce((s, i) => s + Number(i.quantidade || 0), 0);
-  const stMemNb = estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome));
-  const stMemDt = estoque((i) => /mem/i.test(i.nome) && /desktop/i.test(i.nome) && /16/.test(i.nome));
-  const stSsd = estoque((i) => /ssd/i.test(i.nome) && diskGbFromName(i.nome) >= 240);
-  const linha = (label, need, have, buscaUrl) => {
-    if (need <= 0) return `<div class="orc-line ok"><strong>${escapeHtml(label)}</strong>: nenhuma máquina precisando agora.</div>`;
-    if (have >= need) return `<div class="orc-line ok"><strong>${escapeHtml(label)}</strong>: ${need} máquina(s) precisam e o depósito TEM ${have} em estoque — ✅ não precisa comprar.</div>`;
-    if (have > 0) return `<div class="orc-line warn"><strong>${escapeHtml(label)}</strong>: ${need} precisam, o depósito tem ${have} — faltam <strong>${need - have}</strong>. <a href="${buscaUrl}" target="_blank" rel="noopener">🛒 ver preços</a></div>`;
-    return `<div class="orc-line buy"><strong>${escapeHtml(label)}</strong>: ${need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${need}. <a href="${buscaUrl}" target="_blank" rel="noopener">ver preços</a></div>`;
+  return [
+    { label: "Memória 16GB (Notebook)", need: notebooksRam, have: estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome)), min: 480, max: 900, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook" },
+    { label: "Memória 16GB (Desktop)", need: desktopsRam, have: estoque((i) => /mem/i.test(i.nome) && /desktop/i.test(i.nome) && /16/.test(i.nome)), min: 450, max: 850, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop" },
+    { label: "SSD 240GB", need: precisaSsd, have: estoque((i) => /ssd/i.test(i.nome) && diskGbFromName(i.nome) >= 240), min: 250, max: 420, url: "https://www.kabum.com.br/busca/ssd-240gb" },
+  ];
+}
+function renderOrcamentoNecessidades() {
+  const target = document.getElementById("orcamentoNecessidades");
+  if (!target) return;
+  const linha = (n) => {
+    if (n.need <= 0) return `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: nenhuma máquina precisando agora.</div>`;
+    if (n.have >= n.need) return `<div class="orc-line ok"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o depósito TEM ${n.have} em estoque — ✅ não precisa comprar.</div>`;
+    if (n.have > 0) return `<div class="orc-line warn"><strong>${escapeHtml(n.label)}</strong>: ${n.need} precisam, o depósito tem ${n.have} — faltam <strong>${n.need - n.have}</strong>. <a href="${n.url}" target="_blank" rel="noopener">🛒 ver preços</a></div>`;
+    return `<div class="orc-line buy"><strong>${escapeHtml(n.label)}</strong>: ${n.need} máquina(s) precisam e o estoque está VAZIO — 🛒 comprar ${n.need}. <a href="${n.url}" target="_blank" rel="noopener">ver preços</a></div>`;
   };
-  target.innerHTML =
-    linha("Memória 16GB (Notebook)", notebooksRam, stMemNb, "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook") +
-    linha("Memória 16GB (Desktop)", desktopsRam, stMemDt, "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-desktop") +
-    linha("SSD 240GB", precisaSsd, stSsd, "https://www.kabum.com.br/busca/ssd-240gb");
+  target.innerHTML = getOrcamentoNecessidades().map(linha).join("");
+}
+function renderOrcamentoTabela() {
+  const target = document.getElementById("orcamentoTabela");
+  if (!target) return;
+  const dateEl = document.getElementById("orcPrintDate");
+  if (dateEl) dateEl.innerText = "Gerado em " + new Date().toLocaleDateString("pt-BR");
+  const brl = (v) => "R$ " + Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 0 });
+  const compras = getOrcamentoNecessidades().map((n) => ({ ...n, comprar: Math.max(0, n.need - n.have) })).filter((n) => n.comprar > 0);
+  let totMin = 0, totMax = 0;
+  const linhasCompra = compras.map((n) => {
+    const min = n.comprar * n.min, max = n.comprar * n.max;
+    totMin += min; totMax += max;
+    return `<tr><td>${escapeHtml(n.label)}</td><td class="c">${n.comprar}</td><td>${brl(n.min)} – ${brl(n.max)}</td><td>${brl(min)} – ${brl(max)}</td></tr>`;
+  }).join("");
+  const compraTable = compras.length
+    ? `<table class="orc-table"><thead><tr><th>Item a comprar</th><th class="c">Qtd</th><th>Preço unitário (ref)</th><th>Total estimado</th></tr></thead><tbody>${linhasCompra}</tbody><tfoot><tr><td colspan="3"><strong>Total geral estimado</strong></td><td><strong>${brl(totMin)} – ${brl(totMax)}</strong></td></tr></tfoot></table>`
+    : '<p class="section-note">Nada a comprar no momento — o depósito cobre as necessidades atuais. 👍</p>';
+  const refTable = `<table class="orc-table"><thead><tr><th>Item</th><th>Faixa de preço (ref. jul/2026)</th><th>Onde comprar</th></tr></thead><tbody>${ORC_COMPONENTES.map((c) => `<tr><td>${escapeHtml(c.nome)}</td><td>${escapeHtml(c.faixa)}</td><td>${c.links.map(([nome]) => escapeHtml(nome)).join(", ")}</td></tr>`).join("")}</tbody></table>`;
+  target.innerHTML = `<h3>Compras necessárias (necessidades × depósito)</h3>${compraTable}<h3 style="margin-top:22px">Referência de preços</h3>${refTable}`;
 }
 function renderOrcamento() {
   renderOrcamentoNecessidades();
   renderOrcamentoLinks();
+  renderOrcamentoTabela();
 }
 document.getElementById("btnRefreshOrcamento")?.addEventListener("click", renderOrcamento);
+
+function setOrcView(view) {
+  const cards = view === "cards";
+  document.getElementById("orcamentoCardsView")?.classList.toggle("hidden", !cards);
+  document.getElementById("orcamentoTableView")?.classList.toggle("hidden", cards);
+  document.getElementById("btnOrcCards")?.classList.toggle("active", cards);
+  document.getElementById("btnOrcTabela")?.classList.toggle("active", !cards);
+}
+document.getElementById("btnOrcCards")?.addEventListener("click", () => setOrcView("cards"));
+document.getElementById("btnOrcTabela")?.addEventListener("click", () => setOrcView("tabela"));
+document.getElementById("btnPrintOrcamento")?.addEventListener("click", () => { renderOrcamentoTabela(); setOrcView("tabela"); setTimeout(() => window.print(), 150); });
 
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
