@@ -211,7 +211,16 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .device-detail-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(2,6,23,.9);padding:18px;overflow:auto}
 #transferModal{z-index:1200}
 /* Central de Inteligencia */
-.intel-item{border:1px solid #26364a;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#16213e}
+.intel-card{background:#16213e;border:1px solid #2c3d5c;border-radius:12px;margin-bottom:14px;overflow:hidden}
+.intel-card>summary{list-style:none;cursor:pointer;padding:16px 20px;display:flex;align-items:center;gap:12px;font-size:17px;font-weight:bold;color:#f8fafc;user-select:none}
+.intel-card>summary::-webkit-details-marker{display:none}
+.intel-card>summary:hover{background:rgba(56,189,248,.06)}
+.intel-card>summary::after{content:"\25B8";color:#7dd3fc;font-size:15px;transition:transform .15s ease}
+.intel-card[open]>summary::after{transform:rotate(90deg)}
+.intel-card-title{flex:1}
+.intel-card-badge{font-size:12px;font-weight:bold;background:#0f2436;color:#93c5fd;padding:3px 10px;border-radius:20px;white-space:nowrap}
+.intel-card-body{padding:0 20px 18px}
+.intel-item{border:1px solid #26364a;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#101a30}
 .intel-item strong{color:#f8fafc}
 .intel-item ul,.intel-cols ul,.intel-insights{margin:6px 0 0;padding-left:18px}
 .intel-item li,.intel-cols li,.intel-insights li{margin:4px 0;color:#cbd5e1}

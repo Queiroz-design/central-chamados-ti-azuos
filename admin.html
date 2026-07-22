@@ -332,21 +332,27 @@
       </div>
       <button id="btnRefreshInteligencia" class="secondary">Atualizar</button>
     </div>
-    <section class="panel">
-      <h3>Auditoria: Inventário × Desempenho</h3>
-      <p class="section-note">Cruza o hardware com o uso real (RAM, disco, CPU e chamados) e diz o que fazer em cada máquina.</p>
-      <div id="intelDesempenho"></div>
-    </section>
-    <section class="panel">
-      <h3>Sugestões de upgrade (referência: melhor máquina)</h3>
-      <p class="section-note">Compara cada máquina com a de melhor desempenho que você tem e aponta o que falta pra chegar lá.</p>
-      <div id="intelUpgrade"></div>
-    </section>
-    <section class="panel">
-      <h3>Inteligência dos chamados</h3>
-      <p class="section-note">Padrões nos chamados: o que mais dá problema, onde e com quem — com sugestões de ação preventiva.</p>
-      <div id="intelChamados"></div>
-    </section>
+    <details class="intel-card" open>
+      <summary><span class="intel-card-title">🖥️ Inventário × Desempenho</span><span class="intel-card-badge" id="intelDesempenhoCount"></span></summary>
+      <div class="intel-card-body">
+        <p class="section-note">Cruza o hardware com o uso real (RAM, disco, CPU e chamados) e diz o que fazer em cada máquina.</p>
+        <div id="intelDesempenho"></div>
+      </div>
+    </details>
+    <details class="intel-card">
+      <summary><span class="intel-card-title">⬆️ Sugestões de upgrade</span><span class="intel-card-badge" id="intelUpgradeCount"></span></summary>
+      <div class="intel-card-body">
+        <p class="section-note">Compara cada máquina com a de melhor desempenho que você tem e aponta o que falta pra chegar lá.</p>
+        <div id="intelUpgrade"></div>
+      </div>
+    </details>
+    <details class="intel-card">
+      <summary><span class="intel-card-title">📋 Inteligência dos chamados</span></summary>
+      <div class="intel-card-body">
+        <p class="section-note">Padrões nos chamados: o que mais dá problema, onde e com quem — com sugestões de ação preventiva.</p>
+        <div id="intelChamados"></div>
+      </div>
+    </details>
   </section>
 
   <div id="hardwareEditModal" class="modal-backdrop hidden">

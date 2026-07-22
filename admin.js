@@ -2039,7 +2039,8 @@ function machineSuggestions(asset) {
   const lentos = getAssetMonthTickets(asset).filter((t) => normalizeText(t.tipo).includes("lento")).length;
   const gen = cpuGeneration(asset.cpu_name);
   if (lentos >= 2) sugs.push(`${lentos} chamados de lentidão no mês — investigar / avaliar upgrade`);
-  if (gen && gen <= 6 && lentos >= 1) sugs.push(`Processador antigo (${gen}ª geração) + lentidão — avaliar troca da máquina`);
+  // Só sugere trocar a máquina se o processador for 8ª geração ou mais antigo. 9ª+ é OK.
+  if (gen && gen <= 8) sugs.push(`Processador de geração antiga (${gen}ª) — avaliar troca da máquina${lentos ? ` (já teve ${lentos} chamado(s) de lentidão)` : ""}`);
   return { asset, sugs };
 }
 function renderIntelDesempenho() {
@@ -2047,6 +2048,8 @@ function renderIntelDesempenho() {
   if (!target) return;
   const results = hardwareAssets.map(machineSuggestions).filter((r) => r.sugs.length);
   results.sort((a, b) => b.sugs.length - a.sugs.length);
+  const badge = document.getElementById("intelDesempenhoCount");
+  if (badge) badge.innerText = results.length ? `${results.length} máquina(s)` : "tudo ok";
   if (!results.length) { target.innerHTML = '<div class="empty-state">Nenhuma máquina com sugestões no momento — tudo saudável. 👍</div>'; return; }
   target.innerHTML = `<p class="section-note">${results.length} máquina(s) com sugestões:</p>` + results.map((r) => `
     <div class="intel-item">
@@ -2069,9 +2072,12 @@ function renderIntelUpgrade() {
     const g = cpuGeneration(a.cpu_name), ram = Number(a.memory_total_gb || 0);
     if (refRam && ram && ram < refRam) needs.push(`RAM: ${ram}GB → ${refRam}GB`);
     if (!assetHasSSD(a) && refSsd) needs.push("Instalar SSD");
-    if (g && refGen && g < refGen - 2) needs.push(`Processador ${g}ª geração (referência é ${refGen}ª) — avaliar troca`);
+    // Troca só para 8ª geração ou mais antiga. 9ª+ é considerada OK.
+    if (g && g <= 8) needs.push(`Processador ${g}ª geração — avaliar troca (9ª geração ou mais nova já é OK)`);
     return { a, needs };
   }).filter((r) => r.needs.length);
+  const badge = document.getElementById("intelUpgradeCount");
+  if (badge) badge.innerText = rows.length ? `${rows.length} máquina(s)` : "tudo ok";
   target.innerHTML = `
     <p class="section-note">Referência (melhor máquina): <strong>${escapeHtml(ref.display_name || ref.computer_name)}</strong> — ${escapeHtml(ref.cpu_name || "-")}, ${refRam}GB, ${refSsd ? "SSD" : "sem SSD"}.</p>
     ${rows.length ? rows.map((r) => `
