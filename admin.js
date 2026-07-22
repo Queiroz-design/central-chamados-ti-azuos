@@ -2049,7 +2049,10 @@ function renderIntelDesempenho() {
   const results = hardwareAssets.map(machineSuggestions).filter((r) => r.sugs.length);
   results.sort((a, b) => b.sugs.length - a.sugs.length);
   const badge = document.getElementById("intelDesempenhoCount");
-  if (badge) badge.innerText = results.length ? `${results.length} máquina(s)` : "tudo ok";
+  if (badge) {
+    badge.innerText = results.length ? `⚠ ${results.length} máquina(s) em pendência` : "tudo ok";
+    badge.className = "intel-nav-badge " + (results.length ? "pendencia" : "ok");
+  }
   if (!results.length) { target.innerHTML = '<div class="empty-state">Nenhuma máquina com sugestões no momento — tudo saudável. 👍</div>'; return; }
   target.innerHTML = `<p class="section-note">${results.length} máquina(s) com sugestões:</p>` + results.map((r) => `
     <div class="intel-item">
@@ -2077,7 +2080,10 @@ function renderIntelUpgrade() {
     return { a, needs };
   }).filter((r) => r.needs.length);
   const badge = document.getElementById("intelUpgradeCount");
-  if (badge) badge.innerText = rows.length ? `${rows.length} máquina(s)` : "tudo ok";
+  if (badge) {
+    badge.innerText = rows.length ? `⚠ ${rows.length} máquina(s) em pendência` : "tudo ok";
+    badge.className = "intel-nav-badge " + (rows.length ? "pendencia" : "ok");
+  }
   target.innerHTML = `
     <p class="section-note">Referência (melhor máquina): <strong>${escapeHtml(ref.display_name || ref.computer_name)}</strong> — ${escapeHtml(ref.cpu_name || "-")}, ${refRam}GB, ${refSsd ? "SSD" : "sem SSD"}.</p>
     ${rows.length ? rows.map((r) => `
@@ -2113,10 +2119,20 @@ function renderInteligencia() {
 }
 document.getElementById("btnRefreshInteligencia")?.addEventListener("click", renderInteligencia);
 
-// Clicar num card abre o painel daquela auditoria (os 3 cards ficam lado a lado).
+// Clicar num card abre o painel daquela auditoria; clicar de novo fecha. Nada aparece sem clicar.
 function selectIntelCard(key) {
-  document.querySelectorAll(".intel-nav-card").forEach((c) => c.classList.toggle("active", c.dataset.intel === key));
-  document.querySelectorAll(".intel-pane").forEach((p) => p.classList.toggle("hidden", p.dataset.pane !== key));
+  const card = document.querySelector(`.intel-nav-card[data-intel="${key}"]`);
+  const willOpen = card && !card.classList.contains("active");
+  document.querySelectorAll(".intel-nav-card").forEach((c) => c.classList.remove("active"));
+  document.querySelectorAll(".intel-pane").forEach((p) => p.classList.add("hidden"));
+  const panel = document.querySelector(".intel-detail-panel");
+  if (willOpen) {
+    card.classList.add("active");
+    document.querySelector(`.intel-pane[data-pane="${key}"]`)?.classList.remove("hidden");
+    if (panel) panel.classList.remove("hidden");
+  } else if (panel) {
+    panel.classList.add("hidden");
+  }
 }
 document.querySelectorAll(".intel-nav-card").forEach((c) => c.addEventListener("click", () => selectIntelCard(c.dataset.intel)));
 

@@ -218,6 +218,8 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .intel-nav-icon{font-size:22px}
 .intel-nav-title{font-size:15px;font-weight:bold;line-height:1.2}
 .intel-nav-badge{font-size:12px;font-weight:bold;background:#0f2436;color:#93c5fd;padding:3px 10px;border-radius:20px}
+.intel-nav-badge.pendencia{background:#3b1118;color:#fca5a5}
+.intel-nav-badge.ok{background:#052e20;color:#bbf7d0}
 .intel-detail-panel{background:#101a30;border:1px solid #2c3d5c;border-radius:12px;padding:18px 20px}
 .intel-item{border:1px solid #26364a;border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#16213e}
 @media(max-width:820px){.intel-cards-grid{grid-template-columns:1fr}}
