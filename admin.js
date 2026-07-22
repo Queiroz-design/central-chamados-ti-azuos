@@ -2035,6 +2035,26 @@ function maxDiskGb(asset) {
   if (mx === 0) (Array.isArray(asset.volumes) ? asset.volumes : []).forEach((v) => { const g = Number(v.size_gb || 0); if (g > mx) mx = g; });
   return mx;
 }
+// Tamanho do SSD/NVMe da maquina (o maior). 0 = so HD ou sem dados.
+function assetSsdGb(asset) {
+  const disks = Array.isArray(asset.disks) ? asset.disks : [];
+  let ssd = 0, desconhecido = 0;
+  disks.forEach((d) => {
+    const label = `${d.media_type || ""} ${d.model || ""}`.toLowerCase();
+    const g = Number(d.size_gb || 0);
+    if (/ssd|nvme/.test(label)) { if (g > ssd) ssd = g; }
+    else if (!/hdd|hard\s*disk/.test(label)) { if (g > desconhecido) desconhecido = g; }
+  });
+  if (ssd > 0) return ssd;
+  if (desconhecido > 0) return desconhecido;
+  return 0;
+}
+// Precisa trocar/instalar SSD: sem SSD (so HD) OU SSD pequeno (<200GB, ex: 120/128GB).
+function needsSsdUpgrade(asset) {
+  if (!assetHasSSD(asset)) return true;
+  const s = assetSsdGb(asset);
+  return s > 0 && s < 200;
+}
 function assetDiskFree(asset, live) {
   if (live && live.disk_free_percent != null) return Number(live.disk_free_percent);
   const vols = Array.isArray(asset.volumes) ? asset.volumes : [];
@@ -2089,10 +2109,8 @@ function renderIntelUpgrade() {
     const needs = []; const cats = new Set();
     const g = cpuGeneration(a.cpu_name), ram = Number(a.memory_total_gb || 0);
     if (refRam && ram && ram < refRam) { needs.push(`RAM: ${ram}GB → ${refRam}GB`); cats.add("memoria"); }
-    if (!assetHasSSD(a) && refSsd) { needs.push("Instalar SSD"); cats.add("ssd"); }
-    // Disco pequeno (120GB / abaixo de 240GB) precisa sair: minimo 240GB.
-    const disk = maxDiskGb(a);
-    if (disk > 0 && disk < 200) { needs.push(`Disco de ~${Math.round(disk)}GB é pouco — trocar por SSD de 240GB (mínimo)`); cats.add("ssd"); }
+    if (!assetHasSSD(a)) { needs.push("Instalar SSD (só tem HD)"); cats.add("ssd"); }
+    else { const ssd = assetSsdGb(a); if (ssd > 0 && ssd < 200) { needs.push(`SSD de ~${Math.round(ssd)}GB é pouco — trocar por SSD de 240GB (mínimo)`); cats.add("ssd"); } }
     // Troca só para 8ª geração ou mais antiga. 9ª+ é considerada OK.
     if (g && g <= 8) { needs.push(`Processador ${g}ª geração — avaliar troca (9ª geração ou mais nova já é OK)`); cats.add("troca"); }
     return { a, needs, cats };
@@ -2200,7 +2218,7 @@ function renderOrcamentoLinks() {
 function getOrcamentoNecessidades() {
   const notebooksRam = hardwareAssets.filter((a) => getAssetType(a) === "notebook" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
   const desktopsRam = hardwareAssets.filter((a) => getAssetType(a) === "computador" && Number(a.memory_total_gb || 0) > 0 && Number(a.memory_total_gb) < 16).length;
-  const precisaSsd = hardwareAssets.filter((a) => !assetHasSSD(a) || (maxDiskGb(a) > 0 && maxDiskGb(a) < 200)).length;
+  const precisaSsd = hardwareAssets.filter((a) => needsSsdUpgrade(a)).length;
   const estoque = (matchFn) => (depositoItens || []).filter(matchFn).reduce((s, i) => s + Number(i.quantidade || 0), 0);
   return [
     { key: "ram-notebook", label: "Memória 16GB (Notebook)", need: notebooksRam, have: estoque((i) => /mem/i.test(i.nome) && /notebook/i.test(i.nome) && /16/.test(i.nome)), min: 480, max: 900, url: "https://lista.mercadolivre.com.br/memoria-ddr4-16gb-notebook" },
@@ -2212,7 +2230,7 @@ function getOrcamentoNecessidades() {
 function assetNeedsOrc(asset, key) {
   if (key === "ram-notebook") return getAssetType(asset) === "notebook" && Number(asset.memory_total_gb || 0) > 0 && Number(asset.memory_total_gb) < 16;
   if (key === "ram-desktop") return getAssetType(asset) === "computador" && Number(asset.memory_total_gb || 0) > 0 && Number(asset.memory_total_gb) < 16;
-  if (key === "ssd") return !assetHasSSD(asset) || (maxDiskGb(asset) > 0 && maxDiskGb(asset) < 200);
+  if (key === "ssd") return needsSsdUpgrade(asset);
   return true;
 }
 const ORC_FILTER_LABELS = {
