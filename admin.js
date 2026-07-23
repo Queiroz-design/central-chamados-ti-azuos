@@ -2336,6 +2336,46 @@ document.getElementById("btnOrcCards")?.addEventListener("click", () => setOrcVi
 document.getElementById("btnOrcTabela")?.addEventListener("click", () => setOrcView("tabela"));
 document.getElementById("btnPrintOrcamento")?.addEventListener("click", () => { renderOrcamentoTabela(); setOrcView("tabela"); setTimeout(() => window.print(), 150); });
 
+// Icones nos titulos das secoes (mesmos da barra lateral) + linha divisoria ja via CSS.
+(function decorateSectionHeaders() {
+  const svg = (paths) => `<svg class="head-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
+  const ICONS = {
+    "chamados-principal": svg('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>'),
+    "tab-dashboard": svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
+    "tab-inventario": svg('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'),
+    "tab-rede": svg('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>'),
+    "tab-deposito": svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
+    "tab-manutencao": svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
+    "tab-inteligencia": svg('<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>'),
+    "tab-orcamento": svg('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
+  };
+  Object.entries(ICONS).forEach(([id, icon]) => {
+    const h2 = document.querySelector(`#${id} .admin-top h2`);
+    if (h2 && !h2.querySelector(".head-icon")) h2.insertAdjacentHTML("afterbegin", icon);
+  });
+})();
+
+// Alternar tema claro/escuro (o tema claro ja existe no CSS via .light).
+(function themeSetup() {
+  const KEY = "azuosTheme";
+  const btn = document.getElementById("btnTheme");
+  const sun = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const moon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
+  function apply(theme) {
+    const light = theme === "light";
+    document.body.classList.toggle("light", light);
+    if (btn) btn.innerHTML = light ? `${moon}<span>Tema escuro</span>` : `${sun}<span>Tema claro</span>`;
+  }
+  let saved = "dark";
+  try { saved = localStorage.getItem(KEY) || "dark"; } catch (e) {}
+  apply(saved);
+  btn?.addEventListener("click", () => {
+    const next = document.body.classList.contains("light") ? "dark" : "light";
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply(next);
+  });
+})();
+
 // Guard de sessao: so libera o painel com login valido no Supabase Auth.
 async function initAdmin() {
   const { data: { session } } = await client.auth.getSession();
