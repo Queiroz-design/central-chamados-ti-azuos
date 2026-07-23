@@ -16,7 +16,7 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,"Inter","Roboto","H
 .theme-toggle{display:inline-flex;align-items:center;gap:7px;padding:10px 14px}
 .theme-toggle svg{flex:none}
 .side-tab{font-size:15px;font-weight:600}
-.side-tab .side-icon{width:20px;height:20px;flex:none;stroke:#64748b;transition:stroke .15s ease}
+.side-tab .side-icon{width:18px!important;height:18px!important;min-width:18px;flex:0 0 18px;stroke:#64748b;transition:stroke .15s ease}
 .side-tab .side-label{flex:1}
 .side-tab:hover .side-icon{stroke:var(--azul-vivo)}
 .side-tab.active{background:linear-gradient(135deg,var(--azul-vivo),var(--azul));color:#fff;border-color:var(--azul-vivo);box-shadow:0 12px 24px rgba(0,87,216,.2)}
@@ -50,7 +50,7 @@ button:hover,.btn:hover{filter:brightness(.97);transform:translateY(-1px)}
 .card>.admin-top{padding-bottom:16px;margin-bottom:22px;border-bottom:1px solid #e6ebf3}
 .admin-body .card>.admin-top{border-bottom-color:#26364a}
 .admin-body.light .card>.admin-top{border-bottom-color:#e6ebf3}
-h2 .head-icon{width:24px;height:24px;flex:none;stroke:var(--azul-vivo)}
+h2 .head-icon{width:22px!important;height:22px!important;min-width:22px;flex:0 0 22px;stroke:var(--azul-vivo)}
 .admin-body h2 .head-icon{stroke:#38bdf8}
 .admin-body.light h2 .head-icon{stroke:var(--azul-vivo)}
 .section-note{margin:0;color:#64748b}
@@ -507,3 +507,99 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .assets-table .health-badge{font-size:10px;padding:2px 7px}
 .assets-table .table-actions{gap:6px}
 .assets-table .table-actions button{padding:3px 8px;font-size:10.5px;min-height:0}
+
+/* ==================================================================
+   TEMA CLARO — remapeamento de cores dos componentes coloridos.
+   No escuro os badges/status usam fundo escuro + texto claro; no claro
+   viram fundo suave + texto forte, pra manter contraste e legibilidade.
+   ================================================================== */
+/* Status (selects e travas) */
+.admin-body.light select.status[data-status="Aberto"]{background:#fef3c7;color:#92400e;border-color:#f59e0b}
+.admin-body.light select.status[data-status="Em atendimento"]{background:#dbeafe;color:#1e40af;border-color:#3b82f6}
+.admin-body.light select.status[data-status="Resolvido"]{background:#dcfce7;color:#166534;border-color:#16a34a}
+.admin-body.light .status-locked,.admin-body.light .resolved-lock{background:#dcfce7;color:#166534;border-color:#16a34a}
+/* Prioridade */
+.admin-body.light .prio-badge[data-prio="Alta"]{background:#fee2e2;color:#991b1b}
+.admin-body.light .prio-badge[data-prio="Média"]{background:#fef3c7;color:#92400e}
+.admin-body.light .prio-badge[data-prio="Baixa"]{background:#dbeafe;color:#1e40af}
+/* Cards de metrica de chamados */
+.admin-body.light .ticket-metric.m-open strong{color:#b45309}
+.admin-body.light .ticket-metric.m-prog strong{color:#1d4ed8}
+.admin-body.light .ticket-metric.m-done strong{color:#15803d}
+.admin-body.light .ticket-metric.metric-attention{background:linear-gradient(180deg,#fef3c7,#fffbeb);border-color:#f59e0b}
+.admin-body.light .ticket-metric.metric-attention span{color:#b45309}
+.admin-body.light .ticket-metric.metric-attention strong{color:#92400e}
+/* Manutencao: banner de alerta */
+.admin-body.light .manut-alert{background:#fef3c7;border-color:#f59e0b;color:#92400e}
+.admin-body.light .manut-alert strong{color:#78350f}
+.admin-body.light .manut-alert-link{color:#b45309}
+/* Deposito: badges */
+.admin-body.light .estoque-badge{background:#dbeafe;color:#1e40af}
+.admin-body.light .estoque-badge.zero{background:#fee2e2;color:#991b1b}
+.admin-body.light .mov-badge.entrada,.admin-body.light .cond-badge.novo{background:#dcfce7;color:#166534}
+.admin-body.light .mov-badge.saida,.admin-body.light .cond-badge.usado{background:#fef3c7;color:#92400e}
+/* Central de Inteligencia */
+.admin-body.light .intel-nav-card{background:#f4f7fb;color:#0f2a63;border-color:#e2e8f0}
+.admin-body.light .intel-nav-badge{background:#eaf1ff;color:#1d4ed8}
+.admin-body.light .intel-nav-badge.pendencia{background:#fee2e2;color:#991b1b}
+.admin-body.light .intel-nav-badge.ok{background:#dcfce7;color:#166534}
+.admin-body.light .intel-detail-panel{background:#f8fafc;border-color:#e2e8f0}
+.admin-body.light .intel-item{background:#fff;border-color:#e2e8f0}
+.admin-body.light .intel-item strong,.admin-body.light .intel-cols h4{color:#0f2a63}
+.admin-body.light .intel-item li,.admin-body.light .intel-cols li,.admin-body.light .intel-insights li{color:#475569}
+/* Orcamento */
+.admin-body.light .orc-line{background:#f8fafc;color:#334155}
+.admin-body.light .orc-line a{color:#1d4ed8}
+.admin-body.light .orc-comp{background:#f8fafc}
+.admin-body.light .orc-comp-top strong{color:#0f2a63}
+.admin-body.light .orc-faixa{background:#eaf1ff;color:#1d4ed8}
+.admin-body.light .orc-comp-links a{background:#eef2f8;color:#334155}
+.admin-body.light .orc-comp-links a:hover{background:#e2e8f0}
+.admin-body.light .orc-filter-notice{background:#eff6ff;border-color:#bfdbfe;border-left-color:#3b82f6;color:#1e40af}
+.admin-body.light .orc-table th{background:#eef2f8;color:#334155}
+.admin-body.light .orc-table th,.admin-body.light .orc-table td{border-color:#e2e8f0;color:#334155}
+.admin-body.light .orc-table tfoot td{background:#eef2f8;color:#0f2a63}
+/* Inventario: resumo ao vivo */
+.admin-body.light .live-summary>div,.admin-body.light .hardware-live-value{background:#f4f7fb;border-color:#e2e8f0}
+.admin-body.light .live-summary strong,.admin-body.light .hardware-live-value strong{color:#0f2a63}
+.admin-body.light .live-summary small,.admin-body.light .hardware-live-value span{color:#64748b}
+.admin-body.light .hardware-live-value.warning{background:#fffbeb;border-color:#f59e0b}
+.admin-body.light .hardware-live-value.warning strong{color:#b45309}
+.admin-body.light .hardware-live-value.critical{background:#fef2f2;border-color:#ef4444}
+.admin-body.light .hardware-live-value.critical strong{color:#b91c1c}
+.admin-body.light .machine-presence.online{color:#15803d}
+.admin-body.light .hardware-card{background:#fff;border-color:#e2e8f0}
+.admin-body.light .hardware-card-top strong{color:#0f2a63}
+.admin-body.light .hardware-card-top span,.admin-body.light .hardware-spec,.admin-body.light .hardware-score{color:#64748b}
+.admin-body.light .health-meter{background:#e2e8f0}
+/* Avisos / setup */
+.admin-body.light .setup-notice{background:#fffbeb;border-color:#f59e0b;color:#92400e}
+/* Dashboard: donut, legendas e barras */
+.admin-body.light .problem-donut:after{background:#fff;box-shadow:0 0 0 1px #e2e8f0}
+.admin-body.light .problem-donut strong{color:#0f2a63}
+.admin-body.light .problem-donut span,.admin-body.light .legend-row span,.admin-body.light .bar-meta,.admin-body.light .legend-row strong{color:#334155}
+.admin-body.light .bar-track{background:#e2e8f0}
+.admin-body.light .alert-item{background:#fef2f2;border-left-color:#ef4444}
+.admin-body.light .alert-item strong{color:#991b1b}
+.admin-body.light .alert-item.alert-machine{background:#fffbeb;border-left-color:#f59e0b}
+.admin-body.light .alert-item.alert-machine strong{color:#92400e}
+/* Modal de detalhes da maquina */
+.admin-body.light .device-detail{background:#fff;border-color:#e2e8f0;color:#334155}
+.admin-body.light .device-detail-header{background:#f4f7fb;border-bottom-color:#e2e8f0}
+.admin-body.light .device-detail-header h2,.admin-body.light .detail-section h3,.admin-body.light .live-metric strong,.admin-body.light .activity-box strong,.admin-body.light .intel-cols h4{color:#0f2a63}
+.admin-body.light .detail-section,.admin-body.light .live-metric,.admin-body.light .performance-charts>div,.admin-body.light .device-properties>div{background:#f8fafc;border-color:#e2e8f0}
+.admin-body.light .device-properties{border-color:#e2e8f0}
+.admin-body.light .device-properties>div{border-bottom-color:#e5e7eb}
+.admin-body.light .device-properties>div:nth-child(odd){border-right-color:#e5e7eb}
+.admin-body.light .device-properties span,.admin-body.light .live-metric span,.admin-body.light .live-metric small,.admin-body.light .activity-box span,.admin-body.light .process-row strong{color:#64748b}
+.admin-body.light .device-properties strong,.admin-body.light .process-row span{color:#334155}
+.admin-body.light .detail-section h4{color:#1d4ed8}
+.admin-body.light .process-row{border-bottom-color:#e5e7eb}
+.admin-body.light .process-row b{background:#eaf1ff;color:#1d4ed8}
+.admin-body.light .metric-bar,.admin-body.light .performance-charts svg text{fill:#94a3b8}
+.admin-body.light .metric-bar{background:#e2e8f0}
+.admin-body.light .device-live-status.online{background:#dcfce7;color:#166534}
+.admin-body.light .device-live-status.offline{background:#eef2f8;color:#475569}
+.admin-body.light .alert-status.active{background:#fee2e2;color:#991b1b}
+.admin-body.light .alert-status.recovered{background:#dcfce7;color:#166534}
+.admin-body.light .chart-base{stroke:#cbd5e1}
