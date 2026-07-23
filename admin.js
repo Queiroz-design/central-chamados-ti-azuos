@@ -294,12 +294,22 @@ function buildRecurringAlerts(monthTickets) {
     .sort((a, b) => b.count - a.count);
 }
 
+// Rotulo da maquina numa manutencao — desambigua rotulos repetidos (ex: varias "Reserva")
+// mostrando o nome do Windows entre parenteses.
+function manutMachineLabel(m) {
+  const base = `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
+  const lbl = String(m.computer_label || "");
+  if (m.computer_name && lbl && normalizeText(lbl) !== normalizeText(m.computer_name) && !/\d/.test(lbl)) {
+    return `${base} (${m.computer_name})`;
+  }
+  return base;
+}
 // Maquinas com muita manutencao (3+ registros) = alerta de atencao.
 function getManutencaoAlertas(minCount = 3) {
   const byMachine = {};
   (manutencoes || []).forEach((m) => {
     const key = m.computer_name || m.computer_label || "Sem identificação";
-    const label = `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
+    const label = manutMachineLabel(m);
     if (!byMachine[key]) byMachine[key] = { key, label, total: 0 };
     byMachine[key].total += 1;
   });
@@ -895,7 +905,13 @@ function machineMatchesAsset(record, asset) {
   const al = normalizeText(asset.display_name || asset.computer_name);
   const rn = normalizeText(record.computer_name);
   const rl = normalizeText(record.computer_label);
-  return (rn && (rn === an || rn === al)) || (rl && (rl === al || rl === an));
+  // Match forte pelo nome do Windows (unico): resolve maquinas com rotulo igual (ex: duas "Reserva").
+  if (rn && rn === an) return true;
+  // Se o registro aponta para um computer_name que EXISTE no inventario mas nao e esta maquina,
+  // nao casa pelo rotulo (evita duplicar em maquinas de mesmo nome de exibicao).
+  if (rn && hardwareAssets.some((a) => normalizeText(a.computer_name) === rn)) return false;
+  // Registro de maquina fora da operacao / texto livre: casa pelo rotulo.
+  return (rl && (rl === al || rl === an)) || (rn && rn === al);
 }
 
 function renderDeviceMaintenance(asset) {
@@ -1915,7 +1931,7 @@ function renderManutencoes() {
   const now = new Date();
   const isMonth = (d) => { const x = new Date(d); return x.getMonth() === now.getMonth() && x.getFullYear() === now.getFullYear(); };
 
-  const machineLabel = (m) => `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
+  const machineLabel = manutMachineLabel;
   const ALERTA_MIN = 3;
   const byMachine = {};
   manutencoes.forEach((m) => {
