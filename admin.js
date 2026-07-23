@@ -2243,11 +2243,17 @@ function renderIntelReserva() {
     return;
   }
   const especs = (q) => `${q.gen ? q.gen + "ª ger." : "geração ?"}, ${q.ram || "?"}GB RAM, ${q.ssd ? "SSD " + Math.round(q.ssd) + "GB" : (q.okSsd ? "SSD" : "sem SSD / HD")}`;
+  // Nome legivel da reserva: se o rotulo for so "Reserva", usa o modelo/nome do Windows pra nao repetir "reserva Reserva".
+  const resNome = (a) => {
+    const dn = a.display_name || a.computer_name || "";
+    if (normalizeText(dn) === "reserva") return a.model || a.computer_name || dn;
+    return dn;
+  };
   target.innerHTML =
     `<p class="section-note">Máquinas boas paradas em reserva que podem substituir máquinas fracas em uso — sempre do mesmo tipo (notebook por notebook, desktop por desktop). Prioriza trocar as piores primeiro.</p>` +
     pares.map((p) => `
       <div class="intel-item">
-        <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(p.res.display_name || p.res.computer_name)}</strong>
+        <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(resNome(p.res))}</strong>
         <ul>
           <li>Em uso hoje: ${escapeHtml(p.alvo.cpu_name || "-")} — ${especs(assetQuality(p.alvo))}</li>
           <li>Reserva (melhor): ${escapeHtml(p.res.cpu_name || "-")} — ${especs(assetQuality(p.res))}</li>
