@@ -622,6 +622,7 @@ function renderAssets() {
   }
   if (orcMachineFilter) displayAssets = displayAssets.filter((asset) => assetNeedsOrc(asset, orcMachineFilter));
   updateOrcFilterNotice();
+  renderReservaMaquinas();
 
   if (!hardwareAssets.length) {
     assetsBody.innerHTML = '<tr><td colspan="10">Nenhuma máquina enviou inventário ainda. Baixe o coletor e execute nos computadores.</td></tr>';
@@ -1611,8 +1612,38 @@ async function loadDeposito() {
   renderDeposito();
 }
 
+// Lista as maquinas reserva (sem departamento) puxadas do inventario, direto no deposito.
+function renderReservaMaquinas() {
+  const body = document.getElementById("reservaMaquinasBody");
+  if (!body) return;
+  const list = reservaMaquinas().slice().sort((a, b) => specScore(b) - specScore(a));
+  const count = document.getElementById("reservaMaquinasCount");
+  if (count) count.innerText = list.length;
+  if (!list.length) {
+    body.innerHTML = '<tr><td colspan="6">Nenhuma máquina em reserva. Deixe uma máquina sem departamento no inventário para ela aparecer aqui automaticamente.</td></tr>';
+    return;
+  }
+  body.innerHTML = list.map((a) => {
+    const q = assetQuality(a);
+    const genTxt = q.gen ? q.gen + "ª geração" : "geração não identificada";
+    const disco = q.ssd ? Math.round(q.ssd) + "GB " + (q.okSsd ? "SSD" : "SSD pequeno") : (assetHasSSD(a) ? "SSD" : "HD");
+    const sit = q.boa
+      ? '<span class="cond-badge novo">Boa — pronta para uso</span>'
+      : '<span class="cond-badge usado">Fraca — avaliar</span>';
+    return `<tr>
+      <td><strong>${escapeHtml(a.display_name || a.computer_name)}</strong><br><span class="muted">${escapeHtml(a.model || "-")}</span></td>
+      <td>${escapeHtml(a.cpu_name || "-")}<br><span class="muted">${genTxt}</span></td>
+      <td>${q.ram ? q.ram + "GB" : "-"}</td>
+      <td>${disco}</td>
+      <td>${sit}</td>
+      <td><div class="table-actions"><button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button></div></td>
+    </tr>`;
+  }).join("");
+}
+
 function renderDeposito() {
   const listBody = document.getElementById("depositoBody");
+  renderReservaMaquinas();
   if (!listBody) return;
   fillCategorySelect(document.getElementById("depositoItemCategoria"), false);
   fillCategorySelect(document.getElementById("depositoCategoryFilter"), true);
@@ -2055,6 +2086,21 @@ function needsSsdUpgrade(asset) {
   const s = assetSsdGb(asset);
   return s > 0 && s < 200;
 }
+// Maquina "reserva" = sem departamento (parada, disponivel para troca).
+function isReservaAsset(asset) {
+  const d = normalizeText(getAssetDepartment(asset));
+  return d === "reserva" || d === "sem departamento" || d === "";
+}
+function reservaMaquinas() {
+  return hardwareAssets.filter(isReservaAsset);
+}
+// Qualidade da maquina (para saber se a reserva presta para substituir).
+function assetQuality(asset) {
+  const gen = cpuGeneration(asset.cpu_name);
+  const ram = Number(asset.memory_total_gb || 0);
+  const okSsd = !needsSsdUpgrade(asset);
+  return { gen, ram, ssd: assetSsdGb(asset), okSsd, boa: gen >= 9 && ram >= 8 && okSsd };
+}
 function assetDiskFree(asset, live) {
   if (live && live.disk_free_percent != null) return Number(live.disk_free_percent);
   const vols = Array.isArray(asset.volumes) ? asset.volumes : [];
@@ -2150,9 +2196,51 @@ function renderIntelChamados() {
       <div><h4>Departamentos</h4><ul>${porDept.map(([d, c]) => `<li>${escapeHtml(d || "-")} — <strong>${c}</strong></li>`).join("")}</ul></div>
     </div>`;
 }
+// Sugere trocar uma maquina operacional fraca por uma reserva boa (parada no deposito).
+function renderIntelReserva() {
+  const target = document.getElementById("intelReserva");
+  const badge = document.getElementById("intelReservaCount");
+  if (!target) return;
+  const reservasBoas = reservaMaquinas().filter((a) => assetQuality(a).boa);
+  if (!reservasBoas.length) {
+    if (badge) { badge.innerText = "sem reserva boa"; badge.className = "intel-nav-badge"; }
+    target.innerHTML = '<div class="empty-state">Nenhuma máquina boa em reserva agora. Quando houver uma máquina sem departamento de 9ª geração (ou melhor), com SSD e 8GB+, ela aparece aqui com sugestões de troca.</div>';
+    return;
+  }
+  const operacionais = hardwareAssets.filter((a) => a.cpu_name && !isReservaAsset(a));
+  const fracas = operacionais
+    .filter((a) => { const g = cpuGeneration(a.cpu_name); return (g && g <= 8) || needsSsdUpgrade(a) || Number(a.memory_total_gb || 0) < 8; })
+    .sort((a, b) => specScore(a) - specScore(b)); // pior primeiro
+  const usadas = new Set();
+  const pares = [];
+  reservasBoas.forEach((res) => {
+    const alvo = fracas.find((f) => !usadas.has(f.id) && specScore(res) > specScore(f));
+    if (alvo) { usadas.add(alvo.id); pares.push({ res, alvo }); }
+  });
+  if (badge) {
+    badge.innerText = pares.length ? `${pares.length} troca(s) sugerida(s)` : `${reservasBoas.length} reserva(s) boa(s)`;
+    badge.className = "intel-nav-badge " + (pares.length ? "ok" : "");
+  }
+  if (!pares.length) {
+    target.innerHTML = `<div class="empty-state">Há ${reservasBoas.length} máquina(s) boa(s) em reserva, mas nenhuma máquina operacional está fraca o bastante para justificar a troca agora.</div>`;
+    return;
+  }
+  const especs = (q) => `${q.gen ? q.gen + "ª ger." : "geração ?"}, ${q.ram || "?"}GB RAM, ${q.ssd ? "SSD " + Math.round(q.ssd) + "GB" : (q.okSsd ? "SSD" : "sem SSD / HD")}`;
+  target.innerHTML =
+    `<p class="section-note">Máquinas boas paradas em reserva que podem substituir máquinas fracas em uso. Prioriza trocar as piores primeiro.</p>` +
+    pares.map((p) => `
+      <div class="intel-item">
+        <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(p.res.display_name || p.res.computer_name)}</strong>
+        <ul>
+          <li>Em uso hoje: ${escapeHtml(p.alvo.cpu_name || "-")} — ${especs(assetQuality(p.alvo))}</li>
+          <li>Reserva (melhor): ${escapeHtml(p.res.cpu_name || "-")} — ${especs(assetQuality(p.res))}</li>
+        </ul>
+      </div>`).join("");
+}
 function renderInteligencia() {
   renderIntelDesempenho();
   renderIntelUpgrade();
+  renderIntelReserva();
   renderIntelChamados();
 }
 document.getElementById("btnRefreshInteligencia")?.addEventListener("click", renderInteligencia);

@@ -224,7 +224,7 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .device-detail-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(2,6,23,.9);padding:18px;overflow:auto}
 #transferModal{z-index:1200}
 /* Central de Inteligencia - cards lado a lado (estilo inventario) */
-.intel-cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:16px}
+.intel-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:16px}
 .intel-nav-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:#16213e;border:1px solid #2c3d5c;border-radius:12px;padding:16px 18px;cursor:pointer;color:#f8fafc;transition:transform .12s ease,box-shadow .12s ease}
 .intel-nav-card:hover{transform:translateY(-2px);box-shadow:0 8px 18px rgba(0,0,0,.25)}
 .intel-nav-card.active{border-color:#38bdf8;box-shadow:0 0 0 2px rgba(56,189,248,.35)}
@@ -408,6 +408,10 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .ticket-detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 @media(max-width:640px){.ticket-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ticket-detail-edit{grid-template-columns:1fr}}
 /* Deposito (estoque) */
+.reserva-panel{margin:6px 0 20px;border-left:3px solid #38bdf8}
+.reserva-panel h3{display:flex;align-items:center;gap:10px}
+.reserva-count{display:inline-flex;align-items:center;justify-content:center;min-width:26px;height:24px;padding:0 8px;border-radius:99px;background:#0f2436;color:#7dd3fc;font-size:13px;font-weight:bold}
+.admin-body.light .reserva-count{background:#dbeafe;color:#1d4ed8}
 .deposito-table,.deposito-mov-table{min-width:0}
 .deposito-mov-title{margin:22px 0 10px}
 /* Padrao profissional de tabela (mesmo estilo do inventario) */

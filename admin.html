@@ -270,6 +270,18 @@
       <button id="btnAddDepositoItem" class="secondary">Adicionar item</button>
     </div>
     <div id="depositoMetrics" class="ticket-metrics"></div>
+
+    <section class="panel reserva-panel">
+      <h3>Máquinas em reserva — disponíveis <span id="reservaMaquinasCount" class="reserva-count">0</span></h3>
+      <p class="section-note">Puxadas automaticamente do inventário: toda máquina sem departamento entra aqui como reserva (parada, pronta para substituir outra). Não precisa cadastrar manualmente.</p>
+      <div class="table-wrap">
+        <table class="pro-table">
+          <thead><tr><th>Máquina</th><th>Processador</th><th>Memória</th><th>Disco</th><th>Situação</th><th>Ação</th></tr></thead>
+          <tbody id="reservaMaquinasBody"></tbody>
+        </table>
+      </div>
+    </section>
+
     <div class="inventory-toolbar">
       <label>Categoria
         <select id="depositoCategoryFilter">
@@ -354,6 +366,11 @@
         <span class="intel-nav-title">Inteligência dos chamados</span>
         <span class="intel-nav-badge">análise</span>
       </button>
+      <button type="button" class="intel-nav-card" data-intel="reserva">
+        <span class="intel-nav-icon">🔄</span>
+        <span class="intel-nav-title">Trocas com reserva</span>
+        <span class="intel-nav-badge" id="intelReservaCount"></span>
+      </button>
     </div>
     <div class="intel-detail-panel hidden">
       <div class="intel-pane hidden" data-pane="desempenho">
@@ -373,6 +390,10 @@
       <div class="intel-pane hidden" data-pane="chamados">
         <p class="section-note">Padrões nos chamados: o que mais dá problema, onde e com quem — com sugestões de ação preventiva.</p>
         <div id="intelChamados"></div>
+      </div>
+      <div class="intel-pane hidden" data-pane="reserva">
+        <p class="section-note">Usa as máquinas boas paradas em reserva (sem departamento) para substituir máquinas fracas que estão em uso.</p>
+        <div id="intelReserva"></div>
       </div>
     </div>
   </section>
