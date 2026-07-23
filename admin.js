@@ -2230,7 +2230,8 @@ function renderIntelReserva() {
   const usadas = new Set();
   const pares = [];
   reservasBoas.forEach((res) => {
-    const alvo = fracas.find((f) => !usadas.has(f.id) && specScore(res) > specScore(f));
+    // Só troca pelo MESMO tipo: notebook por notebook (mobilidade), desktop por desktop.
+    const alvo = fracas.find((f) => !usadas.has(f.id) && getAssetType(f) === getAssetType(res) && specScore(res) > specScore(f));
     if (alvo) { usadas.add(alvo.id); pares.push({ res, alvo }); }
   });
   if (badge) {
@@ -2238,12 +2239,12 @@ function renderIntelReserva() {
     badge.className = "intel-nav-badge " + (pares.length ? "ok" : "");
   }
   if (!pares.length) {
-    target.innerHTML = `<div class="empty-state">Há ${reservasBoas.length} máquina(s) boa(s) em reserva, mas nenhuma máquina operacional está fraca o bastante para justificar a troca agora.</div>`;
+    target.innerHTML = `<div class="empty-state">Há ${reservasBoas.length} máquina(s) boa(s) em reserva, mas nenhuma máquina do mesmo tipo (notebook↔notebook, desktop↔desktop) está fraca o bastante para justificar a troca agora.</div>`;
     return;
   }
   const especs = (q) => `${q.gen ? q.gen + "ª ger." : "geração ?"}, ${q.ram || "?"}GB RAM, ${q.ssd ? "SSD " + Math.round(q.ssd) + "GB" : (q.okSsd ? "SSD" : "sem SSD / HD")}`;
   target.innerHTML =
-    `<p class="section-note">Máquinas boas paradas em reserva que podem substituir máquinas fracas em uso. Prioriza trocar as piores primeiro.</p>` +
+    `<p class="section-note">Máquinas boas paradas em reserva que podem substituir máquinas fracas em uso — sempre do mesmo tipo (notebook por notebook, desktop por desktop). Prioriza trocar as piores primeiro.</p>` +
     pares.map((p) => `
       <div class="intel-item">
         <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(p.res.display_name || p.res.computer_name)}</strong>
