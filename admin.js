@@ -2224,21 +2224,25 @@ function renderIntelReserva() {
   const target = document.getElementById("intelReserva");
   const badge = document.getElementById("intelReservaCount");
   if (!target) return;
-  const reservas = reservaMaquinas().filter((a) => a.cpu_name).slice().sort((a, b) => specScore(b) - specScore(a)); // melhor primeiro
+  const GAP_MIN = 2; // diferença mínima de geração para valer a troca (1 geração não compensa).
+  // Só reservas de 8ª geração ou mais novas servem de substitutas. 6ª/7ª geração ficam no depósito pra venda.
+  const reservas = reservaMaquinas().filter((a) => a.cpu_name && cpuGeneration(a.cpu_name) >= 8).slice().sort((a, b) => specScore(b) - specScore(a));
   if (!reservas.length) {
-    if (badge) { badge.innerText = "sem reserva"; badge.className = "intel-nav-badge"; }
-    target.innerHTML = '<div class="empty-state">Nenhuma máquina em reserva agora. Deixe uma máquina sem departamento no inventário para ela aparecer aqui.</div>';
+    if (badge) { badge.innerText = "sem reserva útil"; badge.className = "intel-nav-badge"; }
+    target.innerHTML = '<div class="empty-state">Nenhuma reserva de 8ª geração ou mais nova disponível. Máquinas de 6ª/7ª geração paradas ficam no depósito para venda (não entram como substitutas) — a ideia é vendê-las e comprar máquinas de 9ª geração ou melhores.</div>';
     return;
   }
   const operacionais = hardwareAssets.filter((a) => a.cpu_name && !isReservaAsset(a));
-  const fracas = operacionais
-    .filter((a) => { const g = cpuGeneration(a.cpu_name); return (g && g <= 8) || needsSsdUpgrade(a) || Number(a.memory_total_gb || 0) < 8; })
+  // Candidatas a serem trocadas: máquinas URGENTES em uso (6ª/7ª geração ou mais antigas). 8ª geração dá pra manter por enquanto.
+  const urgentes = operacionais
+    .filter((a) => { const g = cpuGeneration(a.cpu_name); return g && g <= 7; })
     .sort((a, b) => specScore(a) - specScore(b)); // pior primeiro
   const usadas = new Set();
   const pares = [];
   reservas.forEach((res) => {
-    // Melhor reserva com a pior maquina em uso — mesmo tipo (notebook↔notebook, desktop↔desktop) e só se a reserva for melhor.
-    const alvo = fracas.find((f) => !usadas.has(f.id) && getAssetType(f) === getAssetType(res) && specScore(res) > specScore(f));
+    const rg = cpuGeneration(res.cpu_name);
+    // Mesmo tipo (notebook↔notebook, desktop↔desktop) e salto real de geração (>= 2).
+    const alvo = urgentes.find((f) => !usadas.has(f.id) && getAssetType(f) === getAssetType(res) && (rg - cpuGeneration(f.cpu_name)) >= GAP_MIN);
     if (alvo) { usadas.add(alvo.id); pares.push({ res, alvo }); }
   });
   if (badge) {
@@ -2246,7 +2250,7 @@ function renderIntelReserva() {
     badge.className = "intel-nav-badge " + (pares.length ? "ok" : "");
   }
   if (!pares.length) {
-    target.innerHTML = `<div class="empty-state">Há ${reservas.length} máquina(s) em reserva, mas nenhuma é melhor que as máquinas fracas do mesmo tipo que estão em uso — nesse caso, o ideal é comprar máquinas novas.</div>`;
+    target.innerHTML = `<div class="empty-state">Há reserva de 8ª geração+ disponível, mas nenhuma máquina urgente (6ª/7ª geração) do mesmo tipo com pelo menos ${GAP_MIN} gerações de diferença para justificar a troca. Trocar por só 1 geração a mais não compensa — nesse caso, o melhor é comprar máquinas novas.</div>`;
     return;
   }
   const especs = (q) => `${q.gen ? q.gen + "ª ger." : "geração ?"}, ${q.ram || "?"}GB RAM, ${q.ssd ? "SSD " + Math.round(q.ssd) + "GB" : (q.okSsd ? "SSD" : "sem SSD / HD")}`;
@@ -2257,7 +2261,7 @@ function renderIntelReserva() {
     return dn;
   };
   target.innerHTML =
-    `<p class="section-note">Aproveita a melhor máquina parada em reserva para substituir a pior que está em uso — mesmo tipo (notebook por notebook, desktop por desktop). Solução paliativa até comprar máquinas novas.</p>` +
+    `<p class="section-note">Usa reservas de 8ª geração ou mais novas para substituir máquinas urgentes em uso (6ª/7ª geração), com salto real de geração (2+) e mesmo tipo. Reservas de 6ª/7ª geração ficam no depósito para venda. Solução paliativa até comprar máquinas de 9ª geração ou melhores.</p>` +
     pares.map((p) => `
       <div class="intel-item">
         <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(resNome(p.res))}</strong>
