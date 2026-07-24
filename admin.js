@@ -1055,9 +1055,9 @@ window.transferirMaquina = function transferirMaquina(id) {
   const sel = document.getElementById("transferPara");
   sel.innerHTML =
     companyDepartments.map((d) => `<option value="${escapeHtml(d)}">${escapeHtml(d)}</option>`).join("") +
-    `<option value="Reserva">🔖 Reserva (sem departamento — estoque)</option>`;
+    `<option value="__sem__">📦 Sem departamento (estoque / reserva)</option>`;
   const cur = getAssetDepartment(asset);
-  sel.value = cur;
+  sel.value = cur === "Sem departamento" ? "__sem__" : cur;
   document.getElementById("transferResp").value = "";
   document.getElementById("transferObs").value = "";
   document.getElementById("transferModal").classList.remove("hidden");
@@ -1071,21 +1071,27 @@ document.getElementById("transferForm")?.addEventListener("submit", async (event
   const id = document.getElementById("transferAssetId").value;
   const asset = hardwareAssets.find((a) => a.id === id);
   if (!asset) return;
-  const para = document.getElementById("transferPara").value;
+  const paraVal = document.getElementById("transferPara").value;
+  const paraNome = paraVal === "__sem__" ? "Sem departamento" : paraVal;
   const de = getAssetDepartment(asset);
-  if (!para || para === de) { alert("Escolha um departamento diferente do atual."); return; }
+  if (!paraVal || paraNome === de) { alert("Escolha um departamento diferente do atual."); return; }
   const responsavel = document.getElementById("transferResp").value.trim() || null;
   const observacao = document.getElementById("transferObs").value.trim() || null;
   const { error: e1 } = await client.from("transferencias").insert({
     computer_name: asset.computer_name,
     computer_label: asset.display_name || asset.computer_name,
     de_departamento: de,
-    para_departamento: para,
+    para_departamento: paraNome,
     responsavel,
     observacao,
   });
   if (e1) { alert("Erro ao registrar transferência: " + e1.message); return; }
-  const { error: e2 } = await client.from("hardware_inventory").update({ department: para }).eq("id", id);
+  // "Sem departamento" = tira o departamento (vai pro estoque/reserva) e limpa o nome do colaborador,
+  // já que a máquina saiu da pessoa. Vai pra um departamento novo mantém o restante como está.
+  const updates = paraVal === "__sem__"
+    ? { department: null, responsible_name: null }
+    : { department: paraVal };
+  const { error: e2 } = await client.from("hardware_inventory").update(updates).eq("id", id);
   if (e2) { alert("Transferência registrada, mas erro ao atualizar o departamento: " + e2.message); }
   document.getElementById("transferModal").classList.add("hidden");
   await loadTransferencias();
@@ -2212,15 +2218,16 @@ function renderIntelChamados() {
       <div><h4>Departamentos</h4><ul>${porDept.map(([d, c]) => `<li>${escapeHtml(d || "-")} — <strong>${c}</strong></li>`).join("")}</ul></div>
     </div>`;
 }
-// Sugere trocar uma maquina operacional fraca por uma reserva boa (parada no deposito).
+// Sugere trocar a pior maquina em uso pela MELHOR maquina disponivel em reserva —
+// mesmo que a reserva nao seja "boa" (ex: 8a geracao), enquanto nao compra novas.
 function renderIntelReserva() {
   const target = document.getElementById("intelReserva");
   const badge = document.getElementById("intelReservaCount");
   if (!target) return;
-  const reservasBoas = reservaMaquinas().filter((a) => assetQuality(a).boa);
-  if (!reservasBoas.length) {
-    if (badge) { badge.innerText = "sem reserva boa"; badge.className = "intel-nav-badge"; }
-    target.innerHTML = '<div class="empty-state">Nenhuma máquina boa em reserva agora. Quando houver uma máquina sem departamento de 9ª geração (ou melhor), com SSD e 8GB+, ela aparece aqui com sugestões de troca.</div>';
+  const reservas = reservaMaquinas().filter((a) => a.cpu_name).slice().sort((a, b) => specScore(b) - specScore(a)); // melhor primeiro
+  if (!reservas.length) {
+    if (badge) { badge.innerText = "sem reserva"; badge.className = "intel-nav-badge"; }
+    target.innerHTML = '<div class="empty-state">Nenhuma máquina em reserva agora. Deixe uma máquina sem departamento no inventário para ela aparecer aqui.</div>';
     return;
   }
   const operacionais = hardwareAssets.filter((a) => a.cpu_name && !isReservaAsset(a));
@@ -2229,17 +2236,17 @@ function renderIntelReserva() {
     .sort((a, b) => specScore(a) - specScore(b)); // pior primeiro
   const usadas = new Set();
   const pares = [];
-  reservasBoas.forEach((res) => {
-    // Só troca pelo MESMO tipo: notebook por notebook (mobilidade), desktop por desktop.
+  reservas.forEach((res) => {
+    // Melhor reserva com a pior maquina em uso — mesmo tipo (notebook↔notebook, desktop↔desktop) e só se a reserva for melhor.
     const alvo = fracas.find((f) => !usadas.has(f.id) && getAssetType(f) === getAssetType(res) && specScore(res) > specScore(f));
     if (alvo) { usadas.add(alvo.id); pares.push({ res, alvo }); }
   });
   if (badge) {
-    badge.innerText = pares.length ? `${pares.length} troca(s) sugerida(s)` : `${reservasBoas.length} reserva(s) boa(s)`;
+    badge.innerText = pares.length ? `${pares.length} troca(s) sugerida(s)` : "sem troca vantajosa";
     badge.className = "intel-nav-badge " + (pares.length ? "ok" : "");
   }
   if (!pares.length) {
-    target.innerHTML = `<div class="empty-state">Há ${reservasBoas.length} máquina(s) boa(s) em reserva, mas nenhuma máquina do mesmo tipo (notebook↔notebook, desktop↔desktop) está fraca o bastante para justificar a troca agora.</div>`;
+    target.innerHTML = `<div class="empty-state">Há ${reservas.length} máquina(s) em reserva, mas nenhuma é melhor que as máquinas fracas do mesmo tipo que estão em uso — nesse caso, o ideal é comprar máquinas novas.</div>`;
     return;
   }
   const especs = (q) => `${q.gen ? q.gen + "ª ger." : "geração ?"}, ${q.ram || "?"}GB RAM, ${q.ssd ? "SSD " + Math.round(q.ssd) + "GB" : (q.okSsd ? "SSD" : "sem SSD / HD")}`;
@@ -2250,13 +2257,13 @@ function renderIntelReserva() {
     return dn;
   };
   target.innerHTML =
-    `<p class="section-note">Máquinas boas paradas em reserva que podem substituir máquinas fracas em uso — sempre do mesmo tipo (notebook por notebook, desktop por desktop). Prioriza trocar as piores primeiro.</p>` +
+    `<p class="section-note">Aproveita a melhor máquina parada em reserva para substituir a pior que está em uso — mesmo tipo (notebook por notebook, desktop por desktop). Solução paliativa até comprar máquinas novas.</p>` +
     pares.map((p) => `
       <div class="intel-item">
         <strong>Trocar ${escapeHtml(p.alvo.display_name || p.alvo.computer_name)} <span class="muted">(${escapeHtml(getAssetDepartment(p.alvo))})</span> pela reserva ${escapeHtml(resNome(p.res))}</strong>
         <ul>
-          <li>Em uso hoje: ${escapeHtml(p.alvo.cpu_name || "-")} — ${especs(assetQuality(p.alvo))}</li>
-          <li>Reserva (melhor): ${escapeHtml(p.res.cpu_name || "-")} — ${especs(assetQuality(p.res))}</li>
+          <li>Em uso hoje (pior): ${escapeHtml(p.alvo.cpu_name || "-")} — ${especs(assetQuality(p.alvo))}</li>
+          <li>Reserva (melhor disponível): ${escapeHtml(p.res.cpu_name || "-")} — ${especs(assetQuality(p.res))}</li>
         </ul>
       </div>`).join("");
 }
