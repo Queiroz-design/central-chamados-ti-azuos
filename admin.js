@@ -316,16 +316,71 @@ function getManutencaoAlertas(minCount = 3) {
   return Object.values(byMachine).filter((c) => c.total >= minCount).sort((a, b) => b.total - a.total);
 }
 
+// Nome amigavel da metrica do alerta de desempenho.
+function metricaNome(m) {
+  const s = normalizeText(m);
+  if (s === "cpu") return "CPU";
+  if (s === "memoria" || s === "memory" || s === "ram") return "RAM";
+  if (s === "disco" || s === "disk") return "Disco";
+  return m || "?";
+}
+function findAssetByComputerName(name) {
+  const n = normalizeText(name);
+  return hardwareAssets.find((a) => normalizeText(a.computer_name) === n);
+}
+// Ranking das maquinas que mais bateram o limite (picos de 100%) — hoje e no mes.
+function getOverloadedMachines() {
+  const now = new Date();
+  const sameDay = (d) => { const x = new Date(d); return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth() && x.getDate() === now.getDate(); };
+  const sameMonth = (d) => { const x = new Date(d); return x.getFullYear() === now.getFullYear() && x.getMonth() === now.getMonth(); };
+  const by = {};
+  (performanceAlerts || []).forEach((a) => {
+    if (!a.computer_name || !sameMonth(a.started_at)) return;
+    const key = normalizeText(a.computer_name);
+    if (!by[key]) by[key] = { computer_name: a.computer_name, hoje: 0, mes: 0, metrics: {} };
+    by[key].mes += 1;
+    if (sameDay(a.started_at)) by[key].hoje += 1;
+    const m = metricaNome(a.metric);
+    by[key].metrics[m] = (by[key].metrics[m] || 0) + 1;
+  });
+  return Object.values(by).sort((a, b) => b.hoje - a.hoje || b.mes - a.mes);
+}
+function renderOverload() {
+  const target = document.getElementById("overloadList");
+  if (!target) return;
+  const list = getOverloadedMachines();
+  if (!list.length) {
+    target.innerHTML = '<div class="empty-state">Nenhum pico de 100% registrado neste mês. 👍</div>';
+    return;
+  }
+  target.innerHTML = list.slice(0, 8).map((m) => {
+    const asset = findAssetByComputerName(m.computer_name);
+    const nome = asset ? (asset.display_name || asset.computer_name) : m.computer_name;
+    const dept = asset ? getAssetDepartment(asset) : "";
+    const metricsTxt = Object.entries(m.metrics).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}x`).join(" · ");
+    const hojeBadge = m.hoje > 0 ? `<span class="overload-badge ${m.hoje >= 2 ? "alta" : ""}">${m.hoje}x hoje</span>` : "";
+    const click = asset ? `onclick="openHardwareDetails('${asset.id}')"` : "";
+    return `<div class="overload-item ${m.hoje >= 2 ? "crit" : ""} ${asset ? "clickable" : ""}" ${click} title="${asset ? "Ver no inventário o que está causando" : ""}">
+      <div class="overload-main">
+        <strong>${escapeHtml(nome)}</strong>${dept ? ` <span class="muted">— ${escapeHtml(dept)}</span>` : ""}
+        <span class="overload-metrics">${escapeHtml(metricsTxt)}</span>
+      </div>
+      <div class="overload-counts">${hojeBadge}<span class="overload-badge mes">${m.mes}x no mês</span></div>
+    </div>`;
+  }).join("");
+}
+
 function renderDashboard() {
   const monthTickets = allTickets.filter(isThisMonth);
   const openTickets = allTickets.filter((ticket) => ticket.status !== "Resolvido");
   const alerts = buildRecurringAlerts(monthTickets);
   const machineAlerts = getManutencaoAlertas(3);
+  const overloadCritical = getOverloadedMachines().filter((m) => m.hoje >= 2); // bateu 100% 2+ vezes hoje
 
   document.getElementById("statMonth").innerText = monthTickets.length;
   document.getElementById("statOpen").innerText = openTickets.length;
   document.getElementById("statDevices").innerText = hardwareAssets.length;
-  document.getElementById("statAlerts").innerText = alerts.length + machineAlerts.length;
+  document.getElementById("statAlerts").innerText = alerts.length + machineAlerts.length + overloadCritical.length;
 
   // O mapa e os graficos respondem ao quadro selecionado (mes / abertos / recorrencia).
   const recurringSet = new Set();
@@ -336,20 +391,34 @@ function renderDashboard() {
 
   document.querySelectorAll(".dash-filter").forEach((b) => b.classList.toggle("active", b.dataset.scope === dashScope && dashScope !== "mes"));
 
-  renderAlerts(alerts, machineAlerts);
+  renderAlerts(alerts, machineAlerts, overloadCritical);
+  renderOverload();
   const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
   renderBars("typeChart", typeEntries, true);
   renderBars("deptChart", topEntries(groupCount(scoped, (ticket) => ticket.departamento)), true);
 }
 
-function renderAlerts(alerts, machineAlerts = []) {
+function renderAlerts(alerts, machineAlerts = [], overloaded = []) {
   const alertsList = document.getElementById("alertsList");
 
-  if (!alerts.length && !machineAlerts.length) {
+  if (!alerts.length && !machineAlerts.length && !overloaded.length) {
     alertsList.innerHTML = '<div class="empty-state">Nenhum alerta neste mês.</div>';
     return;
   }
+
+  const overloadHtml = overloaded.map((m) => {
+    const asset = findAssetByComputerName(m.computer_name);
+    const nome = asset ? (asset.display_name || asset.computer_name) : m.computer_name;
+    const dept = asset ? getAssetDepartment(asset) : "";
+    const metricsTxt = Object.entries(m.metrics).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}x`).join(" · ");
+    const click = asset ? `onclick="openHardwareDetails('${asset.id}')" style="cursor:pointer"` : "";
+    return `
+    <article class="alert-item alert-overload" ${click}>
+      <strong>⚡ ${escapeHtml(nome)}${dept ? " (" + escapeHtml(dept) + ")" : ""} bateu o limite ${m.hoje}x hoje</strong>
+      <span>Uso intenso: ${escapeHtml(metricsTxt)}. Clique para ver no inventário o que está consumindo.</span>
+    </article>`;
+  }).join("");
 
   const ticketHtml = alerts.map((alert) => `
     <article class="alert-item">
@@ -365,7 +434,7 @@ function renderAlerts(alerts, machineAlerts = []) {
     </article>
   `).join("");
 
-  alertsList.innerHTML = ticketHtml + machineHtml;
+  alertsList.innerHTML = overloadHtml + ticketHtml + machineHtml;
 }
 
 function renderProblemDonut(entries) {

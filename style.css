@@ -407,6 +407,30 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .ticket-detail-edit label{display:flex;flex-direction:column;gap:6px;font-size:13px;color:#94a3b8}
 .ticket-detail-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
 @media(max-width:640px){.ticket-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.ticket-detail-edit{grid-template-columns:1fr}}
+/* Dashboard: maquinas sobrecarregadas (picos de 100%) */
+.overload-list{display:flex;flex-direction:column;gap:8px}
+.overload-item{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#16213e;border:1px solid #2a3a58;border-left:4px solid #f59e0b;border-radius:8px;padding:10px 14px}
+.overload-item.crit{border-left-color:#ef4444;background:#241019}
+.overload-item.clickable{cursor:pointer;transition:transform .1s ease,box-shadow .1s ease}
+.overload-item.clickable:hover{transform:translateY(-1px);box-shadow:0 6px 14px rgba(0,0,0,.25)}
+.overload-main{display:flex;flex-direction:column;gap:2px;min-width:0}
+.overload-main strong{color:#f8fafc}
+.overload-metrics{font-size:12.5px;color:#94a3b8}
+.overload-counts{display:flex;gap:6px;flex-shrink:0}
+.overload-badge{display:inline-flex;align-items:center;font-size:12px;font-weight:bold;padding:3px 10px;border-radius:20px;white-space:nowrap;background:#0f2436;color:#93c5fd}
+.overload-badge.alta{background:#3b1118;color:#fca5a5}
+.overload-badge.mes{background:#1e293b;color:#cbd5e1}
+.alert-item.alert-overload{background:#241019;border-left-color:#ef4444}
+.alert-item.alert-overload strong{color:#fecaca}
+.admin-body.light .overload-item{background:#fff;border-color:#e2e8f0;border-left-color:#f59e0b}
+.admin-body.light .overload-item.crit{background:#fef2f2;border-left-color:#ef4444}
+.admin-body.light .overload-main strong{color:#0f2a63}
+.admin-body.light .overload-metrics{color:#64748b}
+.admin-body.light .overload-badge{background:#dbeafe;color:#1d4ed8}
+.admin-body.light .overload-badge.alta{background:#fee2e2;color:#991b1b}
+.admin-body.light .overload-badge.mes{background:#eef2f8;color:#475569}
+.admin-body.light .alert-item.alert-overload{background:#fef2f2;border-left-color:#ef4444}
+.admin-body.light .alert-item.alert-overload strong{color:#991b1b}
 /* Deposito (estoque) */
 .reserva-panel{margin:6px 0 20px;border-left:3px solid #38bdf8}
 .reserva-panel h3{display:flex;align-items:center;gap:10px}
