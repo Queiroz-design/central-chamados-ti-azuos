@@ -115,9 +115,19 @@
     </div>
 
     <section class="panel overload-panel">
-      <h3>Máquinas sobrecarregadas — picos de 100% (CPU / RAM / Disco)</h3>
-      <p class="section-note">As máquinas que mais bateram o limite hoje e no mês. As mais usadas costumam gerar mais reclamação — clique para ver no inventário o que está consumindo.</p>
-      <div id="overloadList" class="overload-list"></div>
+      <button type="button" id="overloadToggle" class="overload-header" aria-expanded="false">
+        <span class="overload-htext">Máquinas com picos de 100% <small>(CPU / RAM / Disco)</small></span>
+        <span id="overloadSummary" class="overload-summary"></span>
+        <span id="overloadChevron" class="overload-chevron">▸</span>
+      </button>
+      <div id="overloadBody" class="overload-body hidden">
+        <p class="section-note">Só informativo: mostra quais máquinas estão sendo mais exigidas — assim, se um usuário reclamar, você já sabe o motivo. Clique numa máquina para ver no inventário o que está consumindo.</p>
+        <div class="overload-tabs">
+          <button type="button" class="overload-tab active" data-period="hoje">Hoje</button>
+          <button type="button" class="overload-tab" data-period="mes">No mês</button>
+        </div>
+        <div id="overloadList" class="overload-list"></div>
+      </div>
     </section>
 
     <div class="dashboard-grid">

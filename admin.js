@@ -345,42 +345,58 @@ function getOverloadedMachines() {
   });
   return Object.values(by).sort((a, b) => b.hoje - a.hoje || b.mes - a.mes);
 }
+let overloadPeriod = "hoje"; // "hoje" | "mes"
 function renderOverload() {
+  const list = getOverloadedMachines();
+  const summary = document.getElementById("overloadSummary");
+  if (summary) {
+    const nHoje = list.filter((m) => m.hoje > 0).length;
+    const nMes = list.filter((m) => m.mes > 0).length;
+    summary.innerText = nMes ? `${nHoje} hoje · ${nMes} no mês` : "sem picos";
+  }
   const target = document.getElementById("overloadList");
   if (!target) return;
-  const list = getOverloadedMachines();
-  if (!list.length) {
-    target.innerHTML = '<div class="empty-state">Nenhum pico de 100% registrado neste mês. 👍</div>';
+  document.querySelectorAll(".overload-tab").forEach((b) => b.classList.toggle("active", b.dataset.period === overloadPeriod));
+  const val = (m) => (overloadPeriod === "hoje" ? m.hoje : m.mes);
+  const rows = list.filter((m) => val(m) > 0).sort((a, b) => val(b) - val(a) || b.mes - a.mes);
+  if (!rows.length) {
+    target.innerHTML = `<div class="empty-state">Nenhuma máquina com pico ${overloadPeriod === "hoje" ? "hoje" : "neste mês"}. 👍</div>`;
     return;
   }
-  target.innerHTML = list.slice(0, 8).map((m) => {
+  target.innerHTML = rows.map((m, i) => {
     const asset = findAssetByComputerName(m.computer_name);
     const nome = asset ? (asset.display_name || asset.computer_name) : m.computer_name;
     const dept = asset ? getAssetDepartment(asset) : "";
-    const metricsTxt = Object.entries(m.metrics).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}x`).join(" · ");
-    const hojeBadge = m.hoje > 0 ? `<span class="overload-badge ${m.hoje >= 2 ? "alta" : ""}">${m.hoje}x hoje</span>` : "";
+    const metricsTxt = Object.entries(m.metrics).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}×`).join(" · ");
     const click = asset ? `onclick="openHardwareDetails('${asset.id}')"` : "";
-    return `<div class="overload-item ${m.hoje >= 2 ? "crit" : ""} ${asset ? "clickable" : ""}" ${click} title="${asset ? "Ver no inventário o que está causando" : ""}">
-      <div class="overload-main">
-        <strong>${escapeHtml(nome)}</strong>${dept ? ` <span class="muted">— ${escapeHtml(dept)}</span>` : ""}
-        <span class="overload-metrics">${escapeHtml(metricsTxt)}</span>
-      </div>
-      <div class="overload-counts">${hojeBadge}<span class="overload-badge mes">${m.mes}x no mês</span></div>
+    return `<div class="ovr-row ${asset ? "clickable" : ""}" ${click} title="${asset ? "Ver no inventário o que está consumindo" : ""}">
+      <span class="ovr-rank">${i + 1}</span>
+      <span class="ovr-name">${escapeHtml(nome)}${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}</span>
+      <span class="ovr-metrics">${escapeHtml(metricsTxt)}</span>
+      <span class="ovr-count">${val(m)}×</span>
     </div>`;
   }).join("");
 }
+document.getElementById("overloadToggle")?.addEventListener("click", () => {
+  const body = document.getElementById("overloadBody");
+  const chev = document.getElementById("overloadChevron");
+  const open = body?.classList.toggle("hidden") === false;
+  const tog = document.getElementById("overloadToggle");
+  if (tog) tog.setAttribute("aria-expanded", String(open));
+  if (chev) chev.classList.toggle("rot", open);
+});
+document.querySelectorAll(".overload-tab").forEach((b) => b.addEventListener("click", () => { overloadPeriod = b.dataset.period; renderOverload(); }));
 
 function renderDashboard() {
   const monthTickets = allTickets.filter(isThisMonth);
   const openTickets = allTickets.filter((ticket) => ticket.status !== "Resolvido");
   const alerts = buildRecurringAlerts(monthTickets);
   const machineAlerts = getManutencaoAlertas(3);
-  const overloadCritical = getOverloadedMachines().filter((m) => m.hoje >= 2); // bateu 100% 2+ vezes hoje
 
   document.getElementById("statMonth").innerText = monthTickets.length;
   document.getElementById("statOpen").innerText = openTickets.length;
   document.getElementById("statDevices").innerText = hardwareAssets.length;
-  document.getElementById("statAlerts").innerText = alerts.length + machineAlerts.length + overloadCritical.length;
+  document.getElementById("statAlerts").innerText = alerts.length + machineAlerts.length;
 
   // O mapa e os graficos respondem ao quadro selecionado (mes / abertos / recorrencia).
   const recurringSet = new Set();
@@ -391,7 +407,7 @@ function renderDashboard() {
 
   document.querySelectorAll(".dash-filter").forEach((b) => b.classList.toggle("active", b.dataset.scope === dashScope && dashScope !== "mes"));
 
-  renderAlerts(alerts, machineAlerts, overloadCritical);
+  renderAlerts(alerts, machineAlerts);
   renderOverload();
   const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
@@ -399,26 +415,13 @@ function renderDashboard() {
   renderBars("deptChart", topEntries(groupCount(scoped, (ticket) => ticket.departamento)), true);
 }
 
-function renderAlerts(alerts, machineAlerts = [], overloaded = []) {
+function renderAlerts(alerts, machineAlerts = []) {
   const alertsList = document.getElementById("alertsList");
 
-  if (!alerts.length && !machineAlerts.length && !overloaded.length) {
+  if (!alerts.length && !machineAlerts.length) {
     alertsList.innerHTML = '<div class="empty-state">Nenhum alerta neste mês.</div>';
     return;
   }
-
-  const overloadHtml = overloaded.map((m) => {
-    const asset = findAssetByComputerName(m.computer_name);
-    const nome = asset ? (asset.display_name || asset.computer_name) : m.computer_name;
-    const dept = asset ? getAssetDepartment(asset) : "";
-    const metricsTxt = Object.entries(m.metrics).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}x`).join(" · ");
-    const click = asset ? `onclick="openHardwareDetails('${asset.id}')" style="cursor:pointer"` : "";
-    return `
-    <article class="alert-item alert-overload" ${click}>
-      <strong>⚡ ${escapeHtml(nome)}${dept ? " (" + escapeHtml(dept) + ")" : ""} bateu o limite ${m.hoje}x hoje</strong>
-      <span>Uso intenso: ${escapeHtml(metricsTxt)}. Clique para ver no inventário o que está consumindo.</span>
-    </article>`;
-  }).join("");
 
   const ticketHtml = alerts.map((alert) => `
     <article class="alert-item">
@@ -434,7 +437,7 @@ function renderAlerts(alerts, machineAlerts = [], overloaded = []) {
     </article>
   `).join("");
 
-  alertsList.innerHTML = overloadHtml + ticketHtml + machineHtml;
+  alertsList.innerHTML = ticketHtml + machineHtml;
 }
 
 function renderProblemDonut(entries) {
