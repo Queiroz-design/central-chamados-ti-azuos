@@ -255,6 +255,9 @@ async function loadTickets() {
   renderAssets();
   renderNetworkAlerts();
   renderTickets();
+  // Re-renderiza a manutenção agora que o inventário está carregado, pra os rótulos
+  // mostrarem o nome/departamento ATUAIS das máquinas (não os salvos no registro antigo).
+  if (document.getElementById("manutencaoBody")) renderManutencoes();
 }
 
 async function loadNetworkAlerts() {
