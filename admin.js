@@ -294,9 +294,16 @@ function buildRecurringAlerts(monthTickets) {
     .sort((a, b) => b.count - a.count);
 }
 
-// Rotulo da maquina numa manutencao — desambigua rotulos repetidos (ex: varias "Reserva")
-// mostrando o nome do Windows entre parenteses.
+// Rotulo da maquina numa manutencao. Sempre mostra o NOME e DEPARTAMENTO ATUAIS da maquina
+// (buscando no inventario pelo computer_name), pra o historico nunca ficar desatualizado
+// depois de transferencias ou renomeacoes. Se a maquina nao existir no inventario
+// (ex: "fora da operacao"), usa o rotulo salvo no registro.
 function manutMachineLabel(m) {
+  const asset = m.computer_name ? findAssetByComputerName(m.computer_name) : null;
+  if (asset) {
+    const dep = getAssetDepartment(asset);
+    return `${asset.display_name || asset.computer_name}${dep ? " — " + dep : ""}`;
+  }
   const base = `${m.computer_label || m.computer_name || "Sem identificação"}${m.computer_department ? " — " + m.computer_department : ""}`;
   const lbl = String(m.computer_label || "");
   if (m.computer_name && lbl && normalizeText(lbl) !== normalizeText(m.computer_name) && !/\d/.test(lbl)) {
