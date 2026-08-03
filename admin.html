@@ -337,6 +337,18 @@
     </div>
     <div id="manutencaoMetrics" class="ticket-metrics"></div>
     <div id="manutencaoAlertas" class="manut-alertas"></div>
+
+    <section class="panel preventiva-panel">
+      <button type="button" id="preventivaToggle" class="overload-header" aria-expanded="false">
+        <span class="overload-htext">🛠️ Manutenção preventiva pendente</span>
+        <span id="preventivaSummary" class="overload-summary"></span>
+        <span id="preventivaChevron" class="overload-chevron">▸</span>
+      </button>
+      <div id="preventivaBody" class="overload-body hidden">
+        <p class="section-note">Cada máquina precisa de preventiva a cada 6 meses (pasta térmica, limpeza). Estas estão sem preventiva ou já passaram de 6 meses. Clique para abrir a máquina no inventário.</p>
+        <div id="preventivaList" class="overload-list"></div>
+      </div>
+    </section>
     <h3 class="deposito-mov-title">Manutenções por computador</h3>
     <div class="table-wrap">
       <table class="deposito-table pro-table">
@@ -566,6 +578,16 @@
           <table class="performance-alerts-table">
             <thead><tr><th>Data</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th></tr></thead>
             <tbody id="deviceMaintBody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="detail-section">
+        <h3>Chamados desta máquina</h3>
+        <div class="table-wrap">
+          <table class="performance-alerts-table">
+            <thead><tr><th>Chamado</th><th>Data</th><th>Solicitante</th><th>Tipo</th><th>Status</th></tr></thead>
+            <tbody id="deviceChamadosBody"></tbody>
           </table>
         </div>
       </section>

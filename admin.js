@@ -387,6 +387,32 @@ document.getElementById("overloadToggle")?.addEventListener("click", () => {
 });
 document.querySelectorAll(".overload-tab").forEach((b) => b.addEventListener("click", () => { overloadPeriod = b.dataset.period; renderOverload(); }));
 
+// Manutenção preventiva: cada máquina inventariada precisa de uma a cada 6 meses.
+const PREVENTIVA_MESES = 6;
+function preventivaInfo(asset) {
+  const rows = (typeof manutencoes !== "undefined" ? manutencoes : []).filter((m) => normalizeText(m.tipo) === "preventiva" && machineMatchesAsset(m, asset));
+  if (!rows.length) return { status: "nunca", meses: null, ultima: null };
+  const ultima = rows.map((m) => new Date(m.data)).reduce((a, b) => (a > b ? a : b));
+  const meses = Math.floor((Date.now() - ultima.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
+  return { status: meses >= PREVENTIVA_MESES ? "vencida" : "ok", meses, ultima };
+}
+function precisaPreventiva(asset) { return preventivaInfo(asset).status !== "ok"; }
+function machinesNeedingPreventiva() {
+  return hardwareAssets.filter((a) => a.cpu_name)
+    .map((a) => ({ asset: a, info: preventivaInfo(a) }))
+    .filter((x) => x.info.status !== "ok")
+    .sort((a, b) => {
+      const rank = (x) => (x.info.status === "nunca" ? 0 : 1);
+      return rank(a) - rank(b) || (b.info.meses || 9999) - (a.info.meses || 9999);
+    });
+}
+function preventivaBadge(asset) {
+  const info = preventivaInfo(asset);
+  if (info.status === "ok") return "";
+  const txt = info.status === "nunca" ? "Sem preventiva" : `Preventiva vencida (${info.meses} meses)`;
+  return `<div class="preventiva-badge ${info.status}" title="Manutenção preventiva recomendada a cada 6 meses">🛠️ ${txt}</div>`;
+}
+
 function renderDashboard() {
   const monthTickets = allTickets.filter(isThisMonth);
   const openTickets = allTickets.filter((ticket) => ticket.status !== "Resolvido");
@@ -407,7 +433,7 @@ function renderDashboard() {
 
   document.querySelectorAll(".dash-filter").forEach((b) => b.classList.toggle("active", b.dataset.scope === dashScope && dashScope !== "mes"));
 
-  renderAlerts(alerts, machineAlerts);
+  renderAlerts(alerts, machineAlerts, machinesNeedingPreventiva());
   renderOverload();
   const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
@@ -415,13 +441,19 @@ function renderDashboard() {
   renderBars("deptChart", topEntries(groupCount(scoped, (ticket) => ticket.departamento)), true);
 }
 
-function renderAlerts(alerts, machineAlerts = []) {
+function renderAlerts(alerts, machineAlerts = [], preventiva = []) {
   const alertsList = document.getElementById("alertsList");
 
-  if (!alerts.length && !machineAlerts.length) {
+  if (!alerts.length && !machineAlerts.length && !preventiva.length) {
     alertsList.innerHTML = '<div class="empty-state">Nenhum alerta neste mês.</div>';
     return;
   }
+
+  const prevHtml = preventiva.length ? `
+    <article class="alert-item alert-preventiva" onclick="irParaAba('manutencao')" style="cursor:pointer">
+      <strong>🛠️ ${preventiva.length} máquina(s) precisam de manutenção preventiva</strong>
+      <span>Recomendada a cada 6 meses (troca de pasta térmica, limpeza). Clique para ver a lista na aba Manutenção.</span>
+    </article>` : "";
 
   const ticketHtml = alerts.map((alert) => `
     <article class="alert-item">
@@ -437,7 +469,7 @@ function renderAlerts(alerts, machineAlerts = []) {
     </article>
   `).join("");
 
-  alertsList.innerHTML = ticketHtml + machineHtml;
+  alertsList.innerHTML = prevHtml + ticketHtml + machineHtml;
 }
 
 function renderProblemDonut(entries) {
@@ -736,6 +768,7 @@ function renderAssets() {
           <span class="health-badge ${health.toLowerCase()}">${accentLabel(health)}</span>
         </div>
         <div class="machine-presence ${online ? "online" : "offline"}"><i></i>${online ? "Online agora" : "Offline"}</div>
+        ${preventivaBadge(asset)}
         <div class="hardware-live-grid">
           ${liveMetric("CPU", live?.cpu_percent)}
           ${liveMetric("RAM", live?.memory_percent)}
@@ -995,7 +1028,7 @@ function renderDeviceMaintenance(asset) {
   body.innerHTML = rows.length ? rows.map((m) => `
     <tr>
       <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
-      <td><span class="mov-badge entrada">${escapeHtml(m.tipo || "-")}</span></td>
+      <td>${manutTipoBadge(m.tipo)}</td>
       <td>${escapeHtml(m.descricao || "-")}</td>
       <td>${escapeHtml(m.responsavel || "-")}</td>
     </tr>`).join("") : '<tr><td colspan="4">Nenhuma manutenção registrada para esta máquina.</td></tr>';
@@ -1038,6 +1071,24 @@ function renderDeviceTransfers(asset) {
     </tr>`).join("") : '<tr><td colspan="4">Nenhuma transferência registrada — está no departamento atual desde o início.</td></tr>';
 }
 
+// Chamados vinculados a esta máquina (via campo computer_name no chamado).
+function renderDeviceChamados(asset) {
+  const body = document.getElementById("deviceChamadosBody");
+  if (!body) return;
+  const an = normalizeText(asset.computer_name);
+  const rows = (allTickets || [])
+    .filter((t) => t.computer_name && normalizeText(t.computer_name) === an)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  body.innerHTML = rows.length ? rows.map((t) => `
+    <tr class="rank-row clickable" onclick="openTicketDetails('${t.id}')" title="Abrir chamado">
+      <td><strong>${formatTicketNumber(t.id)}</strong></td>
+      <td>${escapeHtml(new Date(t.created_at).toLocaleDateString("pt-BR"))}</td>
+      <td>${escapeHtml(t.nome || "-")}</td>
+      <td>${escapeHtml(t.tipo || "-")}</td>
+      <td>${escapeHtml(t.status || "-")}</td>
+    </tr>`).join("") : '<tr><td colspan="5">Nenhum chamado vinculado a esta máquina. Vincule abrindo um chamado e escolhendo a máquina no campo "Máquina (inventário)".</td></tr>';
+}
+
 function renderHardwareDetails() {
   const asset = hardwareAssets.find((item) => item.id === selectedHardwareId);
   if (!asset) return;
@@ -1072,6 +1123,7 @@ function renderHardwareDetails() {
   renderDeviceProperties(asset, live);
   renderPerformanceAlerts(asset.computer_name);
   renderDeviceMaintenance(asset);
+  renderDeviceChamados(asset);
   renderDeviceDeposit(asset);
   renderDeviceTransfers(asset);
 }
@@ -1165,6 +1217,10 @@ document.getElementById("transferForm")?.addEventListener("submit", async (event
     : { department: paraVal };
   const { error: e2 } = await client.from("hardware_inventory").update(updates).eq("id", id);
   if (e2) { alert("Transferência registrada, mas erro ao atualizar o departamento: " + e2.message); }
+  // Atualiza o departamento nos registros de manutenção dessa máquina, para o histórico refletir onde ela está agora.
+  if (asset.computer_name) {
+    await client.from("manutencoes").update({ computer_department: paraNome }).eq("computer_name", asset.computer_name);
+  }
   document.getElementById("transferModal").classList.add("hidden");
   await loadTransferencias();
   await loadTickets();
@@ -1375,6 +1431,21 @@ function ticketDetailRow(label, value) {
 
 const TICKET_TIPOS = ["Internet / Rede", "Computador lento", "Impressora", "E-mail", "Sistema interno", "Certificado digital", "Instalação de programa", "AnyDesk / Acesso remoto", "Outro"];
 
+// Opções do seletor de máquina no chamado (para vincular o chamado a uma máquina do inventário).
+function ticketMachineOptions(selected) {
+  const cur = normalizeText(selected || "");
+  const opts = hardwareAssets.slice()
+    .sort((a, b) => getAssetNumber(a) - getAssetNumber(b) || String(a.display_name || a.computer_name).localeCompare(String(b.display_name || b.computer_name), "pt-BR", { numeric: true }))
+    .map((a) => `<option value="${escapeHtml(a.computer_name)}" ${normalizeText(a.computer_name) === cur ? "selected" : ""}>${escapeHtml(a.display_name || a.computer_name)} — ${escapeHtml(getAssetDepartment(a))}</option>`)
+    .join("");
+  return `<option value="">— Nenhuma —</option>${opts}`;
+}
+function machineLabelForTicket(ticket) {
+  if (!ticket.computer_name) return "Não vinculada";
+  const a = findAssetByComputerName(ticket.computer_name);
+  return a ? (a.display_name || a.computer_name) + " — " + getAssetDepartment(a) : ticket.computer_name;
+}
+
 window.openTicketDetails = function openTicketDetails(id) {
   const ticket = allTickets.find((item) => String(item.id) === String(id));
   if (!ticket) return;
@@ -1409,6 +1480,9 @@ window.openTicketDetails = function openTicketDetails(id) {
         <label>Responsável do TI
           <input type="text" id="ticketDetailResponsible" value="${escapeHtml(ticket.responsavel || "")}" placeholder="Quem está cuidando">
         </label>
+        <label style="grid-column:1/-1">Máquina (inventário) <span class="optional">— vincula este chamado a uma máquina</span>
+          <select id="ticketDetailMachine">${ticketMachineOptions(ticket.computer_name)}</select>
+        </label>
         <label style="grid-column:1/-1">O que o TI fez (solução)
           <textarea id="ticketDetailSolucao" placeholder="Descreva o que foi feito para resolver o problema...">${escapeHtml(ticket.solucao || "")}</textarea>
         </label>
@@ -1424,6 +1498,7 @@ window.openTicketDetails = function openTicketDetails(id) {
       ${ticketDetailRow("Departamento", ticket.departamento)}
       ${ticketDetailRow("Tipo", ticket.tipo)}
       ${ticketDetailRow("AnyDesk", ticket.anydesk || "Não informado")}
+      ${ticketDetailRow("Máquina vinculada", machineLabelForTicket(ticket))}
       ${ticketDetailRow("Contato do solicitante", ticket.contato || "Não informado")}
       ${ticket.atendimento_em ? ticketDetailRow("Em atendimento desde", new Date(ticket.atendimento_em).toLocaleString("pt-BR")) : ""}
       ${ticket.resolvido_em ? ticketDetailRow("Resolvido em", new Date(ticket.resolvido_em).toLocaleString("pt-BR")) : ""}
@@ -1498,7 +1573,10 @@ window.saveTicketMeta = async function saveTicketMeta(id) {
   const responsavel = document.getElementById("ticketDetailResponsible").value.trim() || null;
   const tipo = document.getElementById("ticketDetailTipo").value;
   const solucao = document.getElementById("ticketDetailSolucao").value.trim() || null;
-  const { error } = await client.from("chamados").update({ prioridade, responsavel, tipo, solucao }).eq("id", id);
+  const machineEl = document.getElementById("ticketDetailMachine");
+  const patch = { prioridade, responsavel, tipo, solucao };
+  if (machineEl) patch.computer_name = machineEl.value || null;
+  const { error } = await client.from("chamados").update(patch).eq("id", id);
   if (error) {
     alert("Erro ao salvar: " + error.message);
     return;
@@ -1954,6 +2032,12 @@ document.getElementById("depositoMovEditForm")?.addEventListener("submit", async
 
 // ===== Manutencao dos computadores =====
 const MANUTENCAO_TIPOS = ["Preventiva", "Corretiva", "Troca de peça", "Formatação/Reinstalação", "Limpeza", "Outro"];
+// Badge do tipo de manutenção: corretiva = vermelho, preventiva = verde, resto neutro.
+function manutTipoBadge(tipo) {
+  const t = normalizeText(tipo);
+  const cls = t === "corretiva" ? "corretiva" : (t === "preventiva" ? "preventiva" : "");
+  return `<span class="manut-badge ${cls}">${escapeHtml(tipo || "-")}</span>`;
+}
 let manutencoes = [];
 let manutencoesLoadError = "";
 
@@ -1996,6 +2080,7 @@ function renderManutencoes() {
   const body = document.getElementById("manutencaoBody");
   if (!body) return;
   fillManutencaoComputers();
+  renderPreventivaPanel();
   const rankBody = document.getElementById("manutencaoRankBody");
   const metrics = document.getElementById("manutencaoMetrics");
 
@@ -2062,13 +2147,56 @@ function renderManutencoes() {
     <tr>
       <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
       <td><strong>${escapeHtml(machineLabel(m))}</strong></td>
-      <td><span class="mov-badge entrada">${escapeHtml(m.tipo || "-")}</span></td>
+      <td>${manutTipoBadge(m.tipo)}</td>
       <td>${escapeHtml(m.descricao || "-")}</td>
       <td>${escapeHtml(m.responsavel || "-")}</td>
-      <td><button type="button" class="ticket-delete" onclick="excluirManutencao('${m.id}')">Excluir</button></td>
+      <td class="actions-cell"><div class="table-actions">
+        <button type="button" class="icon-btn" title="Abrir esta máquina no inventário" onclick="abrirMaquinaInventario('${escapeHtml(m.computer_name || "")}')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></button>
+        <button type="button" class="ticket-delete" onclick="excluirManutencao('${m.id}')">Excluir</button>
+      </div></td>
     </tr>
   `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
 }
+// Painel de manutenção preventiva pendente (na aba Manutenção).
+function renderPreventivaPanel() {
+  const list = machinesNeedingPreventiva();
+  const summary = document.getElementById("preventivaSummary");
+  if (summary) summary.innerText = list.length ? list.length + " pendente(s)" : "tudo em dia";
+  const target = document.getElementById("preventivaList");
+  if (!target) return;
+  if (!list.length) {
+    target.innerHTML = '<div class="empty-state">Todas as máquinas estão com a preventiva em dia. 👍</div>';
+    return;
+  }
+  target.innerHTML = list.map((x, i) => {
+    const a = x.asset;
+    const sit = x.info.status === "nunca"
+      ? '<span class="cond-badge usado">Nunca teve preventiva</span>'
+      : `<span class="cond-badge usado">Vencida — ${x.info.meses} meses</span>`;
+    const ult = x.info.ultima ? x.info.ultima.toLocaleDateString("pt-BR") : "—";
+    return `<div class="ovr-row clickable" onclick="abrirMaquinaInventario('${escapeHtml(a.computer_name || "")}')" title="Abrir no inventário">
+      <span class="ovr-rank">${i + 1}</span>
+      <span class="ovr-name">${escapeHtml(a.display_name || a.computer_name)} <em>${escapeHtml(getAssetDepartment(a))}</em></span>
+      <span class="ovr-metrics">última: ${ult}</span>
+      <span class="ovr-count">${sit}</span>
+    </div>`;
+  }).join("");
+}
+document.getElementById("preventivaToggle")?.addEventListener("click", () => {
+  const body = document.getElementById("preventivaBody");
+  const chev = document.getElementById("preventivaChevron");
+  const open = body?.classList.toggle("hidden") === false;
+  document.getElementById("preventivaToggle")?.setAttribute("aria-expanded", String(open));
+  if (chev) chev.classList.toggle("rot", open);
+});
+
+// Abre uma máquina no inventário pelo nome do Windows (usado na manutenção).
+window.abrirMaquinaInventario = function abrirMaquinaInventario(computerName) {
+  const asset = findAssetByComputerName(computerName);
+  if (!asset) { alert("Essa máquina não está no inventário (pode ser uma máquina fora da operação)."); return; }
+  window.irParaAba("inventario");
+  openHardwareDetails(asset.id);
+};
 
 window.filtrarManutencao = function filtrarManutencao(key) {
   const sel = document.getElementById("manutencaoFilter");
@@ -2216,6 +2344,9 @@ function machineSuggestions(asset) {
   if (lentos >= 2) sugs.push(`${lentos} chamados de lentidão no mês — investigar / avaliar upgrade`);
   // Só sugere trocar a máquina se o processador for 8ª geração ou mais antigo. 9ª+ é OK.
   if (gen && gen <= 8) sugs.push(`Processador de geração antiga (${gen}ª) — avaliar troca da máquina${lentos ? ` (já teve ${lentos} chamado(s) de lentidão)` : ""}`);
+  const prev = preventivaInfo(asset);
+  if (prev.status === "nunca") sugs.push("Fazer manutenção preventiva (nunca teve registrada) — pasta térmica / limpeza");
+  else if (prev.status === "vencida") sugs.push(`Manutenção preventiva vencida (${prev.meses} meses sem) — agendar pasta térmica / limpeza`);
   return { asset, sugs };
 }
 function renderIntelDesempenho() {
