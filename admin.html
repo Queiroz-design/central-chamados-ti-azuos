@@ -399,6 +399,11 @@
         <span class="intel-nav-title">Trocas com reserva</span>
         <span class="intel-nav-badge" id="intelReservaCount"></span>
       </button>
+      <button type="button" class="intel-nav-card" data-intel="opera">
+        <span class="intel-nav-icon">🚫</span>
+        <span class="intel-nav-title">Uso do navegador Opera</span>
+        <span class="intel-nav-badge" id="intelOperaCount"></span>
+      </button>
     </div>
     <div class="intel-detail-panel hidden">
       <div class="intel-pane hidden" data-pane="desempenho">
@@ -422,6 +427,10 @@
       <div class="intel-pane hidden" data-pane="reserva">
         <p class="section-note">Substitui máquinas urgentes (6ª/7ª geração) por reservas de 8ª geração ou mais novas. Reservas de 6ª/7ª geração ficam no depósito para venda.</p>
         <div id="intelReserva"></div>
+      </div>
+      <div class="intel-pane hidden" data-pane="opera">
+        <p class="section-note">Máquinas onde o navegador Opera foi detectado (em execução ou causando pico de CPU/RAM). Priorize rodar o bloqueio nestas primeiro. Clique para abrir a máquina no inventário.</p>
+        <div id="intelOpera"></div>
       </div>
     </div>
   </section>
@@ -518,6 +527,8 @@
           <button type="button" id="btnCloseHardwareDetail" class="secondary">Fechar</button>
         </div>
       </header>
+
+      <div id="deviceDuplicateBanner" class="dup-banner hidden"></div>
 
       <div class="live-metrics-grid">
         <article class="live-metric cpu">

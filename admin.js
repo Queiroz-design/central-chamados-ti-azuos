@@ -827,6 +827,63 @@ window.editHardware = function editHardware(id) {
   hardwareEditModal.classList.remove("hidden");
 };
 
+// Numero de serie "confiavel" (ignora valores genericos que a placa-mae as vezes traz).
+function assetSerial(asset) {
+  const s = String(asset.serial_number || "").trim();
+  if (!s) return "";
+  const bad = ["to be filled by o.e.m.", "system serial number", "default string", "0", "none", "n/a", "invalid", "not specified", "not available"];
+  if (bad.includes(s.toLowerCase())) return "";
+  return s;
+}
+// Outras fichas (nao arquivadas) com o MESMO numero de serie = mesma maquina fisica (ex: formatada).
+function findDuplicateAssets(asset) {
+  const s = assetSerial(asset);
+  if (!s) return [];
+  return hardwareAssets.filter((a) => a.id !== asset.id && assetSerial(a) === s);
+}
+function renderDuplicateBanner(asset) {
+  const el = document.getElementById("deviceDuplicateBanner");
+  if (!el) return;
+  const dups = findDuplicateAssets(asset);
+  if (!dups.length) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+  const other = dups.slice().sort((a, b) => new Date(a.reported_at || 0) - new Date(b.reported_at || 0))[0];
+  el.classList.remove("hidden");
+  el.innerHTML = `
+    <div class="dup-text">
+      <strong>⚠ Possível máquina duplicada (mesmo número de série)</strong>
+      <span>Parece a mesma máquina, provavelmente formatada. Outra ficha: <strong>${escapeHtml(other.display_name || other.computer_name)}</strong> — ${escapeHtml(getAssetDepartment(other))} <span class="muted">(${escapeHtml(other.computer_name)})</span></span>
+    </div>
+    <button type="button" class="secondary small" onclick="mesclarDuplicada('${asset.id}','${other.id}')">🔗 Mesclar (juntar as duas)</button>`;
+}
+// Junta duas fichas da mesma maquina: mantem a que reportou por ultimo (hardware atual),
+// herda nome/departamento da antiga, religa historico (manutencao/chamados/transferencias) e arquiva a antiga.
+window.mesclarDuplicada = async function mesclarDuplicada(idA, idB) {
+  const a = hardwareAssets.find((x) => x.id === idA);
+  const b = hardwareAssets.find((x) => x.id === idB);
+  if (!a || !b) return;
+  const keep = new Date(a.reported_at || 0) >= new Date(b.reported_at || 0) ? a : b;
+  const old = keep === a ? b : a;
+  const nomeOld = old.display_name || old.computer_name;
+  if (!confirm(`Mesclar duplicadas?\n\nMANTER (atual): ${keep.display_name || keep.computer_name} [${keep.computer_name}]\nARQUIVAR (antiga): ${nomeOld} [${old.computer_name}]\n\nO nome e o departamento da antiga passam para a atual, e todo o histórico (manutenção, chamados, transferências) é religado. A antiga é arquivada.`)) return;
+  const updates = {};
+  if (old.display_name) updates.display_name = old.display_name;
+  if (old.department) updates.department = old.department;
+  if (old.responsible_name && !keep.responsible_name) updates.responsible_name = old.responsible_name;
+  try {
+    if (Object.keys(updates).length) await client.from("hardware_inventory").update(updates).eq("id", keep.id);
+    await client.from("manutencoes").update({ computer_name: keep.computer_name }).eq("computer_name", old.computer_name);
+    await client.from("chamados").update({ computer_name: keep.computer_name }).eq("computer_name", old.computer_name);
+    await client.from("transferencias").update({ computer_name: keep.computer_name }).eq("computer_name", old.computer_name);
+    await client.from("hardware_inventory").update({ arquivado: true }).eq("id", old.id);
+  } catch (e) {
+    alert("Erro ao mesclar: " + (e.message || e));
+    return;
+  }
+  alert("Máquinas mescladas! A antiga foi arquivada e o histórico religado.");
+  closeHardwareDetails();
+  await loadTickets();
+};
+
 window.archiveHardware = async function archiveHardware(id) {
   const asset = hardwareAssets.find((item) => item.id === id);
   const label = asset ? (asset.display_name || asset.computer_name) : "esta máquina";
@@ -1132,6 +1189,7 @@ function renderHardwareDetails() {
   renderSparkline("diskHistoryChart", selectedHistory, "disk_percent", "#f59e0b");
   renderDeviceProperties(asset, live);
   renderPerformanceAlerts(asset.computer_name);
+  renderDuplicateBanner(asset);
   renderDeviceMaintenance(asset);
   renderDeviceChamados(asset);
   renderDeviceDeposit(asset);
@@ -2484,10 +2542,53 @@ function renderIntelReserva() {
         </ul>
       </div>`).join("");
 }
+// Detecta máquinas onde o navegador Opera apareceu (processo em execução ou causa de pico).
+function machinesUsingOpera() {
+  const isOpera = (n) => /^opera/i.test(String(n || "").trim());
+  const map = new Map();
+  const add = (cn, ev) => {
+    if (!cn) return;
+    const k = normalizeText(cn);
+    if (!map.has(k)) map.set(k, { computer_name: cn, evid: new Set() });
+    map.get(k).evid.add(ev);
+  };
+  (performanceAlerts || []).forEach((a) => { if (isOpera(a.cause_process)) add(a.computer_name, "causou pico de CPU/RAM"); });
+  (hardwareLiveStatus || []).forEach((l) => {
+    const names = [l.active_process, ...((l.top_cpu || []).map((p) => p.name)), ...((l.top_memory || []).map((p) => p.name)), ...((l.top_io || []).map((p) => p.name))];
+    if (names.some(isOpera)) add(l.computer_name, "Opera em execução");
+  });
+  return [...map.values()];
+}
+function renderIntelOpera() {
+  const target = document.getElementById("intelOpera");
+  const badge = document.getElementById("intelOperaCount");
+  if (!target) return;
+  const list = machinesUsingOpera();
+  if (badge) {
+    badge.innerText = list.length ? `${list.length} máquina(s)` : "nenhuma";
+    badge.className = "intel-nav-badge " + (list.length ? "pendencia" : "ok");
+  }
+  if (!list.length) {
+    target.innerHTML = '<div class="empty-state">Nenhuma máquina com Opera detectado nos dados atuais. (Detecta quando o Opera está em execução ou causa pico — máquinas offline há muito tempo podem não aparecer.)</div>';
+    return;
+  }
+  target.innerHTML = `<p class="section-note"><strong>${list.length}</strong> máquina(s) com Opera detectado. Priorize o bloqueio nestas:</p>` +
+    list.map((x) => {
+      const a = findAssetByComputerName(x.computer_name);
+      const nome = a ? (a.display_name || a.computer_name) : x.computer_name;
+      const dep = a ? getAssetDepartment(a) : "";
+      const click = a ? `onclick="abrirMaquinaInventario('${escapeHtml(x.computer_name)}')" style="cursor:pointer"` : "";
+      return `<div class="intel-item" ${click}>
+        <strong>${escapeHtml(nome)}</strong>${dep ? ` <span class="muted">— ${escapeHtml(dep)}</span>` : ""} <span class="muted">(${escapeHtml(x.computer_name)})</span>
+        <ul><li>${[...x.evid].map((e) => escapeHtml(e)).join(" · ")}</li></ul>
+      </div>`;
+    }).join("");
+}
 function renderInteligencia() {
   renderIntelDesempenho();
   renderIntelUpgrade();
   renderIntelReserva();
+  renderIntelOpera();
   renderIntelChamados();
 }
 document.getElementById("btnRefreshInteligencia")?.addEventListener("click", renderInteligencia);
