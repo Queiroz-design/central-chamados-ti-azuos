@@ -1350,8 +1350,11 @@ document.getElementById("transferForm")?.addEventListener("submit", async (event
   if (e1) { alert("Erro ao registrar transferência: " + e1.message); return; }
   // "Sem departamento" = tira o departamento (vai pro estoque/reserva) e limpa o nome do colaborador,
   // já que a máquina saiu da pessoa. Vai pra um departamento novo mantém o restante como está.
+  // Ao ir pro "Sem departamento", vira "Reserva" automaticamente, com a série (ou nome do Windows)
+  // pra distinguir máquinas do mesmo modelo. Ao ir pra um departamento, mantém o nome atual.
+  const idReserva = assetSerial(asset) || asset.computer_name;
   const updates = paraVal === "__sem__"
-    ? { department: null, responsible_name: null }
+    ? { department: null, responsible_name: null, display_name: `Reserva — ${idReserva}` }
     : { department: paraVal };
   const { error: e2 } = await client.from("hardware_inventory").update(updates).eq("id", id);
   if (e2) { alert("Transferência registrada, mas erro ao atualizar o departamento: " + e2.message); }
