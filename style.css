@@ -443,6 +443,23 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .admin-body.light .ovr-name em,.admin-body.light .ovr-metrics{color:#64748b}
 .admin-body.light .ovr-count{background:#fee2e2;color:#991b1b}
 @media(max-width:600px){.ovr-metrics{display:none}}
+/* Periféricos na transferência de máquina (o que vai junto / o que fica) */
+.transfer-perif-wrap:empty{display:none}
+.transfer-perif-wrap{margin:6px 0 4px;border:1px solid #26364a;border-radius:8px;padding:10px 12px;background:#101827;max-height:220px;overflow:auto}
+.transfer-perif-title{font-weight:bold;font-size:13px;color:#fde68a;margin-bottom:8px}
+.transfer-perif{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:7px 0;border-bottom:1px solid #1e293b}
+.transfer-perif:last-child{border-bottom:0}
+.perif-nome{font-weight:bold;color:#e2e8f0;font-size:13px}
+.perif-opts{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.perif-opts label{display:inline-flex;align-items:center;gap:5px;margin:0;font-weight:normal;font-size:13px;color:#cbd5e1}
+.perif-opts input[type="radio"]{width:auto;margin:0;flex:none}
+.perif-destino{width:auto;min-width:180px;padding:5px 10px;font-size:13px}
+.perif-destino:disabled{opacity:.45}
+.admin-body.light .transfer-perif-wrap{background:#f4f7fb;border-color:#e2e8f0}
+.admin-body.light .transfer-perif-title{color:#92400e}
+.admin-body.light .perif-nome{color:#0f2a63}
+.admin-body.light .perif-opts label{color:#334155}
+.admin-body.light .transfer-perif{border-bottom-color:#eef2f8}
 /* Aviso de máquina duplicada (mesma série, formatada) */
 .dup-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#2a2108;border:1px solid #a16207;border-left:4px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px}
 .dup-banner .dup-text{display:flex;flex-direction:column;gap:3px;min-width:0}

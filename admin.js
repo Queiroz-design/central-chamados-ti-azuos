@@ -1263,7 +1263,51 @@ async function loadTransferencias() {
   }
 }
 
-window.transferirMaquina = function transferirMaquina(id) {
+// Categorias que ficam DENTRO da maquina (vao junto sempre). O resto e periferico de estacao.
+function isPecaEstacao(categoria) {
+  const c = normalizeText(categoria);
+  return !(c === "ssd" || c === "memoria" || c === "maquina (cpu)");
+}
+// Periféricos atualmente instalados na máquina (saldo instalada - retirada > 0), só os de estação.
+async function pecasNaMaquina(computerName) {
+  const { data } = await client.from("deposito_movimentacoes").select("item_id,tipo,quantidade").eq("computer_name", computerName);
+  const bal = {};
+  (data || []).forEach((m) => {
+    const q = Number(m.quantidade || 0);
+    bal[m.item_id] = (bal[m.item_id] || 0) + (m.tipo === "saida" ? q : -q);
+  });
+  return Object.entries(bal).filter(([, q]) => q > 0).map(([itemId, qtd]) => {
+    const item = (depositoItens || []).find((i) => i.id === itemId);
+    return { item_id: itemId, nome: item ? item.nome : "(item)", categoria: item ? item.categoria : "", qtd };
+  }).filter((p) => isPecaEstacao(p.categoria));
+}
+async function carregarPerifericosTransfer(asset) {
+  const wrap = document.getElementById("transferPerifericos");
+  if (!wrap) return;
+  wrap.innerHTML = '<p class="section-note">Verificando periféricos desta máquina…</p>';
+  const pecas = await pecasNaMaquina(asset.computer_name);
+  if (!pecas.length) { wrap.innerHTML = ""; return; }
+  const machineOpts = hardwareAssets.filter((a) => a.id !== asset.id)
+    .sort((a, b) => getAssetNumber(a) - getAssetNumber(b))
+    .map((a) => `<option value="${escapeHtml(a.computer_name)}">${escapeHtml(a.display_name || a.computer_name)} — ${escapeHtml(getAssetDepartment(a))}</option>`).join("");
+  wrap.innerHTML = `<div class="transfer-perif-title">🖱️ Periféricos nesta máquina — o que vai junto?</div>` + pecas.map((p) => `
+    <div class="transfer-perif" data-item="${escapeHtml(p.item_id)}" data-qtd="${p.qtd}">
+      <span class="perif-nome">${escapeHtml(p.nome)}${p.qtd > 1 ? " (" + p.qtd + ")" : ""}</span>
+      <div class="perif-opts">
+        <label><input type="radio" name="perif_${escapeHtml(p.item_id)}" value="junto" checked> Vai junto</label>
+        <label><input type="radio" name="perif_${escapeHtml(p.item_id)}" value="fica"> Fica →</label>
+        <select class="perif-destino" disabled><option value="">— máquina que assume —</option>${machineOpts}</select>
+      </div>
+    </div>`).join("");
+  wrap.querySelectorAll(".transfer-perif").forEach((row) => {
+    const dest = row.querySelector(".perif-destino");
+    row.querySelectorAll('input[type="radio"]').forEach((r) => r.addEventListener("change", () => {
+      dest.disabled = !row.querySelector('input[value="fica"]').checked;
+    }));
+  });
+}
+
+window.transferirMaquina = async function transferirMaquina(id) {
   const asset = hardwareAssets.find((a) => a.id === id);
   if (!asset) return;
   document.getElementById("transferAssetId").value = id;
@@ -1276,7 +1320,9 @@ window.transferirMaquina = function transferirMaquina(id) {
   sel.value = cur === "Sem departamento" ? "__sem__" : cur;
   document.getElementById("transferResp").value = "";
   document.getElementById("transferObs").value = "";
+  document.getElementById("transferPerifericos").innerHTML = "";
   document.getElementById("transferModal").classList.remove("hidden");
+  await carregarPerifericosTransfer(asset);
 };
 
 document.getElementById("btnTransferDept")?.addEventListener("click", () => { if (selectedHardwareId) transferirMaquina(selectedHardwareId); });
@@ -1313,8 +1359,24 @@ document.getElementById("transferForm")?.addEventListener("submit", async (event
   if (asset.computer_name) {
     await client.from("manutencoes").update({ computer_department: paraNome }).eq("computer_name", asset.computer_name);
   }
+  // Periféricos marcados como "fica": movem para a máquina que assume o lugar.
+  // Registra RETIRADA (volta ao estoque) na máquina que saiu + INSTALADA na nova (saldo do estoque = 0).
+  const nomeSaiu = asset.display_name || asset.computer_name;
+  const perifRows = document.querySelectorAll("#transferPerifericos .transfer-perif");
+  for (const row of perifRows) {
+    if (!row.querySelector('input[value="fica"]')?.checked) continue;
+    const destName = row.querySelector(".perif-destino")?.value;
+    if (!destName) continue;
+    const item_id = row.dataset.item;
+    const qtd = Number(row.dataset.qtd || 1);
+    const destAsset = hardwareAssets.find((a) => a.computer_name === destName);
+    const destLabel = destAsset ? (destAsset.display_name || destAsset.computer_name) : destName;
+    await client.from("deposito_movimentacoes").insert({ item_id, tipo: "entrada", quantidade: qtd, responsavel, observacao: `Ficou na estação — a máquina ${nomeSaiu} saiu`, computer_name: asset.computer_name, computer_label: nomeSaiu });
+    await client.from("deposito_movimentacoes").insert({ item_id, tipo: "saida", quantidade: qtd, responsavel, observacao: `Veio da máquina ${nomeSaiu}`, computer_name: destName, computer_label: destLabel });
+  }
   document.getElementById("transferModal").classList.add("hidden");
   await loadTransferencias();
+  await loadDeposito();
   await loadTickets();
   if (selectedHardwareId) renderHardwareDetails();
 });
