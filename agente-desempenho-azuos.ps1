@@ -18,6 +18,11 @@ if (-not (Test-Path $baseDir)) { New-Item -ItemType Directory -Path $baseDir -Fo
 try {
   [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
   Get-AzuosFile $monitorUrl $monitorPath
-  Start-Process powershell.exe -WindowStyle Hidden -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$monitorPath`""
+  # Lanca o monitor TOTALMENTE oculto via wscript/VBS.
+  # (Start-Process -WindowStyle Hidden ainda deixava uma janela vazia do PowerShell na tela.)
+  $vbsPath = Join-Path $baseDir "iniciar-monitor-oculto.vbs"
+  $vbs = 'CreateObject("WScript.Shell").Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""' + $monitorPath + '""", 0, False'
+  Set-Content -LiteralPath $vbsPath -Value $vbs -Encoding ASCII
+  Start-Process wscript.exe -ArgumentList "`"$vbsPath`""
   exit 0
 } catch { exit 1 }

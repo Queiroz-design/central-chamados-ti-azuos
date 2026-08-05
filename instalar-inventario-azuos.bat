@@ -39,12 +39,24 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointMan
 if errorlevel 1 curl.exe --ssl-no-revoke -fsSL "%PERF_AGENT_URL%" -o "%PERF_AGENT_PATH%"
 if errorlevel 1 goto :erro
 
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosInventarioTI" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /f >nul
+:: --- Lancadores VBS: iniciam os scripts SEM nenhuma janela na tela ---
+:: (o -WindowStyle Hidden do PowerShell ainda deixava uma janela vazia aberta;
+::  o wscript + Run(...,0) esconde 100%).
+echo CreateObject("WScript.Shell").Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""%INSTALL_DIR%\monitor-desempenho-azuos.ps1""", 0, False>"%INSTALL_DIR%\iniciar-monitor-oculto.vbs"
+echo CreateObject("WScript.Shell").Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""%PERF_AGENT_PATH%""", 0, False>"%INSTALL_DIR%\iniciar-desempenho-oculto.vbs"
+echo CreateObject("WScript.Shell").Run "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File ""%AGENT_PATH%""", 0, False>"%INSTALL_DIR%\iniciar-inventario-oculto.vbs"
+
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosInventarioTI" /t REG_SZ /d "wscript.exe \"%INSTALL_DIR%\iniciar-inventario-oculto.vbs\"" /f >nul
 if errorlevel 1 goto :erro
-reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /t REG_SZ /d "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%PERF_AGENT_PATH%\"" /f >nul
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" /v "AzuosMonitorDesempenho" /t REG_SZ /d "wscript.exe \"%INSTALL_DIR%\iniciar-desempenho-oculto.vbs\"" /f >nul
 if errorlevel 1 goto :erro
 
-schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "powershell.exe -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File \"%AGENT_PATH%\"" /SC DAILY /MO 1 /ST 12:00 /F >nul 2>&1
+schtasks /Create /TN "Grupo Azuos - Inventario TI" /TR "wscript.exe \"%INSTALL_DIR%\iniciar-inventario-oculto.vbs\"" /SC DAILY /MO 1 /ST 12:00 /F >nul 2>&1
+:: Tambem coleta a cada logon, para trocas de hardware (RAM, SSD) aparecerem ja no proximo boot.
+schtasks /Create /TN "Grupo Azuos - Inventario TI (Logon)" /TR "wscript.exe \"%INSTALL_DIR%\iniciar-inventario-oculto.vbs\"" /SC ONLOGON /F >nul 2>&1
+:: VIGIA do monitor: verifica a cada 15 min e reinicia o monitor se ele cair
+:: (fim do problema de a maquina ficar offline). Roda como o proprio usuario, sem admin.
+schtasks /Create /TN "Grupo Azuos - Monitor Vigia" /TR "wscript.exe \"%INSTALL_DIR%\iniciar-monitor-oculto.vbs\"" /SC MINUTE /MO 15 /F >nul 2>&1
 
 echo Fazendo a primeira coleta...
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%AGENT_PATH%" -Force -ShowDetails
