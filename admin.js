@@ -400,7 +400,11 @@ document.querySelectorAll(".overload-tab").forEach((b) => b.addEventListener("cl
 // Manutenção preventiva: cada máquina inventariada precisa de uma a cada 6 meses.
 const PREVENTIVA_MESES = 6;
 function preventivaInfo(asset) {
-  const rows = (typeof manutencoes !== "undefined" ? manutencoes : []).filter((m) => normalizeText(m.tipo) === "preventiva" && machineMatchesAsset(m, asset));
+  // Preventiva OU corretiva contam (a corretiva faz a mesma limpeza/pasta termica).
+  const rows = (typeof manutencoes !== "undefined" ? manutencoes : []).filter((m) => {
+    const t = normalizeText(m.tipo);
+    return (t === "preventiva" || t === "corretiva") && machineMatchesAsset(m, asset);
+  });
   if (!rows.length) return { status: "nunca", meses: null, ultima: null };
   const ultima = rows.map((m) => new Date(m.data)).reduce((a, b) => (a > b ? a : b));
   const meses = Math.floor((Date.now() - ultima.getTime()) / (1000 * 60 * 60 * 24 * 30.44));
@@ -419,8 +423,8 @@ function machinesNeedingPreventiva() {
 function preventivaBadge(asset) {
   const info = preventivaInfo(asset);
   if (info.status === "ok") return "";
-  const txt = info.status === "nunca" ? "Sem preventiva" : `Preventiva vencida (${info.meses} meses)`;
-  return `<div class="preventiva-badge ${info.status}" title="Manutenção preventiva recomendada a cada 6 meses">🛠️ ${txt}</div>`;
+  const txt = info.status === "nunca" ? "Sem manutenção" : `Manutenção vencida (${info.meses} meses)`;
+  return `<div class="preventiva-badge ${info.status}" title="Manutenção (preventiva ou corretiva) recomendada a cada 6 meses">🛠️ ${txt}</div>`;
 }
 
 function renderDashboard() {
@@ -835,11 +839,21 @@ function assetSerial(asset) {
   if (bad.includes(s.toLowerCase())) return "";
   return s;
 }
-// Outras fichas (nao arquivadas) com o MESMO numero de serie = mesma maquina fisica (ex: formatada).
+// Candidata a duplicata da MESMA maquina fisica (ex: formatada). Regras rigidas para NAO
+// confundir maquinas diferentes que tem serie clonada de fabrica (ex: Dell Vostro):
+//  - mesmo numero de serie E
+//  - MESMO processador (senao sao maquinas fisicas diferentes) E
+//  - a outra ficha esta OFFLINE (se as duas estao online ao mesmo tempo, sao maquinas diferentes).
 function findDuplicateAssets(asset) {
   const s = assetSerial(asset);
   if (!s) return [];
-  return hardwareAssets.filter((a) => a.id !== asset.id && assetSerial(a) === s);
+  const cpu = normalizeText(asset.cpu_name);
+  return hardwareAssets.filter((a) => {
+    if (a.id === asset.id || assetSerial(a) !== s) return false;
+    if (cpu && normalizeText(a.cpu_name) !== cpu) return false;
+    if (isMachineOnline(getLiveStatus(a.computer_name))) return false;
+    return true;
+  });
 }
 function renderDuplicateBanner(asset) {
   const el = document.getElementById("deviceDuplicateBanner");
@@ -850,8 +864,9 @@ function renderDuplicateBanner(asset) {
   el.classList.remove("hidden");
   el.innerHTML = `
     <div class="dup-text">
-      <strong>⚠ Possível máquina duplicada (mesmo número de série)</strong>
-      <span>Parece a mesma máquina, provavelmente formatada. Outra ficha: <strong>${escapeHtml(other.display_name || other.computer_name)}</strong> — ${escapeHtml(getAssetDepartment(other))} <span class="muted">(${escapeHtml(other.computer_name)})</span></span>
+      <strong>⚠ Possível máquina duplicada (mesma série + mesmo processador)</strong>
+      <span>Outra ficha OFFLINE: <strong>${escapeHtml(other.display_name || other.computer_name)}</strong> — ${escapeHtml(getAssetDepartment(other))} <span class="muted">(${escapeHtml(other.computer_name)})</span></span>
+      <span class="muted">Esta: ${escapeHtml(asset.cpu_name || "-")} · Outra: ${escapeHtml(other.cpu_name || "-")} — só mescle se for a MESMA máquina física.</span>
     </div>
     <button type="button" class="secondary small" onclick="mesclarDuplicada('${asset.id}','${other.id}')">🔗 Mesclar (juntar as duas)</button>`;
 }
@@ -1952,6 +1967,7 @@ function renderDeposito() {
         <td>${escapeHtml(m.responsavel || "-")}</td>
         <td>${escapeHtml(m.observacao || "-")}</td>
         <td><div class="table-actions">
+          ${m.computer_name ? `<button type="button" class="icon-btn" title="Abrir esta máquina no inventário" onclick="abrirMaquinaInventario('${escapeHtml(m.computer_name)}')"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></button>` : ""}
           <button class="secondary small" onclick="editarMovObs('${m.id}')">Editar</button>
           <button class="secondary small remove-hw" onclick="excluirMovimentacao('${m.id}')">Excluir</button>
         </div></td>
@@ -2413,8 +2429,8 @@ function machineSuggestions(asset) {
   // Só sugere trocar a máquina se o processador for 8ª geração ou mais antigo. 9ª+ é OK.
   if (gen && gen <= 8) sugs.push(`Processador de geração antiga (${gen}ª) — avaliar troca da máquina${lentos ? ` (já teve ${lentos} chamado(s) de lentidão)` : ""}`);
   const prev = preventivaInfo(asset);
-  if (prev.status === "nunca") sugs.push("Fazer manutenção preventiva (nunca teve registrada) — pasta térmica / limpeza");
-  else if (prev.status === "vencida") sugs.push(`Manutenção preventiva vencida (${prev.meses} meses sem) — agendar pasta térmica / limpeza`);
+  if (prev.status === "nunca") sugs.push("Sem manutenção registrada (preventiva/corretiva) — agendar pasta térmica / limpeza");
+  else if (prev.status === "vencida") sugs.push(`Manutenção vencida (${prev.meses} meses sem preventiva/corretiva) — agendar pasta térmica / limpeza`);
   return { asset, sugs };
 }
 function renderIntelDesempenho() {
