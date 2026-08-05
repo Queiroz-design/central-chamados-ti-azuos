@@ -844,14 +844,23 @@ function assetSerial(asset) {
 //  - mesmo numero de serie E
 //  - MESMO processador (senao sao maquinas fisicas diferentes) E
 //  - a outra ficha esta OFFLINE (se as duas estao online ao mesmo tempo, sao maquinas diferentes).
+function assetLastActivity(a) {
+  const live = getLiveStatus(a.computer_name);
+  const t1 = live && live.last_seen ? new Date(live.last_seen).getTime() : 0;
+  const t2 = a.reported_at ? new Date(a.reported_at).getTime() : 0;
+  return Math.max(t1, t2);
+}
 function findDuplicateAssets(asset) {
   const s = assetSerial(asset);
   if (!s) return [];
   const cpu = normalizeText(asset.cpu_name);
+  const DOIS_DIAS = 2 * 24 * 60 * 60 * 1000;
   return hardwareAssets.filter((a) => {
     if (a.id === asset.id || assetSerial(a) !== s) return false;
     if (cpu && normalizeText(a.cpu_name) !== cpu) return false;
     if (isMachineOnline(getLiveStatus(a.computer_name))) return false;
+    // Só considera "fantasma" se estiver abandonada ha mais de 2 dias (evita maquinas em transicao/troca de SSD).
+    if (Date.now() - assetLastActivity(a) < DOIS_DIAS) return false;
     return true;
   });
 }
