@@ -2472,6 +2472,20 @@ document.getElementById("btnAddManutencao")?.addEventListener("click", () => {
   document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
   document.getElementById("manutencaoModal").classList.remove("hidden");
 });
+// Abre o modal de manutenção já com a máquina do inventário selecionada.
+window.abrirManutencaoPara = function abrirManutencaoPara(id) {
+  const asset = hardwareAssets.find((a) => a.id === id);
+  if (!asset) return;
+  document.getElementById("manutencaoForm").reset();
+  document.getElementById("manutencaoTipo").innerHTML = MANUTENCAO_TIPOS.map((t) => `<option>${escapeHtml(t)}</option>`).join("");
+  fillManutencaoComputers();
+  const sel = document.getElementById("manutencaoComputador");
+  if (sel) sel.value = asset.computer_name;
+  toggleManutencaoOutro();
+  document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
+  document.getElementById("manutencaoModal").classList.remove("hidden");
+};
+document.getElementById("btnManutMaquina")?.addEventListener("click", () => { if (selectedHardwareId) abrirManutencaoPara(selectedHardwareId); });
 document.getElementById("manutencaoComputador")?.addEventListener("change", toggleManutencaoOutro);
 document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
 document.getElementById("manutencaoFilter")?.addEventListener("change", renderManutencoes);
@@ -2501,6 +2515,7 @@ document.getElementById("manutencaoForm")?.addEventListener("submit", async (eve
   if (error) { alert("Erro ao salvar: " + error.message); return; }
   document.getElementById("manutencaoModal").classList.add("hidden");
   await loadManutencoes();
+  if (selectedHardwareId) renderHardwareDetails();
 });
 
 // ===== Central de Inteligencia (auditoria automatica dos dados) =====
