@@ -524,6 +524,7 @@
         </div>
         <div class="detail-header-actions">
           <button type="button" id="btnTransferDept" class="secondary">Transferir departamento</button>
+          <button type="button" id="btnSwapSsd" class="secondary">Trocar SSD</button>
           <button type="button" id="btnCloseHardwareDetail" class="secondary">Fechar</button>
         </div>
       </header>
@@ -639,6 +640,25 @@
         <label>Observação <span class="optional">(opcional)</span><input type="text" id="transferObs" placeholder="Ex: emprestada para cobrir falta no Fiscal"></label>
         <div id="transferPerifericos" class="transfer-perif-wrap"></div>
         <button type="submit">Confirmar transferência</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="swapSsdModal" class="modal-backdrop hidden">
+    <section class="modal-card" role="dialog" aria-modal="true">
+      <div class="admin-top">
+        <h2>Trocar SSD entre 2 máquinas</h2>
+        <button type="button" id="btnCloseSwapSsd" class="secondary small">Fechar</button>
+      </div>
+      <form id="swapSsdForm">
+        <input type="hidden" id="swapAssetId">
+        <p class="section-note" id="swapInfo"></p>
+        <label>Trocou o SSD com qual máquina?<select id="swapOutra"></select></label>
+        <div class="swap-warn">
+          Cada máquina <b>mantém seu nome, departamento e histórico</b> (manutenções, chamados, periféricos e transferências).
+          Só o hardware passa a ser lido da máquina atual. Use isto <b>depois</b> de trocar os SSDs fisicamente e ligar as máquinas.
+        </div>
+        <button type="submit">Confirmar troca de SSD</button>
       </form>
     </section>
   </div>

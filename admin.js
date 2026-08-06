@@ -1384,6 +1384,92 @@ document.getElementById("transferForm")?.addEventListener("submit", async (event
   if (selectedHardwareId) renderHardwareDetails();
 });
 
+// ============================================================
+// Trocar SSD entre 2 maquinas
+// Quando o SSD de uma maquina vai pra outra, o "nome do Windows" anda junto com o SSD.
+// Este fluxo mantem a IDENTIDADE (nome/depto/responsavel) e o HISTORICO de cada maquina
+// no lugar, e deixa cada uma lendo o hardware da maquina fisica onde o SSD esta agora.
+// (O hardware/telemetria seguem o SSD sozinhos; a coleta de inventario nao mexe nesses campos.)
+// ============================================================
+window.abrirTrocaSsd = function abrirTrocaSsd(id) {
+  const asset = hardwareAssets.find((a) => a.id === id);
+  if (!asset) return;
+  document.getElementById("swapAssetId").value = id;
+  document.getElementById("swapInfo").innerText =
+    `Máquina atual: ${asset.display_name || asset.computer_name} (${asset.computer_name}).`;
+  const sel = document.getElementById("swapOutra");
+  const outras = hardwareAssets
+    .filter((a) => a.id !== id)
+    .sort((a, b) => (a.display_name || a.computer_name).localeCompare(b.display_name || b.computer_name));
+  sel.innerHTML =
+    `<option value="">— escolha a outra máquina —</option>` +
+    outras.map((a) => `<option value="${a.id}">${escapeHtml(a.display_name || a.computer_name)} — ${escapeHtml(a.computer_name)}</option>`).join("");
+  document.getElementById("swapSsdModal").classList.remove("hidden");
+};
+
+document.getElementById("btnSwapSsd")?.addEventListener("click", () => { if (selectedHardwareId) abrirTrocaSsd(selectedHardwareId); });
+document.getElementById("btnCloseSwapSsd")?.addEventListener("click", () => document.getElementById("swapSsdModal").classList.add("hidden"));
+
+// Troca o computer_name das linhas de uma tabela entre cnA e cnB (usa valor temporario pra nao colidir).
+async function swapHistoricoTabela(table, cnA, cnB, tmp) {
+  let r;
+  r = await client.from(table).update({ computer_name: tmp }).eq("computer_name", cnA);
+  if (r.error) return r.error;
+  r = await client.from(table).update({ computer_name: cnA }).eq("computer_name", cnB);
+  if (r.error) return r.error;
+  r = await client.from(table).update({ computer_name: cnB }).eq("computer_name", tmp);
+  return r.error || null;
+}
+
+document.getElementById("swapSsdForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const idA = document.getElementById("swapAssetId").value;
+  const idB = document.getElementById("swapOutra").value;
+  if (!idB) { alert("Escolha a outra máquina."); return; }
+  const A = hardwareAssets.find((a) => a.id === idA);
+  const B = hardwareAssets.find((a) => a.id === idB);
+  if (!A || !B) { alert("Máquina não encontrada."); return; }
+  const nomeA = A.display_name || A.computer_name;
+  const nomeB = B.display_name || B.computer_name;
+  if (!confirm(`Confirmar que o SSD foi trocado entre "${nomeA}" e "${nomeB}"?\n\nCada máquina mantém seu nome, departamento e histórico. O hardware passa a ser lido da máquina atual.`)) return;
+
+  const btn = event.submitter;
+  if (btn) { btn.disabled = true; btn.innerText = "Trocando..."; }
+
+  // 1) Troca a IDENTIDADE (nome/depto/responsavel) entre as duas fichas (por id).
+  const { error: eA } = await client.from("hardware_inventory")
+    .update({ display_name: B.display_name, department: B.department, responsible_name: B.responsible_name }).eq("id", A.id);
+  const { error: eB } = !eA ? await client.from("hardware_inventory")
+    .update({ display_name: A.display_name, department: A.department, responsible_name: A.responsible_name }).eq("id", B.id) : { error: null };
+  if (eA || eB) {
+    alert("Erro ao trocar a identidade das máquinas: " + (eA || eB).message);
+    if (btn) { btn.disabled = false; btn.innerText = "Confirmar troca de SSD"; }
+    return;
+  }
+
+  // 2) Troca o HISTORICO (por computer_name) das duas maquinas.
+  const cnA = A.computer_name, cnB = B.computer_name;
+  const tmp = "__SWAP__" + Date.now();
+  const tabelas = ["manutencoes", "chamados", "transferencias", "deposito_movimentacoes"];
+  let histErr = null;
+  for (const t of tabelas) {
+    const err = await swapHistoricoTabela(t, cnA, cnB, tmp);
+    if (err) { histErr = `Tabela ${t}: ${err.message}`; break; }
+  }
+
+  document.getElementById("swapSsdModal").classList.add("hidden");
+  await loadTransferencias();
+  await loadDeposito();
+  await loadTickets();
+  closeHardwareDetails();
+  if (btn) { btn.disabled = false; btn.innerText = "Confirmar troca de SSD"; }
+  if (histErr) {
+    alert("A identidade foi trocada, mas houve um erro ao mover parte do histórico:\n" + histErr + "\n\nRode o SQL supabase-troca-ssd-policies.sql no Supabase e tente de novo.");
+  } else {
+    alert("Troca concluída! Cada máquina ficou com o seu nome, departamento e histórico. O hardware se atualiza na próxima leitura de cada máquina.");
+  }
+});
+
 function isNetworkRecovery(alert) {
   const text = `${alert.title || ""} ${alert.message || ""} ${alert.connection_status || ""}`.toLowerCase();
   return /recovered|restored|online|connected|healthy|recuperad|restabelecid|normalizad/.test(text);

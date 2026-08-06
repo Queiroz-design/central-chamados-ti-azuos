@@ -460,6 +460,11 @@ select.status[data-status="Resolvido"]{background:#052e20;color:#bbf7d0;border-c
 .admin-body.light .perif-nome{color:#0f2a63}
 .admin-body.light .perif-opts label{color:#334155}
 .admin-body.light .transfer-perif{border-bottom-color:#eef2f8}
+/* Aviso do fluxo de trocar SSD */
+.swap-warn{margin:10px 0 14px;border:1px solid #1e3a5f;border-left:4px solid #38bdf8;border-radius:8px;padding:10px 14px;background:#0d1c2e;color:#cbd5e1;font-size:13px;line-height:1.5}
+.swap-warn b{color:#e2e8f0}
+.admin-body.light .swap-warn{background:#eef6ff;border-color:#bfdbfe;color:#334155}
+.admin-body.light .swap-warn b{color:#0f2a63}
 /* Aviso de máquina duplicada (mesma série, formatada) */
 .dup-banner{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#2a2108;border:1px solid #a16207;border-left:4px solid #f59e0b;border-radius:8px;padding:12px 16px;margin-bottom:16px}
 .dup-banner .dup-text{display:flex;flex-direction:column;gap:3px;min-width:0}
