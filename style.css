@@ -222,7 +222,7 @@ th{background:#f9fafb;color:var(--azul-escuro)}
 .hardware-live-value.critical{border-color:#ef4444;background:#3b1118}.hardware-live-value.critical strong{color:#fecdd3}
 .details-button{width:100%;margin-top:13px}
 .device-detail-backdrop{position:fixed;inset:0;z-index:1100;background:rgba(2,6,23,.9);padding:18px;overflow:auto}
-#transferModal{z-index:1200}
+#transferModal,#swapSsdModal,#manutencaoModal{z-index:1200}
 /* Central de Inteligencia - cards lado a lado (estilo inventario) */
 .intel-cards-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-bottom:16px}
 .intel-nav-card{display:flex;flex-direction:column;align-items:flex-start;gap:8px;text-align:left;background:#16213e;border:1px solid #2c3d5c;border-radius:12px;padding:16px 18px;cursor:pointer;color:#f8fafc;transition:transform .12s ease,box-shadow .12s ease}
