@@ -28,7 +28,24 @@ let networkAlerts = [];
 let networkLoadError = "";
 let ticketsPage = 1;
 const TICKETS_PER_PAGE = 25;
+let depositoMovPage = 1;
+const DEPOSITO_MOV_PER_PAGE = 10;
+let manutPage = 1;
+const MANUT_PER_PAGE = 10;
 let signalsCache = new Map();
+
+// Pager generico (usado nos historicos de deposito e manutencao).
+function renderPager(pagerId, total, totalPages, page, fnName, label, perPage) {
+  const pager = document.getElementById(pagerId);
+  if (!pager) return;
+  if (total <= perPage) { pager.innerHTML = total ? `<span class="pager-info">${total} ${label}</span>` : ""; return; }
+  pager.innerHTML = `
+    <button class="secondary small" ${page <= 1 ? "disabled" : ""} onclick="${fnName}(-1)">Anterior</button>
+    <span class="pager-info">Página ${page} de ${totalPages} &middot; ${total} ${label}</span>
+    <button class="secondary small" ${page >= totalPages ? "disabled" : ""} onclick="${fnName}(1)">Próxima</button>`;
+}
+window.changeDepositoMovPage = function (delta) { depositoMovPage += delta; renderDeposito(); };
+window.changeManutPage = function (delta) { manutPage += delta; renderManutencoes(); };
 let assetsRenderTimer = null;
 let hardwareView = "cards";
 let hardwareSort = { key: "nome", dir: "asc" };
@@ -73,6 +90,20 @@ document.getElementById("btnToggleSidebar")?.addEventListener("click", () => {
   document.querySelector(".admin-sidebar").classList.toggle("collapsed");
 });
 
+// Sub-guias dentro de Depósito, Manutenção e Orçamento.
+function abrirGuia(panelId, key) {
+  const scope = document.getElementById(panelId);
+  if (!scope) return;
+  scope.querySelectorAll(".subtab").forEach((b) => b.classList.toggle("active", b.dataset.subtab === key));
+  scope.querySelectorAll(".subpane").forEach((p) => p.classList.toggle("hidden", p.dataset.subpane !== key));
+}
+document.querySelectorAll(".subtab").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const scope = btn.closest(".tab-panel");
+    abrirGuia(scope ? scope.id : "", btn.dataset.subtab);
+  });
+});
+
 // Filtros clicaveis: caixas de saude e caixas de estado ao vivo (um por vez).
 function updateFilterActiveClasses() {
   document.querySelectorAll(".health-filter").forEach((b) => b.classList.toggle("active", b.dataset.health === hardwareHealthFilter && hardwareHealthFilter !== ""));
@@ -104,16 +135,13 @@ document.querySelectorAll(".live-filter").forEach((box) => {
 });
 
 function showTab(tabName) {
-  const selectedPanel = document.getElementById(`tab-${tabName}`);
-  const shouldOpen = selectedPanel && !selectedPanel.classList.contains("active");
-
   document.querySelectorAll(".side-tab").forEach((button) => {
-    button.classList.toggle("active", shouldOpen && button.dataset.tab === tabName);
+    button.classList.toggle("active", button.dataset.tab === tabName);
   });
-
   document.querySelectorAll(".tab-panel").forEach((panel) => {
-    panel.classList.toggle("active", shouldOpen && panel.id === `tab-${tabName}`);
+    panel.classList.toggle("active", panel.id === `tab-${tabName}`);
   });
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 // Abre uma aba de forma direta (usado pelos quadros clicaveis).
@@ -2118,7 +2146,20 @@ function renderDeposito() {
       const maq = m.computer_label ? ` <span class="muted">→ ${escapeHtml(m.computer_label)}</span>` : "";
       return base + maq;
     };
-    movBody.innerHTML = depositoMovs.length ? depositoMovs.map((m) => `
+    const termo = (document.getElementById("depositoMovSearch")?.value || "").trim().toLowerCase();
+    const filtrados = depositoMovs.filter((m) => {
+      if (!termo) return true;
+      const info = infoById[m.item_id];
+      const hay = [info ? info.nome : "", m.item_nome, m.computer_label, m.responsavel, m.observacao, m.tipo]
+        .map((x) => String(x || "")).join(" ").toLowerCase();
+      return hay.includes(termo);
+    });
+    const totalPages = Math.max(1, Math.ceil(filtrados.length / DEPOSITO_MOV_PER_PAGE));
+    if (depositoMovPage > totalPages) depositoMovPage = totalPages;
+    if (depositoMovPage < 1) depositoMovPage = 1;
+    const ini = (depositoMovPage - 1) * DEPOSITO_MOV_PER_PAGE;
+    const pageItems = filtrados.slice(ini, ini + DEPOSITO_MOV_PER_PAGE);
+    movBody.innerHTML = pageItems.length ? pageItems.map((m) => `
       <tr>
         <td>${escapeHtml(new Date(m.created_at).toLocaleString("pt-BR"))}</td>
         <td>${movItemCell(m)}</td>
@@ -2132,7 +2173,8 @@ function renderDeposito() {
           <button class="secondary small remove-hw" onclick="excluirMovimentacao('${m.id}')">Excluir</button>
         </div></td>
       </tr>
-    `).join("") : '<tr><td colspan="7">Nenhuma movimentação ainda.</td></tr>';
+    `).join("") : `<tr><td colspan="7">${termo ? "Nada encontrado para a busca." : "Nenhuma movimentação ainda."}</td></tr>`;
+    renderPager("depositoMovPager", filtrados.length, totalPages, depositoMovPage, "changeDepositoMovPage", "movimentações", DEPOSITO_MOV_PER_PAGE);
   }
 }
 
@@ -2203,6 +2245,7 @@ document.getElementById("btnCloseDepositoItem")?.addEventListener("click", () =>
 document.getElementById("btnCloseDepositoMov")?.addEventListener("click", () => document.getElementById("depositoMovModal").classList.add("hidden"));
 document.getElementById("depositoCategoryFilter")?.addEventListener("change", renderDeposito);
 document.getElementById("depositoCondFilter")?.addEventListener("change", renderDeposito);
+document.getElementById("depositoMovSearch")?.addEventListener("input", () => { depositoMovPage = 1; renderDeposito(); });
 
 document.getElementById("depositoItemForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2386,7 +2429,12 @@ function renderManutencoes() {
   }
 
   const filter = document.getElementById("manutencaoFilter").value;
-  const rows = filter ? manutencoes.filter((m) => (m.computer_name || m.computer_label) === filter) : manutencoes;
+  const allRows = filter ? manutencoes.filter((m) => (m.computer_name || m.computer_label) === filter) : manutencoes;
+  const totalPagesM = Math.max(1, Math.ceil(allRows.length / MANUT_PER_PAGE));
+  if (manutPage > totalPagesM) manutPage = totalPagesM;
+  if (manutPage < 1) manutPage = 1;
+  const iniM = (manutPage - 1) * MANUT_PER_PAGE;
+  const rows = allRows.slice(iniM, iniM + MANUT_PER_PAGE);
   body.innerHTML = rows.length ? rows.map((m) => `
     <tr>
       <td>${escapeHtml(new Date(m.data).toLocaleDateString("pt-BR"))}</td>
@@ -2400,6 +2448,7 @@ function renderManutencoes() {
       </div></td>
     </tr>
   `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
+  renderPager("manutencaoPager", allRows.length, totalPagesM, manutPage, "changeManutPage", "manutenções", MANUT_PER_PAGE);
 }
 // Painel de manutenção preventiva pendente (na aba Manutenção).
 function renderPreventivaPanel() {
@@ -2446,6 +2495,8 @@ window.filtrarManutencao = function filtrarManutencao(key) {
   const sel = document.getElementById("manutencaoFilter");
   if (!sel || !key) return;
   sel.value = sel.value === key ? "" : key;
+  manutPage = 1;
+  abrirGuia("tab-manutencao", "manut-hist");
   renderManutencoes();
   document.getElementById("manutencaoBody")?.closest(".table-wrap")?.scrollIntoView({ behavior: "smooth", block: "center" });
 };
@@ -2488,7 +2539,7 @@ window.abrirManutencaoPara = function abrirManutencaoPara(id) {
 document.getElementById("btnManutMaquina")?.addEventListener("click", () => { if (selectedHardwareId) abrirManutencaoPara(selectedHardwareId); });
 document.getElementById("manutencaoComputador")?.addEventListener("change", toggleManutencaoOutro);
 document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
-document.getElementById("manutencaoFilter")?.addEventListener("change", renderManutencoes);
+document.getElementById("manutencaoFilter")?.addEventListener("change", () => { manutPage = 1; renderManutencoes(); });
 
 document.getElementById("manutencaoForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -2967,7 +3018,7 @@ document.getElementById("btnPrintOrcamento")?.addEventListener("click", () => { 
 (function decorateSectionHeaders() {
   const svg = (paths) => `<svg class="head-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${paths}</svg>`;
   const ICONS = {
-    "chamados-principal": svg('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>'),
+    "tab-chamados": svg('<path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/>'),
     "tab-dashboard": svg('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'),
     "tab-inventario": svg('<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>'),
     "tab-rede": svg('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>'),

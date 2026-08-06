@@ -26,6 +26,7 @@
 <main class="admin-shell">
   <aside class="admin-sidebar">
     <button id="btnToggleSidebar" class="sidebar-toggle" type="button" aria-label="Abrir ou fechar o menu">&#9776; Menu</button>
+    <button class="side-tab active" data-tab="chamados"><svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg><span class="side-label">Chamados</span></button>
     <button class="side-tab" data-tab="dashboard"><svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg><span class="side-label">Dashboard</span></button>
     <button class="side-tab" data-tab="inventario"><svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg><span class="side-label">Inventário</span></button>
     <button class="side-tab" data-tab="rede"><svg class="side-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg><span class="side-label">Rede</span> <b id="networkBadge" class="network-badge hidden">0</b></button>
@@ -36,7 +37,7 @@
   </aside>
 
   <div class="admin-content">
-  <section id="chamados-principal" class="card tickets-card">
+  <section id="tab-chamados" class="card tickets-card tab-panel active">
     <div class="admin-top">
       <h2>Chamados</h2>
       <button id="btnExport" class="secondary">Baixar relatório</button>
@@ -287,43 +288,60 @@
     </div>
     <div id="depositoMetrics" class="ticket-metrics"></div>
 
-    <section class="panel reserva-panel">
-      <h3>Máquinas em reserva — disponíveis <span id="reservaMaquinasCount" class="reserva-count">0</span></h3>
-      <p class="section-note">Puxadas automaticamente do inventário: toda máquina sem departamento entra aqui como reserva (parada, pronta para substituir outra). Não precisa cadastrar manualmente.</p>
+    <div class="subtabs">
+      <button type="button" class="subtab active" data-subtab="dep-pecas">Peças</button>
+      <button type="button" class="subtab" data-subtab="dep-hist">Histórico</button>
+      <button type="button" class="subtab" data-subtab="dep-reserva">Máquinas em reserva</button>
+    </div>
+
+    <div class="subpane" data-subpane="dep-pecas">
+      <div class="inventory-toolbar">
+        <label>Categoria
+          <select id="depositoCategoryFilter">
+            <option value="">Todas as categorias</option>
+          </select>
+        </label>
+        <label>Condição
+          <select id="depositoCondFilter">
+            <option value="">Todas</option>
+            <option value="Novo">Novo</option>
+            <option value="Usado">Usado</option>
+          </select>
+        </label>
+      </div>
       <div class="table-wrap">
-        <table class="pro-table">
-          <thead><tr><th>Máquina</th><th>Processador</th><th>Memória</th><th>Disco</th><th>Situação</th><th>Ação</th></tr></thead>
-          <tbody id="reservaMaquinasBody"></tbody>
+        <table class="deposito-table pro-table">
+          <thead><tr><th>Categoria</th><th>Descrição</th><th>Condição</th><th>Em estoque</th><th>Ações</th></tr></thead>
+          <tbody id="depositoBody"></tbody>
         </table>
       </div>
-    </section>
+    </div>
 
-    <div class="inventory-toolbar">
-      <label>Categoria
-        <select id="depositoCategoryFilter">
-          <option value="">Todas as categorias</option>
-        </select>
-      </label>
-      <label>Condição
-        <select id="depositoCondFilter">
-          <option value="">Todas</option>
-          <option value="Novo">Novo</option>
-          <option value="Usado">Usado</option>
-        </select>
-      </label>
+    <div class="subpane hidden" data-subpane="dep-hist">
+      <h3 class="deposito-mov-title">Últimas movimentações</h3>
+      <div class="filters">
+        <input type="text" id="depositoMovSearch" placeholder="Buscar por item, máquina, responsável ou observação...">
+      </div>
+      <div class="table-wrap">
+        <table class="deposito-mov-table pro-table">
+          <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th><th>Ações</th></tr></thead>
+          <tbody id="depositoMovBody"></tbody>
+        </table>
+      </div>
+      <div id="depositoMovPager" class="pager"></div>
     </div>
-    <div class="table-wrap">
-      <table class="deposito-table pro-table">
-        <thead><tr><th>Categoria</th><th>Descrição</th><th>Condição</th><th>Em estoque</th><th>Ações</th></tr></thead>
-        <tbody id="depositoBody"></tbody>
-      </table>
-    </div>
-    <h3 class="deposito-mov-title">Últimas movimentações</h3>
-    <div class="table-wrap">
-      <table class="deposito-mov-table pro-table">
-        <thead><tr><th>Data</th><th>Item</th><th>Tipo</th><th>Qtd</th><th>Responsável</th><th>Observação</th><th>Ações</th></tr></thead>
-        <tbody id="depositoMovBody"></tbody>
-      </table>
+
+    <div class="subpane hidden" data-subpane="dep-reserva">
+      <section class="panel reserva-panel">
+        <h3>Máquinas em reserva — disponíveis <span id="reservaMaquinasCount" class="reserva-count">0</span></h3>
+        <p class="section-note">Puxadas automaticamente do inventário: toda máquina sem departamento entra aqui como reserva (parada, pronta para substituir outra). Não precisa cadastrar manualmente.</p>
+        <div class="table-wrap">
+          <table class="pro-table">
+            <thead><tr><th>Máquina</th><th>Processador</th><th>Memória</th><th>Disco</th><th>Situação</th><th>Ação</th></tr></thead>
+            <tbody id="reservaMaquinasBody"></tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </section>
 
@@ -335,38 +353,49 @@
       </div>
       <button id="btnAddManutencao" class="secondary">Registrar manutenção</button>
     </div>
-    <div id="manutencaoMetrics" class="ticket-metrics"></div>
-    <div id="manutencaoAlertas" class="manut-alertas"></div>
+    <div class="subtabs">
+      <button type="button" class="subtab active" data-subtab="manut-resumo">Resumo</button>
+      <button type="button" class="subtab" data-subtab="manut-hist">Histórico</button>
+    </div>
 
-    <section class="panel preventiva-panel">
-      <button type="button" id="preventivaToggle" class="overload-header" aria-expanded="false">
-        <span class="overload-htext">🛠️ Manutenção preventiva pendente</span>
-        <span id="preventivaSummary" class="overload-summary"></span>
-        <span id="preventivaChevron" class="overload-chevron">▸</span>
-      </button>
-      <div id="preventivaBody" class="overload-body hidden">
-        <p class="section-note">Cada máquina precisa de preventiva a cada 6 meses (pasta térmica, limpeza). Estas estão sem preventiva ou já passaram de 6 meses. Clique para abrir a máquina no inventário.</p>
-        <div id="preventivaList" class="overload-list"></div>
+    <div class="subpane" data-subpane="manut-resumo">
+      <div id="manutencaoMetrics" class="ticket-metrics"></div>
+      <div id="manutencaoAlertas" class="manut-alertas"></div>
+
+      <section class="panel preventiva-panel">
+        <button type="button" id="preventivaToggle" class="overload-header" aria-expanded="false">
+          <span class="overload-htext">🛠️ Manutenção preventiva pendente</span>
+          <span id="preventivaSummary" class="overload-summary"></span>
+          <span id="preventivaChevron" class="overload-chevron">▸</span>
+        </button>
+        <div id="preventivaBody" class="overload-body hidden">
+          <p class="section-note">Cada máquina precisa de preventiva a cada 6 meses (pasta térmica, limpeza). Estas estão sem preventiva ou já passaram de 6 meses. Clique para abrir a máquina no inventário.</p>
+          <div id="preventivaList" class="overload-list"></div>
+        </div>
+      </section>
+      <h3 class="deposito-mov-title">Manutenções por computador</h3>
+      <div class="table-wrap">
+        <table class="deposito-table pro-table">
+          <thead><tr><th>Computador</th><th>No mês</th><th>Total</th></tr></thead>
+          <tbody id="manutencaoRankBody"></tbody>
+        </table>
       </div>
-    </section>
-    <h3 class="deposito-mov-title">Manutenções por computador</h3>
-    <div class="table-wrap">
-      <table class="deposito-table pro-table">
-        <thead><tr><th>Computador</th><th>No mês</th><th>Total</th></tr></thead>
-        <tbody id="manutencaoRankBody"></tbody>
-      </table>
     </div>
-    <div class="inventory-toolbar">
-      <label>Computador
-        <select id="manutencaoFilter"><option value="">Todos os computadores</option></select>
-      </label>
-    </div>
-    <h3 class="deposito-mov-title">Histórico</h3>
-    <div class="table-wrap">
-      <table class="deposito-mov-table pro-table">
-        <thead><tr><th>Data</th><th>Computador</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th><th>Ações</th></tr></thead>
-        <tbody id="manutencaoBody"></tbody>
-      </table>
+
+    <div class="subpane hidden" data-subpane="manut-hist">
+      <div class="inventory-toolbar">
+        <label>Computador
+          <select id="manutencaoFilter"><option value="">Todos os computadores</option></select>
+        </label>
+      </div>
+      <h3 class="deposito-mov-title">Histórico</h3>
+      <div class="table-wrap">
+        <table class="deposito-mov-table pro-table">
+          <thead><tr><th>Data</th><th>Computador</th><th>Tipo</th><th>O que foi feito</th><th>Responsável</th><th>Ações</th></tr></thead>
+          <tbody id="manutencaoBody"></tbody>
+        </table>
+      </div>
+      <div id="manutencaoPager" class="pager"></div>
     </div>
   </section>
 
@@ -451,37 +480,47 @@
       </div>
     </div>
     <div id="orcamentoCardsView">
-      <section class="panel">
-        <h3>O que comprar (necessidades × depósito)</h3>
-        <p class="section-note">Cruza o que as máquinas precisam com o estoque do depósito. Clique em um card para ver os itens.</p>
-        <div class="intel-cards-grid orc-cards-grid">
-          <button type="button" class="intel-nav-card" data-orc="comprar">
-            <span class="intel-nav-icon">🛒</span>
-            <span class="intel-nav-title">Precisa comprar</span>
-            <span class="intel-nav-badge" id="orcComprarCount"></span>
-          </button>
-          <button type="button" class="intel-nav-card" data-orc="estoque">
-            <span class="intel-nav-icon">✅</span>
-            <span class="intel-nav-title">Já em estoque — não precisa comprar</span>
-            <span class="intel-nav-badge" id="orcEstoqueCount"></span>
-          </button>
-        </div>
-        <div class="intel-detail-panel hidden" id="orcNecessidadesPanel">
-          <div class="orc-pane hidden" data-orcpane="comprar">
-            <p class="section-note">Máquinas que precisam de peça e o depósito NÃO cobre (faltam ou estoque vazio).</p>
-            <div id="orcamentoComprar"></div>
+      <div class="subtabs">
+        <button type="button" class="subtab active" data-subtab="orc-comprar">O que comprar</button>
+        <button type="button" class="subtab" data-subtab="orc-precos">Referência de preços</button>
+      </div>
+
+      <div class="subpane" data-subpane="orc-comprar">
+        <section class="panel">
+          <h3>O que comprar (necessidades × depósito)</h3>
+          <p class="section-note">Cruza o que as máquinas precisam com o estoque do depósito. Clique em um card para ver os itens.</p>
+          <div class="intel-cards-grid orc-cards-grid">
+            <button type="button" class="intel-nav-card" data-orc="comprar">
+              <span class="intel-nav-icon">🛒</span>
+              <span class="intel-nav-title">Precisa comprar</span>
+              <span class="intel-nav-badge" id="orcComprarCount"></span>
+            </button>
+            <button type="button" class="intel-nav-card" data-orc="estoque">
+              <span class="intel-nav-icon">✅</span>
+              <span class="intel-nav-title">Já em estoque — não precisa comprar</span>
+              <span class="intel-nav-badge" id="orcEstoqueCount"></span>
+            </button>
           </div>
-          <div class="orc-pane hidden" data-orcpane="estoque">
-            <p class="section-note">Necessidades que o depósito já cobre — não precisa comprar agora.</p>
-            <div id="orcamentoEstoque"></div>
+          <div class="intel-detail-panel hidden" id="orcNecessidadesPanel">
+            <div class="orc-pane hidden" data-orcpane="comprar">
+              <p class="section-note">Máquinas que precisam de peça e o depósito NÃO cobre (faltam ou estoque vazio).</p>
+              <div id="orcamentoComprar"></div>
+            </div>
+            <div class="orc-pane hidden" data-orcpane="estoque">
+              <p class="section-note">Necessidades que o depósito já cobre — não precisa comprar agora.</p>
+              <div id="orcamentoEstoque"></div>
+            </div>
           </div>
-        </div>
-      </section>
-      <section class="panel">
-        <h3>Onde comprar — referência de preços e links</h3>
-        <p class="section-note">Faixas aproximadas — referência jul/2026 (variam com o dia/promoção). Os links abrem a busca atual na loja, sempre com o preço de hoje.</p>
-        <div id="orcamentoLinks" class="orc-links"></div>
-      </section>
+        </section>
+      </div>
+
+      <div class="subpane hidden" data-subpane="orc-precos">
+        <section class="panel">
+          <h3>Onde comprar — referência de preços e links</h3>
+          <p class="section-note">Faixas aproximadas — referência jul/2026 (variam com o dia/promoção). Os links abrem a busca atual na loja, sempre com o preço de hoje.</p>
+          <div id="orcamentoLinks" class="orc-links"></div>
+        </section>
+      </div>
     </div>
     <div id="orcamentoTableView" class="hidden">
       <div class="print-header">
