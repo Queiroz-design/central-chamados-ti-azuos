@@ -2334,6 +2334,7 @@ async function loadManutencoes() {
   if (error) { manutencoesLoadError = error.message; manutencoes = []; }
   else { manutencoesLoadError = ""; manutencoes = data || []; }
   renderManutencoes();
+  loadAgenda();
   // Atualiza o dashboard para refletir os alertas de maquinas.
   if (document.getElementById("statAlerts")) renderDashboard();
 }
@@ -2449,6 +2450,7 @@ function renderManutencoes() {
     </tr>
   `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
   renderPager("manutencaoPager", allRows.length, totalPagesM, manutPage, "changeManutPage", "manutenções", MANUT_PER_PAGE);
+  if (typeof renderAgenda === "function") renderAgenda();
 }
 // Painel de manutenção preventiva pendente (na aba Manutenção).
 function renderPreventivaPanel() {
@@ -2564,10 +2566,273 @@ document.getElementById("manutencaoForm")?.addEventListener("submit", async (eve
   const data = dataStr ? new Date(dataStr + "T12:00:00").toISOString() : new Date().toISOString();
   const { error } = await client.from("manutencoes").insert({ computer_name, computer_label, computer_department, tipo, descricao, responsavel, data });
   if (error) { alert("Erro ao salvar: " + error.message); return; }
+  // Se veio de um lembrete da Agenda, marca o lembrete como concluído.
+  if (pendingAgendaId) {
+    await client.from("manutencao_agenda").update({ status: "concluido" }).eq("id", pendingAgendaId);
+    pendingAgendaId = null;
+  }
   document.getElementById("manutencaoModal").classList.add("hidden");
   await loadManutencoes();
   if (selectedHardwareId) renderHardwareDetails();
 });
+
+// ============================================================
+// Agenda / lembretes de manutenção (o "despertador" da aba Manutenção)
+// ============================================================
+let manutencaoAgenda = [];
+let agendaLoadError = "";
+let pendingAgendaId = null;   // lembrete que será concluído ao salvar a manutenção
+let sugestaoIndex = 0;        // paginação das sugestões (2 em 2)
+let agendaNotified = false;   // evita repetir a notificação do navegador na mesma sessão
+
+async function loadAgenda() {
+  if (!document.getElementById("agendaHoje")) return;
+  const { data, error } = await client.from("manutencao_agenda").select("*").order("data", { ascending: true });
+  if (error) { agendaLoadError = error.message; manutencaoAgenda = []; }
+  else { agendaLoadError = ""; manutencaoAgenda = data || []; }
+  renderAgenda();
+}
+
+function fillAgendaComputers() {
+  const sel = document.getElementById("agendaComputador");
+  if (!sel) return;
+  const machines = [...hardwareAssets]
+    .map((a) => ({ name: a.computer_name, label: a.display_name || a.computer_name, dept: getAssetDepartment(a) }))
+    .sort((a, b) => String(a.label).localeCompare(String(b.label), "pt-BR", { numeric: true }));
+  sel.innerHTML = machines.map((m) => `<option value="${escapeHtml(m.name)}">${escapeHtml(m.label)}${m.dept ? " — " + escapeHtml(m.dept) : ""} (${escapeHtml(m.name)})</option>`).join("");
+}
+
+window.abrirAgendarModal = function abrirAgendarModal(computerName, descricao) {
+  document.getElementById("agendaForm").reset();
+  document.getElementById("agendaEditId").value = "";
+  fillAgendaComputers();
+  if (computerName) document.getElementById("agendaComputador").value = computerName;
+  if (descricao) document.getElementById("agendaDescricao").value = descricao;
+  const t = new Date(); t.setDate(t.getDate() + 1); // padrão: amanhã
+  document.getElementById("agendaData").value = t.toISOString().slice(0, 10);
+  document.getElementById("agendaModal").classList.remove("hidden");
+};
+document.getElementById("btnAddAgenda")?.addEventListener("click", () => abrirAgendarModal());
+document.getElementById("btnCloseAgenda")?.addEventListener("click", () => document.getElementById("agendaModal").classList.add("hidden"));
+
+document.getElementById("agendaForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const computer_name = document.getElementById("agendaComputador").value;
+  const dataVal = document.getElementById("agendaData").value;
+  if (!computer_name || !dataVal) { alert("Escolha a máquina e a data."); return; }
+  const asset = hardwareAssets.find((a) => a.computer_name === computer_name);
+  const computer_label = asset ? (asset.display_name || asset.computer_name) : computer_name;
+  const descricao = document.getElementById("agendaDescricao").value.trim() || null;
+  const editId = document.getElementById("agendaEditId").value;
+  let error;
+  if (editId) {
+    ({ error } = await client.from("manutencao_agenda").update({ computer_name, computer_label, data: dataVal, descricao }).eq("id", editId));
+  } else {
+    ({ error } = await client.from("manutencao_agenda").insert({ computer_name, computer_label, data: dataVal, descricao, status: "pendente" }));
+  }
+  if (error) { alert("Erro ao salvar o lembrete: " + error.message + "\n\nVocê rodou o SQL supabase-manutencao-agenda.sql no Supabase?"); return; }
+  document.getElementById("agendaModal").classList.add("hidden");
+  await loadAgenda();
+});
+
+function agendaHojeStr() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function agendaDataObj(r) { return new Date(r.data + "T00:00:00"); }
+function agendaFmt(r) { return agendaDataObj(r).toLocaleDateString("pt-BR"); }
+
+// Sugestões: 1º as mais urgentes (sem manutenção + pouca RAM/armazenamento);
+// se não houver nenhuma, as que vivem em 100% (CPU/memória/disco).
+function getManutencaoSugestoes() {
+  const tier1 = hardwareAssets
+    .filter((a) => a.cpu_name && !isReservaAsset(a))
+    .map((a) => {
+      const pv = preventivaInfo(a);
+      const ram = Number(a.memory_total_gb || 0);
+      const ssdBad = needsSsdUpgrade(a);
+      let score = 0; const motivos = [];
+      if (pv.status === "nunca") { score += 100; motivos.push("nunca teve manutenção"); }
+      else if (pv.status === "vencida") { score += 50 + (pv.meses || 0); motivos.push(`preventiva vencida (${pv.meses} meses)`); }
+      if (ram && ram <= 4) { score += 40; motivos.push(`pouca memória (${ram}GB)`); }
+      else if (ram && ram <= 8) { score += 20; motivos.push(`memória baixa (${ram}GB)`); }
+      if (ssdBad) { score += 30; motivos.push(assetHasSSD(a) ? `SSD pequeno (${assetSsdGb(a)}GB)` : "sem SSD (só HD)"); }
+      return { asset: a, score, motivos };
+    })
+    .filter((x) => x.score > 0)
+    .sort((a, b) => b.score - a.score);
+  if (tier1.length) return { tipo: "manutencao", lista: tier1 };
+
+  const overload = getOverloadedMachines().filter((m) => m.mes > 0);
+  const tier2 = overload.map((m) => {
+    const a = findAssetByComputerName(m.computer_name);
+    const metricsTxt = Object.entries(m.metrics).sort((x, y) => y[1] - x[1]).map(([k, v]) => `${k} ${v}×`).join(" · ");
+    return { asset: a, score: m.mes, motivos: [`picos de ${metricsTxt} este mês`] };
+  }).filter((x) => x.asset).sort((a, b) => b.score - a.score);
+  return { tipo: "sobrecarga", lista: tier2 };
+}
+
+window.proximasSugestoes = function proximasSugestoes() {
+  const { lista } = getManutencaoSugestoes();
+  sugestaoIndex += 2;
+  if (sugestaoIndex >= lista.length) sugestaoIndex = 0;
+  renderAgenda();
+};
+window.agendaDaSugestao = function agendaDaSugestao(computerName, motivos) { abrirAgendarModal(computerName, motivos); };
+
+window.agendaRegistrar = function agendaRegistrar(id) {
+  const r = manutencaoAgenda.find((x) => String(x.id) === String(id));
+  if (!r) return;
+  document.getElementById("manutencaoForm").reset();
+  document.getElementById("manutencaoTipo").innerHTML = MANUTENCAO_TIPOS.map((t) => `<option>${escapeHtml(t)}</option>`).join("");
+  fillManutencaoComputers();
+  const sel = document.getElementById("manutencaoComputador");
+  if (sel) sel.value = r.computer_name;
+  toggleManutencaoOutro();
+  if (r.descricao) document.getElementById("manutencaoDescricao").value = r.descricao;
+  document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
+  pendingAgendaId = r.id;
+  document.getElementById("manutencaoModal").classList.remove("hidden");
+};
+window.agendaConcluir = async function agendaConcluir(id) {
+  const { error } = await client.from("manutencao_agenda").update({ status: "concluido" }).eq("id", id);
+  if (error) { alert("Erro: " + error.message); return; }
+  await loadAgenda();
+};
+window.agendaAdiar = async function agendaAdiar(id) {
+  const r = manutencaoAgenda.find((x) => String(x.id) === String(id));
+  if (!r) return;
+  const d = agendaDataObj(r); d.setDate(d.getDate() + 1);
+  const { error } = await client.from("manutencao_agenda").update({ data: d.toISOString().slice(0, 10) }).eq("id", id);
+  if (error) { alert("Erro: " + error.message); return; }
+  await loadAgenda();
+};
+window.agendaEditar = function agendaEditar(id) {
+  const r = manutencaoAgenda.find((x) => String(x.id) === String(id));
+  if (!r) return;
+  document.getElementById("agendaForm").reset();
+  fillAgendaComputers();
+  document.getElementById("agendaEditId").value = r.id;
+  document.getElementById("agendaComputador").value = r.computer_name;
+  document.getElementById("agendaData").value = r.data;
+  document.getElementById("agendaDescricao").value = r.descricao || "";
+  document.getElementById("agendaModal").classList.remove("hidden");
+};
+window.agendaExcluir = async function agendaExcluir(id) {
+  if (!confirm("Excluir este lembrete?")) return;
+  const { error } = await client.from("manutencao_agenda").delete().eq("id", id);
+  if (error) { alert("Erro: " + error.message); return; }
+  await loadAgenda();
+};
+
+function updateAgendaBadges(n) {
+  [document.getElementById("agendaBadge"), document.getElementById("manutencaoSideBadge")].forEach((b) => {
+    if (!b) return;
+    b.textContent = n;
+    b.classList.toggle("hidden", n <= 0);
+  });
+}
+
+function renderAgenda() {
+  const hojeEl = document.getElementById("agendaHoje");
+  const proxEl = document.getElementById("agendaProximos");
+  const sugEl = document.getElementById("agendaSugestoes");
+  if (!hojeEl) return;
+
+  if (agendaLoadError) {
+    hojeEl.innerHTML = `<div class="empty-state">Agenda ainda não disponível. Rode o SQL <b>supabase-manutencao-agenda.sql</b> no Supabase.</div>`;
+    if (proxEl) proxEl.innerHTML = "";
+    if (sugEl) sugEl.innerHTML = "";
+    updateAgendaBadges(0);
+    return;
+  }
+
+  const hoje = agendaHojeStr();
+  const pend = manutencaoAgenda.filter((r) => r.status === "pendente");
+  const doDia = pend.filter((r) => agendaDataObj(r) <= hoje).sort((a, b) => agendaDataObj(a) - agendaDataObj(b));
+  const futuros = pend.filter((r) => agendaDataObj(r) > hoje).sort((a, b) => agendaDataObj(a) - agendaDataObj(b));
+  updateAgendaBadges(doDia.length);
+
+  // ---- Para hoje (alerta / despertador) ----
+  if (doDia.length) {
+    hojeEl.innerHTML = `<h4 class="agenda-h">⏰ Para hoje</h4>` + doDia.map((r) => {
+      const atrasado = agendaDataObj(r) < hoje;
+      return `<div class="agenda-alert ${atrasado ? "late" : ""}">
+        <div class="agenda-alert-main">
+          <strong>${escapeHtml(r.computer_label || r.computer_name)}</strong>
+          ${atrasado ? `<span class="agenda-late-tag">atrasado desde ${agendaFmt(r)}</span>` : `<span class="agenda-today-tag">hoje</span>`}
+          <div class="agenda-desc">${escapeHtml(r.descricao || "Manutenção programada")}</div>
+        </div>
+        <div class="agenda-acts">
+          <button class="secondary small" onclick="agendaRegistrar('${r.id}')">Registrar agora</button>
+          <button class="secondary small" onclick="agendaAdiar('${r.id}')">Adiar 1 dia</button>
+          <button class="secondary small" onclick="agendaConcluir('${r.id}')">Concluir</button>
+          <button class="secondary small remove-hw" onclick="agendaExcluir('${r.id}')">Excluir</button>
+        </div>
+      </div>`;
+    }).join("");
+    notificarAgenda(doDia);
+  } else {
+    hojeEl.innerHTML = `<div class="agenda-none">Nenhuma manutenção programada para hoje. 👇 Veja as sugestões.</div>`;
+  }
+
+  // ---- Próximos lembretes ----
+  if (proxEl) {
+    proxEl.innerHTML = futuros.length
+      ? `<h4 class="agenda-h">Próximos lembretes</h4>` + futuros.map((r) => `
+        <div class="agenda-item">
+          <span class="agenda-date">${agendaFmt(r)}</span>
+          <span class="agenda-item-main"><strong>${escapeHtml(r.computer_label || r.computer_name)}</strong> — ${escapeHtml(r.descricao || "manutenção")}</span>
+          <span class="agenda-acts">
+            <button class="secondary small" onclick="agendaEditar('${r.id}')">Editar</button>
+            <button class="secondary small remove-hw" onclick="agendaExcluir('${r.id}')">Excluir</button>
+          </span>
+        </div>`).join("")
+      : "";
+  }
+
+  // ---- Sugestões (2 em 2), só quando não há nada para hoje ----
+  if (sugEl) {
+    if (doDia.length) {
+      sugEl.innerHTML = `<div class="section-note agenda-sug-note">Você tem lembrete(s) para hoje (acima). As sugestões automáticas aparecem nos dias sem lembrete.</div>`;
+    } else {
+      const { tipo, lista } = getManutencaoSugestoes();
+      if (!lista.length) {
+        sugEl.innerHTML = `<h4 class="agenda-h">Sugestões</h4><div class="empty-state">Nada urgente no momento. 👍</div>`;
+      } else {
+        if (sugestaoIndex >= lista.length) sugestaoIndex = 0;
+        const dois = lista.slice(sugestaoIndex, sugestaoIndex + 2);
+        const titulo = tipo === "manutencao"
+          ? "Sugestões — máquinas mais urgentes"
+          : "Sugestões — máquinas que vivem em 100% (CPU/memória/disco)";
+        sugEl.innerHTML = `<h4 class="agenda-h">${titulo}</h4>` + dois.map((s) => {
+          const a = s.asset;
+          const nome = a ? (a.display_name || a.computer_name) : "";
+          const dept = a ? getAssetDepartment(a) : "";
+          return `<div class="agenda-sug">
+            <div class="agenda-sug-main"><strong>${escapeHtml(nome)}</strong>${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}
+              <span class="agenda-sug-motivo">${escapeHtml(s.motivos.join(" · "))}</span></div>
+            <div class="agenda-acts">
+              ${a ? `<button class="secondary small" onclick="agendaDaSugestao('${escapeHtml(a.computer_name)}','${escapeHtml(s.motivos.join('; '))}')">Programar</button>` : ""}
+              ${a ? `<button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button>` : ""}
+            </div>
+          </div>`;
+        }).join("") + (lista.length > 2
+          ? `<div class="agenda-sug-more"><button class="secondary small" onclick="proximasSugestoes()">Ver outras 2 →</button> <span class="pager-info">${Math.min(sugestaoIndex + 2, lista.length)} de ${lista.length}</span></div>`
+          : "");
+      }
+    }
+  }
+}
+
+// Notificação do navegador (opcional) quando há manutenção para hoje.
+function notificarAgenda(doDia) {
+  if (agendaNotified || !doDia.length) return;
+  agendaNotified = true;
+  try {
+    if (!("Notification" in window)) return;
+    const show = () => new Notification("Manutenção para hoje — Grupo Azuos", { body: doDia.map((r) => r.computer_label || r.computer_name).join(", ") });
+    if (Notification.permission === "granted") show();
+    else if (Notification.permission !== "denied") Notification.requestPermission().then((p) => { if (p === "granted") show(); });
+  } catch (e) { /* ignore */ }
+}
 
 // ===== Central de Inteligencia (auditoria automatica dos dados) =====
 let upgradeFilter = ""; // "", "troca", "memoria", "ssd"

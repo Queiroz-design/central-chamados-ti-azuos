@@ -36,6 +36,40 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,"Inter","Roboto","H
 .admin-body.light .subtab{color:#64748b}
 .admin-body.light .subtab:hover{color:#0f2a63;background:#f1f5f9}
 .admin-body.light .subtab.active{color:#2563eb;border-bottom-color:#2563eb}
+/* Agenda / lembretes de manutenção */
+.mini-badge{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#f59e0b;color:#111827;font-size:11px;font-weight:800;margin-left:4px}
+.mini-badge.hidden{display:none}
+.agenda-top{align-items:center;gap:14px;flex-wrap:wrap}
+.agenda-h{margin:20px 0 10px;font-size:15px;color:#e2e8f0}
+.agenda-none{margin:6px 0 4px;color:#94a3b8;font-size:14px}
+.agenda-alert{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;background:#2a2108;border:1px solid #a16207;border-left:4px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:10px}
+.agenda-alert.late{background:#2a0f0f;border-color:#b91c1c;border-left-color:#ef4444}
+.agenda-alert-main{display:flex;flex-direction:column;gap:4px}
+.agenda-alert-main strong{color:#fff;font-size:15px}
+.agenda-desc{color:#e2e8f0;font-size:13px}
+.agenda-today-tag,.agenda-late-tag{display:inline-block;width:fit-content;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:2px}
+.agenda-today-tag{background:#f59e0b;color:#111827}
+.agenda-late-tag{background:#ef4444;color:#fff}
+.agenda-acts{display:flex;gap:6px;flex-wrap:wrap}
+.agenda-item{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;border:1px solid #26364a;border-radius:8px;background:#101827;margin-bottom:6px}
+.agenda-date{font-weight:800;color:#38bdf8;font-size:13px;min-width:88px}
+.agenda-item-main{flex:1;color:#cbd5e1;font-size:13px}
+.agenda-item-main strong{color:#e2e8f0}
+.agenda-sug{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;border:1px solid #1e3a5f;border-left:4px solid #38bdf8;border-radius:10px;background:#0d1c2e;margin-bottom:8px}
+.agenda-sug-main{display:flex;flex-direction:column;gap:3px}
+.agenda-sug-main strong{color:#e2e8f0;font-size:14px}
+.agenda-sug-main em{color:#94a3b8;font-style:normal;font-size:12px}
+.agenda-sug-motivo{color:#fbbf24;font-size:12.5px}
+.agenda-sug-more{display:flex;align-items:center;gap:12px;margin-top:6px}
+.agenda-sug-note{margin-top:16px}
+.admin-body.light .agenda-h{color:#0f2a63}
+.admin-body.light .agenda-item{background:#f4f7fb;border-color:#e2e8f0}
+.admin-body.light .agenda-item-main{color:#334155}
+.admin-body.light .agenda-item-main strong{color:#0f2a63}
+.admin-body.light .agenda-sug{background:#eef6ff;border-color:#bfdbfe}
+.admin-body.light .agenda-sug-main strong{color:#0f2a63}
+.admin-body.light .agenda-sug-motivo{color:#b45309}
+.admin-body.light .agenda-desc{color:#334155}
 .card{background:#fff;padding:30px;border-radius:14px;box-shadow:0 15px 40px rgba(15,23,42,.08);margin-bottom:24px;border:1px solid rgba(214,222,234,.75)}
 h2{margin-top:0;color:var(--azul);display:flex;align-items:center;gap:12px;font-size:25px}
 .title-icon{background:var(--azul-vivo);color:white;width:34px;height:34px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:22px}
