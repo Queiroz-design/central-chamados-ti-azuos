@@ -2615,6 +2615,30 @@ window.abrirAgendarModal = function abrirAgendarModal(computerName, descricao) {
 document.getElementById("btnAddAgenda")?.addEventListener("click", () => abrirAgendarModal());
 document.getElementById("btnCloseAgenda")?.addEventListener("click", () => document.getElementById("agendaModal").classList.add("hidden"));
 
+// Botão que pede permissão de notificação do navegador (o "despertador" que aparece fora do painel).
+function refreshNotifBtn() {
+  const btn = document.getElementById("btnAgendaNotif");
+  if (!btn) return;
+  if (!("Notification" in window)) { btn.style.display = "none"; return; }
+  if (Notification.permission === "granted") { btn.textContent = "🔔 Alertas ativados"; btn.disabled = true; }
+  else if (Notification.permission === "denied") { btn.textContent = "🔕 Alertas bloqueados"; btn.disabled = true; }
+  else { btn.textContent = "🔔 Ativar alertas"; btn.disabled = false; }
+}
+document.getElementById("btnAgendaNotif")?.addEventListener("click", () => {
+  if (!("Notification" in window)) { alert("Este navegador não suporta notificações."); return; }
+  Notification.requestPermission().then((p) => {
+    refreshNotifBtn();
+    if (p === "granted") {
+      new Notification("Alertas ativados — Grupo Azuos", { body: "Você será avisado quando houver manutenção programada para o dia." });
+      agendaNotified = false;
+      renderAgenda();
+    } else {
+      alert("Permissão não concedida. Você ainda vê os alertas dentro do painel, na aba Agenda.");
+    }
+  });
+});
+refreshNotifBtn();
+
 document.getElementById("agendaForm")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const computer_name = document.getElementById("agendaComputador").value;
@@ -2669,10 +2693,12 @@ function getManutencaoSugestoes() {
   return { tipo: "sobrecarga", lista: tier2 };
 }
 
-window.proximasSugestoes = function proximasSugestoes() {
+window.sugestoesNav = function sugestoesNav(delta) {
   const { lista } = getManutencaoSugestoes();
-  sugestaoIndex += 2;
-  if (sugestaoIndex >= lista.length) sugestaoIndex = 0;
+  if (!lista.length) return;
+  sugestaoIndex += delta * 2;
+  if (sugestaoIndex >= lista.length) sugestaoIndex = 0;              // passou do fim -> volta ao começo
+  if (sugestaoIndex < 0) sugestaoIndex = (Math.ceil(lista.length / 2) - 1) * 2; // antes do início -> última dupla
   renderAgenda();
 };
 window.agendaDaSugestao = function agendaDaSugestao(computerName, motivos) { abrirAgendarModal(computerName, motivos); };
@@ -2815,7 +2841,11 @@ function renderAgenda() {
             </div>
           </div>`;
         }).join("") + (lista.length > 2
-          ? `<div class="agenda-sug-more"><button class="secondary small" onclick="proximasSugestoes()">Ver outras 2 →</button> <span class="pager-info">${Math.min(sugestaoIndex + 2, lista.length)} de ${lista.length}</span></div>`
+          ? `<div class="agenda-sug-more">
+               <button class="secondary small" onclick="sugestoesNav(-1)">← Voltar</button>
+               <button class="secondary small" onclick="sugestoesNav(1)">Ver outras 2 →</button>
+               <span class="pager-info">${sugestaoIndex + 1}–${Math.min(sugestaoIndex + 2, lista.length)} de ${lista.length}</span>
+             </div>`
           : "");
       }
     }
