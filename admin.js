@@ -992,6 +992,7 @@ hardwareEditForm.addEventListener("submit", async (event) => {
   }
   closeHardwareEdit();
   await loadTickets();
+  if (selectedHardwareId) renderHardwareDetails();
 });
 
 function updateHardwareSummary(assets = getFilteredHardwareAssets()) {
@@ -2543,6 +2544,7 @@ window.abrirManutencaoPara = function abrirManutencaoPara(id) {
   document.getElementById("manutencaoData").value = new Date().toISOString().slice(0, 10);
   document.getElementById("manutencaoModal").classList.remove("hidden");
 };
+document.getElementById("btnEditMaquina")?.addEventListener("click", () => { if (selectedHardwareId) editHardware(selectedHardwareId); });
 document.getElementById("btnManutMaquina")?.addEventListener("click", () => { if (selectedHardwareId) abrirManutencaoPara(selectedHardwareId); });
 document.getElementById("manutencaoComputador")?.addEventListener("change", toggleManutencaoOutro);
 document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
