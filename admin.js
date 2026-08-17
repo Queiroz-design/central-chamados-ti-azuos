@@ -653,6 +653,9 @@ function getFilteredHardwareAssets() {
     ? hardwareAssets.filter((asset) => normalizeText(getAssetDepartment(asset)) === department)
     : hardwareAssets.slice();
   if (hardwareTypeFilter) list = list.filter((asset) => getAssetType(asset) === hardwareTypeFilter);
+  const cpuSel = document.getElementById("hardwareCpuFilter");
+  const cpuKey = cpuSel ? cpuSel.value : "";
+  if (cpuKey) list = list.filter((asset) => cpuFilterKey(asset) === cpuKey);
   if (search) {
     list = list.filter((asset) =>
       `${asset.display_name || ""} ${asset.computer_name || ""} ${getAssetDepartment(asset)} ${asset.model || ""} ${asset.cpu_name || ""} ${asset.manufacturer || ""}`
@@ -754,6 +757,7 @@ function liveMetric(label, value) {
 
 function renderAssets() {
   signalsCache.clear();
+  fillCpuFilter();
   applyHardwareView();
   const setupNotice = document.getElementById("performanceSetupNotice");
   setupNotice.classList.toggle("hidden", !performanceLoadError);
@@ -1883,6 +1887,7 @@ document.getElementById("btnExport").addEventListener("click", () => {
 hardwareDepartmentFilter.addEventListener("change", () => { orcMachineFilter = ""; renderAssets(); });
 try { hardwareView = localStorage.getItem("hardwareView") || "cards"; } catch (e) {}
 document.getElementById("hardwareSearch")?.addEventListener("input", debounce(() => { orcMachineFilter = ""; renderAssets(); }, 250));
+document.getElementById("hardwareCpuFilter")?.addEventListener("change", () => { orcMachineFilter = ""; renderAssets(); });
 document.getElementById("btnViewCards")?.addEventListener("click", () => { hardwareView = "cards"; try { localStorage.setItem("hardwareView", "cards"); } catch (e) {} applyHardwareView(); });
 document.getElementById("btnViewTable")?.addEventListener("click", () => { hardwareView = "table"; try { localStorage.setItem("hardwareView", "table"); } catch (e) {} applyHardwareView(); });
 
@@ -2880,6 +2885,42 @@ function cpuGeneration(name) {
   if (ryzen) return parseInt(ryzen[1], 10);
   return 0;
 }
+// Familia do processador (i3/i5/i7/i9, Ryzen 5, Celeron, etc.) para o filtro do inventario.
+function cpuFamily(name) {
+  const s = String(name || "");
+  let m = s.match(/i([3579])[\s-]?\d{3,5}/i) || s.match(/\bi([3579])\b/i);
+  if (m) return "i" + m[1];
+  m = s.match(/ryzen\s+(\d+)/i);
+  if (m) return "Ryzen " + m[1];
+  if (/celeron/i.test(s)) return "Celeron";
+  if (/pentium/i.test(s)) return "Pentium";
+  if (/xeon/i.test(s)) return "Xeon";
+  if (/athlon/i.test(s)) return "Athlon";
+  return s.trim() ? "Outro" : "Sem dado";
+}
+function cpuFilterKey(asset) { return cpuFamily(asset.cpu_name) + "|" + cpuGeneration(asset.cpu_name); }
+function cpuFilterLabel(key) {
+  const [fam, genStr] = key.split("|");
+  const gen = Number(genStr);
+  if (fam === "Sem dado") return "Sem processador identificado";
+  return gen > 0 ? `${fam} · ${gen}ª geração` : `${fam} · geração não identificada`;
+}
+// Preenche o select de processador com as familias/gerações que existem no inventario (com contagem).
+function fillCpuFilter() {
+  const sel = document.getElementById("hardwareCpuFilter");
+  if (!sel) return;
+  const counts = {};
+  hardwareAssets.forEach((a) => { const k = cpuFilterKey(a); counts[k] = (counts[k] || 0) + 1; });
+  const famOrder = (f) => { const o = { i3: 1, i5: 2, i7: 3, i9: 4 }; if (o[f]) return o[f]; if (/^Ryzen/.test(f)) return 5; if (f === "Sem dado") return 99; return 8; };
+  const keys = Object.keys(counts).sort((a, b) => {
+    const [fa, ga] = a.split("|"), [fb, gb] = b.split("|");
+    return famOrder(fa) - famOrder(fb) || String(fa).localeCompare(fb) || Number(gb) - Number(ga);
+  });
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Todos os processadores</option>' +
+    keys.map((k) => `<option value="${escapeHtml(k)}">${escapeHtml(cpuFilterLabel(k))} (${counts[k]})</option>`).join("");
+  if ([...sel.options].some((o) => o.value === current)) sel.value = current;
+}
 function assetHasSSD(asset) {
   const disks = Array.isArray(asset.disks) ? asset.disks : [];
   const t = disks.map((d) => `${d.media_type || ""} ${d.model || ""}`).join(" ").toLowerCase();
@@ -3220,6 +3261,8 @@ window.abrirInventarioOrc = function abrirInventarioOrc(key) {
   const searchInput = document.getElementById("hardwareSearch");
   if (searchInput) searchInput.value = "";
   if (hardwareDepartmentFilter) hardwareDepartmentFilter.value = "";
+  const cpuSel = document.getElementById("hardwareCpuFilter");
+  if (cpuSel) cpuSel.value = "";
   orcMachineFilter = key;
   window.irParaAba("inventario");
   renderAssets();
