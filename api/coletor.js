@@ -102,6 +102,12 @@ module.exports = async function handler(req, res) {
   const prefer = typeof body.prefer === "string" ? body.prefer : "";
   const payload = body.payload;
 
+  // Carimba a hora do SERVIDOR no last_seen da telemetria ao vivo.
+  // Assim o "Online/Offline" nao depende do relogio (as vezes errado) das maquinas.
+  if (table === "hardware_live_status" && payload && typeof payload === "object") {
+    payload.last_seen = new Date().toISOString();
+  }
+
   if (!ALLOWED[table] || !ALLOWED[table].includes(method)) {
     return res.status(403).json({ error: "Operacao nao permitida", table, method });
   }
