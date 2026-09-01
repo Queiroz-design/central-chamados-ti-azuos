@@ -39,6 +39,15 @@ $windowsProductId = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\Curre
 $memoryModules = @(Get-CimInstance Win32_PhysicalMemory)
 $diskDrives = @(Get-CimInstance Win32_DiskDrive)
 $physicalDisks = @(Get-PhysicalDisk)
+# So discos FISICOS reais: ignora o disco virtual do Google Drive (File Stream),
+# outros discos de nuvem e pendrives/removiveis.
+$diskDrivesReal = @($diskDrives | Where-Object {
+  $m = ([string]$_.Model)
+  $mt = ([string]$_.MediaType)
+  (-not ($m -match 'Google|File Stream|pCloud|Dropbox|Virtual Disk')) -and
+  (-not ($mt -match 'Removable|External')) -and
+  ([double]($_.Size) -gt 0)
+})
 # So o disco onde o Windows esta instalado (o disco real). Ignora Google Drive, pendrives, etc.
 $sysDrive = if ($env:SystemDrive) { $env:SystemDrive } else { "C:" }
 $volumes = @(Get-CimInstance Win32_LogicalDisk -Filter "DriveType=3 AND DeviceID='$sysDrive'")
@@ -59,7 +68,7 @@ $memoryPayload = @($memoryModules | ForEach-Object {
   }
 })
 
-$diskPayload = @($diskDrives | ForEach-Object {
+$diskPayload = @($diskDrivesReal | ForEach-Object {
   $serial = ($_.SerialNumber -as [string]).Trim()
   $physical = $physicalDisks | Where-Object {
     ($_.SerialNumber -as [string]).Trim() -eq $serial -or $_.FriendlyName -eq $_.Model
