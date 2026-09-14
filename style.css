@@ -70,6 +70,25 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,"Inter","Roboto","H
 .admin-body.light .agenda-sug-main strong{color:#0f2a63}
 .admin-body.light .agenda-sug-motivo{color:#b45309}
 .admin-body.light .agenda-desc{color:#334155}
+/* Plano automático (Agenda) */
+.agenda-plano-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:6px}
+.agenda-plano-head .agenda-h{margin:6px 0}
+.agenda-plano-filter button{min-height:34px;padding:0 14px;font-size:13px}
+.agenda-plan-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 12px;border:1px solid #26364a;border-radius:8px;background:#101827;margin-bottom:6px}
+.agenda-plan-row.today{border-left:4px solid #38bdf8;background:#0d1c2e}
+.agenda-plan-row.done{opacity:.6}
+.agenda-plan-motivo{color:#fbbf24;font-size:12px;margin-left:6px}
+.agenda-done-tag{color:#22c55e;font-weight:700;font-size:13px}
+.admin-body.light .agenda-plan-row{background:#f4f7fb;border-color:#e2e8f0}
+.admin-body.light .agenda-plan-row.today{background:#eef6ff;border-color:#bfdbfe}
+.admin-body.light .agenda-plan-motivo{color:#b45309}
+/* Dashboard: manutenções por período */
+.dashmanut-filter button{min-height:34px;padding:0 14px;font-size:13px}
+.dashmanut-count{font-size:13px;color:#94a3b8;margin:4px 0 10px}
+.dashmanut-alert{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:#2a2108;border:1px solid #a16207;border-left:4px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:8px;color:#fde68a}
+.dashmanut-alert span{color:#cbd5e1;font-size:12px}
+.dashmanut-ok{color:#22c55e;font-size:13px;margin-bottom:8px}
+.admin-body.light .dashmanut-count{color:#64748b}
 .card{background:#fff;padding:30px;border-radius:14px;box-shadow:0 15px 40px rgba(15,23,42,.08);margin-bottom:24px;border:1px solid rgba(214,222,234,.75)}
 h2{margin-top:0;color:var(--azul);display:flex;align-items:center;gap:12px;font-size:25px}
 .title-icon{background:var(--azul-vivo);color:white;width:34px;height:34px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:22px}

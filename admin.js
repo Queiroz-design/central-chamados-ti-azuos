@@ -425,8 +425,8 @@ document.getElementById("overloadToggle")?.addEventListener("click", () => {
 });
 document.querySelectorAll(".overload-tab").forEach((b) => b.addEventListener("click", () => { overloadPeriod = b.dataset.period; renderOverload(); }));
 
-// Manutenção preventiva: cada máquina inventariada precisa de uma a cada 6 meses.
-const PREVENTIVA_MESES = 6;
+// Manutenção preventiva: cada máquina inventariada precisa de uma a cada 3 meses (ciclo).
+const PREVENTIVA_MESES = 3;
 function preventivaInfo(asset) {
   // Preventiva OU corretiva contam (a corretiva faz a mesma limpeza/pasta termica).
   const rows = (typeof manutencoes !== "undefined" ? manutencoes : []).filter((m) => {
@@ -452,7 +452,7 @@ function preventivaBadge(asset) {
   const info = preventivaInfo(asset);
   if (info.status === "ok") return "";
   const txt = info.status === "nunca" ? "Sem manutenção" : `Manutenção vencida (${info.meses} meses)`;
-  return `<div class="preventiva-badge ${info.status}" title="Manutenção (preventiva ou corretiva) recomendada a cada 6 meses">🛠️ ${txt}</div>`;
+  return `<div class="preventiva-badge ${info.status}" title="Manutenção (preventiva ou corretiva) recomendada a cada 3 meses">🛠️ ${txt}</div>`;
 }
 
 function renderDashboard() {
@@ -477,6 +477,7 @@ function renderDashboard() {
 
   renderAlerts(alerts, machineAlerts, machinesNeedingPreventiva());
   renderOverload();
+  renderDashManutencoes();
   const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
   renderBars("typeChart", typeEntries, true);
@@ -494,7 +495,7 @@ function renderAlerts(alerts, machineAlerts = [], preventiva = []) {
   const prevHtml = preventiva.length ? `
     <article class="alert-item alert-preventiva" onclick="irParaAba('manutencao')" style="cursor:pointer">
       <strong>🛠️ ${preventiva.length} máquina(s) precisam de manutenção preventiva</strong>
-      <span>Recomendada a cada 6 meses (troca de pasta térmica, limpeza). Clique para ver a lista na aba Manutenção.</span>
+      <span>Recomendada a cada 3 meses (troca de pasta térmica, limpeza). Clique para ver a lista na aba Manutenção.</span>
     </article>` : "";
 
   const ticketHtml = alerts.map((alert) => `
@@ -2621,6 +2622,7 @@ window.abrirAgendarModal = function abrirAgendarModal(computerName, descricao) {
 };
 document.getElementById("btnAddAgenda")?.addEventListener("click", () => abrirAgendarModal());
 document.getElementById("btnCloseAgenda")?.addEventListener("click", () => document.getElementById("agendaModal").classList.add("hidden"));
+document.querySelectorAll(".agenda-plano-filter [data-plano]").forEach((b) => b.addEventListener("click", () => { planoPeriodo = b.dataset.plano; renderPlanoAgenda(); }));
 
 // Botão que pede permissão de notificação do navegador (o "despertador" que aparece fora do painel).
 function refreshNotifBtn() {
@@ -2669,6 +2671,56 @@ document.getElementById("agendaForm")?.addEventListener("submit", async (event) 
 function agendaHojeStr() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
 function agendaDataObj(r) { return new Date(r.data + "T00:00:00"); }
 function agendaFmt(r) { return agendaDataObj(r).toLocaleDateString("pt-BR"); }
+
+// ---- Helpers de período (dia / semana / mês) ----
+function startOfDay(d) { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; }
+function endOfDay(d) { const x = new Date(d); x.setHours(23, 59, 59, 999); return x; }
+function startOfMonth(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
+function endOfMonth(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999); }
+function semanaRange(d) { // segunda a domingo da semana de d
+  const x = startOfDay(d); const wd = (x.getDay() + 6) % 7; // 0 = segunda
+  const ini = new Date(x); ini.setDate(x.getDate() - wd);
+  const fim = new Date(ini); fim.setDate(ini.getDate() + 6); fim.setHours(23, 59, 59, 999);
+  return { ini, fim };
+}
+function mesmoDia(a, b) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
+function ddmm(d) { return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+
+// ---- Plano automático de manutenção (1 máquina por dia útil, ciclo por urgência) ----
+// Dias desde a última manutenção (preventiva OU corretiva). 999999 = nunca teve.
+function assetDaysSinceMaint(asset) {
+  const info = preventivaInfo(asset);
+  if (info.status === "nunca" || !info.ultima) return 999999;
+  return Math.floor((Date.now() - info.ultima.getTime()) / 86400000);
+}
+// Máquinas em uso (ignora reservas/sem departamento), ordenadas da mais atrasada para a menos.
+function planoMaquinas() {
+  return hardwareAssets
+    .filter((a) => a.cpu_name && !isReservaAsset(a))
+    .map((a) => ({ asset: a, dias: assetDaysSinceMaint(a) }))
+    .sort((x, y) => (y.dias - x.dias) || String(x.asset.computer_name).localeCompare(String(y.asset.computer_name)));
+}
+// Próximos N dias ÚTEIS (seg-sex) a partir de "start" (inclui start se for dia útil).
+function businessDaysFrom(start, count) {
+  const out = []; const d = startOfDay(start);
+  while (out.length < count) {
+    const wd = d.getDay();
+    if (wd !== 0 && wd !== 6) out.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
+// Cada máquina ganha um dia útil, na ordem de urgência: [{asset, dias, date}]
+function getPlanoAutomatico() {
+  const maquinas = planoMaquinas();
+  if (!maquinas.length) return [];
+  const dias = businessDaysFrom(new Date(), maquinas.length);
+  return maquinas.map((m, i) => ({ asset: m.asset, dias: m.dias, date: dias[i] }));
+}
+// computer_name (normalizado) das máquinas que tiveram manutenção num intervalo.
+function manutencoesNoIntervalo(ini, fim) {
+  return (manutencoes || []).filter((m) => { const d = new Date(m.data); return d >= ini && d <= fim; });
+}
 
 // Sugestões: 1º as mais urgentes (sem manutenção + pouca RAM/armazenamento);
 // se não houver nenhuma, as que vivem em 100% (CPU/memória/disco).
@@ -2766,13 +2818,13 @@ function updateAgendaBadges(n) {
 function renderAgenda() {
   const hojeEl = document.getElementById("agendaHoje");
   const proxEl = document.getElementById("agendaProximos");
-  const sugEl = document.getElementById("agendaSugestoes");
+  const planoEl = document.getElementById("agendaPlano");
   if (!hojeEl) return;
 
   if (agendaLoadError) {
     hojeEl.innerHTML = `<div class="empty-state">Agenda ainda não disponível. Rode o SQL <b>supabase-manutencao-agenda.sql</b> no Supabase.</div>`;
     if (proxEl) proxEl.innerHTML = "";
-    if (sugEl) sugEl.innerHTML = "";
+    if (planoEl) planoEl.innerHTML = "";
     updateAgendaBadges(0);
     return;
   }
@@ -2803,7 +2855,7 @@ function renderAgenda() {
     }).join("");
     notificarAgenda(doDia);
   } else {
-    hojeEl.innerHTML = `<div class="agenda-none">Nenhuma manutenção programada para hoje. 👇 Veja as sugestões.</div>`;
+    hojeEl.innerHTML = `<div class="agenda-none">Nenhum lembrete manual para hoje. 👇 Veja o plano automático do dia.</div>`;
   }
 
   // ---- Próximos lembretes ----
@@ -2821,43 +2873,105 @@ function renderAgenda() {
       : "";
   }
 
-  // ---- Sugestões (2 em 2), só quando não há nada para hoje ----
-  if (sugEl) {
-    if (doDia.length) {
-      sugEl.innerHTML = `<div class="section-note agenda-sug-note">Você tem lembrete(s) para hoje (acima). As sugestões automáticas aparecem nos dias sem lembrete.</div>`;
+  // ---- Plano automático (Dia / Semana / Mês) ----
+  renderPlanoAgenda();
+}
+
+let planoPeriodo = "dia"; // "dia" | "semana" | "mes"
+function renderPlanoAgenda() {
+  const el = document.getElementById("agendaPlano");
+  if (!el) return;
+  document.querySelectorAll(".agenda-plano-filter [data-plano]").forEach((b) => b.classList.toggle("active", b.dataset.plano === planoPeriodo));
+
+  const hoje = agendaHojeStr();
+  const plano = getPlanoAutomatico();
+  const feitosHoje = new Set(manutencoesNoIntervalo(hoje, endOfDay(hoje)).map((m) => normalizeText(m.computer_name)));
+
+  let itens;
+  if (planoPeriodo === "dia") {
+    itens = plano.filter((p) => mesmoDia(p.date, hoje));
+  } else if (planoPeriodo === "semana") {
+    const { ini, fim } = semanaRange(hoje);
+    itens = plano.filter((p) => p.date >= ini && p.date <= fim);
+  } else {
+    itens = plano.filter((p) => p.date.getMonth() === hoje.getMonth() && p.date.getFullYear() === hoje.getFullYear());
+  }
+
+  if (!plano.length) {
+    el.innerHTML = `<div class="empty-state">Nenhuma máquina em uso para planejar. 👍</div>`;
+    return;
+  }
+  if (!itens.length) {
+    const prox = plano.find((p) => p.date >= hoje);
+    el.innerHTML = `<div class="agenda-none">Nada no plano para ${planoPeriodo === "dia" ? "hoje" : "este período"} (provável fim de semana).${prox ? ` Próxima: <strong>${escapeHtml(prox.asset.display_name || prox.asset.computer_name)}</strong> em ${ddmm(prox.date)}.` : ""}</div>`;
+    return;
+  }
+
+  el.innerHTML = itens.map((p) => {
+    const a = p.asset;
+    const feito = mesmoDia(p.date, hoje) && feitosHoje.has(normalizeText(a.computer_name));
+    const nome = a.display_name || a.computer_name;
+    const dept = getAssetDepartment(a);
+    const quando = p.dias >= 999999 ? "nunca teve manutenção" : `${p.dias} dias desde a última`;
+    const ehHoje = mesmoDia(p.date, hoje);
+    return `<div class="agenda-plan-row ${feito ? "done" : ""} ${ehHoje ? "today" : ""}">
+      <span class="agenda-date">${ehHoje ? "HOJE" : ddmm(p.date)}</span>
+      <span class="agenda-item-main"><strong>${escapeHtml(nome)}</strong>${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}
+        <span class="agenda-plan-motivo">${escapeHtml(quando)}</span></span>
+      <span class="agenda-acts">
+        ${feito
+          ? `<span class="agenda-done-tag">✓ feito hoje</span>`
+          : `<button class="secondary small" onclick="registrarPlano('${escapeHtml(a.computer_name)}')">Registrar</button>`}
+        <button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button>
+      </span>
+    </div>`;
+  }).join("");
+}
+window.registrarPlano = function registrarPlano(computerName) {
+  const a = findAssetByComputerName(computerName);
+  if (a) abrirManutencaoPara(a.id);
+};
+
+// ---- Dashboard: manutenções feitas por Dia / Semana / Mês (+ pendente do dia) ----
+let dashManutPeriodo = "dia"; // "dia" | "semana" | "mes"
+function renderDashManutencoes() {
+  const listaEl = document.getElementById("dashManutLista");
+  const pendEl = document.getElementById("dashManutPendente");
+  if (!listaEl) return;
+  document.querySelectorAll(".dashmanut-filter [data-dm]").forEach((b) => b.classList.toggle("active", b.dataset.dm === dashManutPeriodo));
+
+  const hoje = agendaHojeStr();
+  let ini, fim, label;
+  if (dashManutPeriodo === "dia") { ini = hoje; fim = endOfDay(hoje); label = "hoje"; }
+  else if (dashManutPeriodo === "semana") { const r = semanaRange(hoje); ini = r.ini; fim = r.fim; label = "nesta semana"; }
+  else { ini = startOfMonth(hoje); fim = endOfMonth(hoje); label = "neste mês"; }
+
+  const feitas = manutencoesNoIntervalo(ini, fim).sort((a, b) => new Date(b.data) - new Date(a.data));
+
+  // Alerta: máquina do plano de hoje que ainda não foi feita (só no filtro Dia).
+  if (pendEl) {
+    if (dashManutPeriodo === "dia") {
+      const feitosHoje = new Set(manutencoesNoIntervalo(hoje, endOfDay(hoje)).map((m) => normalizeText(m.computer_name)));
+      const doDia = getPlanoAutomatico().filter((p) => mesmoDia(p.date, hoje));
+      const pendentes = doDia.filter((p) => !feitosHoje.has(normalizeText(p.asset.computer_name)));
+      pendEl.innerHTML = pendentes.length
+        ? pendentes.map((p) => `<div class="dashmanut-alert">🛠️ <b>Falta fazer hoje:</b> ${escapeHtml(p.asset.display_name || p.asset.computer_name)} <span>(${escapeHtml(getAssetDepartment(p.asset))})</span> <button class="secondary small" onclick="irParaAba('manutencao')">Ver na Agenda</button></div>`).join("")
+        : (doDia.length ? `<div class="dashmanut-ok">✓ Manutenção planejada de hoje já foi feita.</div>` : `<div class="dashmanut-ok">Sem máquina no plano para hoje (fim de semana?).</div>`);
     } else {
-      const { tipo, lista } = getManutencaoSugestoes();
-      if (!lista.length) {
-        sugEl.innerHTML = `<h4 class="agenda-h">Sugestões</h4><div class="empty-state">Nada urgente no momento. 👍</div>`;
-      } else {
-        if (sugestaoIndex >= lista.length) sugestaoIndex = 0;
-        const dois = lista.slice(sugestaoIndex, sugestaoIndex + 2);
-        const titulo = tipo === "manutencao"
-          ? "Sugestões — máquinas mais urgentes"
-          : "Sugestões — máquinas que vivem em 100% (CPU/memória/disco)";
-        sugEl.innerHTML = `<h4 class="agenda-h">${titulo}</h4>` + dois.map((s) => {
-          const a = s.asset;
-          const nome = a ? (a.display_name || a.computer_name) : "";
-          const dept = a ? getAssetDepartment(a) : "";
-          return `<div class="agenda-sug">
-            <div class="agenda-sug-main"><strong>${escapeHtml(nome)}</strong>${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}
-              <span class="agenda-sug-motivo">${escapeHtml(s.motivos.join(" · "))}</span></div>
-            <div class="agenda-acts">
-              ${a ? `<button class="secondary small" onclick="agendaDaSugestao('${escapeHtml(a.computer_name)}','${escapeHtml(s.motivos.join('; '))}')">Programar</button>` : ""}
-              ${a ? `<button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button>` : ""}
-            </div>
-          </div>`;
-        }).join("") + (lista.length > 2
-          ? `<div class="agenda-sug-more">
-               <button class="secondary small" onclick="sugestoesNav(-1)">← Voltar</button>
-               <button class="secondary small" onclick="sugestoesNav(1)">Ver outras 2 →</button>
-               <span class="pager-info">${sugestaoIndex + 1}–${Math.min(sugestaoIndex + 2, lista.length)} de ${lista.length}</span>
-             </div>`
-          : "");
-      }
+      pendEl.innerHTML = "";
     }
   }
+
+  listaEl.innerHTML = feitas.length
+    ? `<div class="dashmanut-count">${feitas.length} manutenção(ões) ${label}</div>` + feitas.map((m) => `
+      <div class="agenda-item">
+        <span class="agenda-date">${new Date(m.data).toLocaleDateString("pt-BR")}</span>
+        <span class="agenda-item-main"><strong>${escapeHtml(manutMachineLabel(m))}</strong> ${manutTipoBadge(m.tipo)} — ${escapeHtml(m.descricao || "-")}</span>
+        <span class="muted">${escapeHtml(m.responsavel || "")}</span>
+      </div>`).join("")
+    : `<div class="empty-state">Nenhuma manutenção ${label}.</div>`;
 }
+document.querySelectorAll(".dashmanut-filter [data-dm]").forEach((b) => b.addEventListener("click", () => { dashManutPeriodo = b.dataset.dm; renderDashManutencoes(); }));
 
 // Notificação do navegador (opcional) quando há manutenção para hoje.
 function notificarAgenda(doDia) {
