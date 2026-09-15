@@ -103,10 +103,25 @@
 
     <div class="dashboard-main-grid">
       <section class="panel problem-panel">
-        <h3>Mapa dos maiores problemas</h3>
-        <div class="problem-chart-wrap">
+        <div class="mapa-head">
+          <h3 id="mapaTitulo">Mapa dos maiores problemas</h3>
+          <div class="view-toggle mapa-tabs">
+            <button type="button" class="active" data-mapa="chamados">Chamados</button>
+            <button type="button" data-mapa="manutencao">Manutenção</button>
+          </div>
+        </div>
+        <div class="view-toggle mapa-manut-filter hidden">
+          <button type="button" data-mm="dia">Dia</button>
+          <button type="button" data-mm="semana">Semana</button>
+          <button type="button" class="active" data-mm="mes">Mês</button>
+        </div>
+        <div id="mapaChamados" class="problem-chart-wrap">
           <div id="problemDonut" class="problem-donut" aria-label="Gráfico de problemas por tipo"></div>
           <div id="problemLegend" class="problem-legend"></div>
+        </div>
+        <div id="mapaManutencao" class="problem-chart-wrap hidden">
+          <div id="manutDonut" class="problem-donut" aria-label="Gráfico de manutenções por tipo"></div>
+          <div id="manutLegend" class="problem-legend"></div>
         </div>
       </section>
       <section class="panel">

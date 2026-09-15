@@ -480,6 +480,7 @@ function renderDashboard() {
   renderDashManutencoes();
   const typeEntries = topEntries(groupCount(scoped, (ticket) => ticket.tipo), 7);
   renderProblemDonut(typeEntries);
+  renderMapaManutencao();
   renderBars("typeChart", typeEntries, true);
   renderBars("deptChart", topEntries(groupCount(scoped, (ticket) => ticket.departamento)), true);
 }
@@ -515,17 +516,17 @@ function renderAlerts(alerts, machineAlerts = [], preventiva = []) {
   alertsList.innerHTML = prevHtml + ticketHtml + machineHtml;
 }
 
-function renderProblemDonut(entries) {
-  const donut = document.getElementById("problemDonut");
-  const legend = document.getElementById("problemLegend");
-
+// Donut genérico (usado no mapa de chamados e no de manutenções).
+function renderDonutInto(donutId, legendId, entries, centerWord, emptyMsg) {
+  const donut = document.getElementById(donutId);
+  const legend = document.getElementById(legendId);
+  if (!donut || !legend) return;
   if (!entries.length) {
     donut.style.background = "#e2e8f0";
-    donut.innerHTML = "<strong>0</strong><span>chamados</span>";
-    legend.innerHTML = '<div class="empty-state">Sem chamados neste mês.</div>';
+    donut.innerHTML = `<strong>0</strong><span>${centerWord}</span>`;
+    legend.innerHTML = `<div class="empty-state">${emptyMsg}</div>`;
     return;
   }
-
   const total = entries.reduce((sum, entry) => sum + entry[1], 0);
   let start = 0;
   const stops = entries.map((entry, index) => {
@@ -535,9 +536,8 @@ function renderProblemDonut(entries) {
     start += percent;
     return segment;
   });
-
   donut.style.background = `conic-gradient(${stops.join(", ")})`;
-  donut.innerHTML = `<strong>${total}</strong><span>chamados</span>`;
+  donut.innerHTML = `<strong>${total}</strong><span>${centerWord}</span>`;
   legend.innerHTML = entries.map(([label, count], index) => `
     <div class="legend-row">
       <i style="background:${chartColors[index % chartColors.length]}"></i>
@@ -546,6 +546,36 @@ function renderProblemDonut(entries) {
     </div>
   `).join("");
 }
+function renderProblemDonut(entries) {
+  renderDonutInto("problemDonut", "problemLegend", entries, "chamados", "Sem chamados neste mês.");
+}
+
+// Mapa de manutenções (aba Manutenção do dashboard), por tipo, com filtro Dia/Semana/Mês.
+let mapaTab = "chamados";      // "chamados" | "manutencao"
+let mapaManutPeriodo = "mes";  // "dia" | "semana" | "mes"
+function renderMapaManutencao() {
+  const hoje = agendaHojeStr();
+  let ini, fim, palavra;
+  if (mapaManutPeriodo === "dia") { ini = hoje; fim = endOfDay(hoje); palavra = "hoje"; }
+  else if (mapaManutPeriodo === "semana") { const r = semanaRange(hoje); ini = r.ini; fim = r.fim; palavra = "nesta semana"; }
+  else { ini = startOfMonth(hoje); fim = endOfMonth(hoje); palavra = "neste mês"; }
+  document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.classList.toggle("active", b.dataset.mm === mapaManutPeriodo));
+  const feitas = manutencoesNoIntervalo(ini, fim);
+  const entries = topEntries(groupCount(feitas, (m) => m.tipo || "Outro"), 8);
+  renderDonutInto("manutDonut", "manutLegend", entries, "manutenções", `Nenhuma manutenção ${palavra}.`);
+}
+function setMapaTab(tab) {
+  mapaTab = tab;
+  document.querySelectorAll(".mapa-tabs [data-mapa]").forEach((b) => b.classList.toggle("active", b.dataset.mapa === tab));
+  document.getElementById("mapaChamados")?.classList.toggle("hidden", tab !== "chamados");
+  document.getElementById("mapaManutencao")?.classList.toggle("hidden", tab !== "manutencao");
+  document.querySelector(".mapa-manut-filter")?.classList.toggle("hidden", tab !== "manutencao");
+  const titulo = document.getElementById("mapaTitulo");
+  if (titulo) titulo.innerText = tab === "chamados" ? "Mapa dos maiores problemas" : "Mapa de manutenções — o que foi feito";
+  if (tab === "manutencao") renderMapaManutencao();
+}
+document.querySelectorAll(".mapa-tabs [data-mapa]").forEach((b) => b.addEventListener("click", () => setMapaTab(b.dataset.mapa)));
+document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.addEventListener("click", () => { mapaManutPeriodo = b.dataset.mm; renderMapaManutencao(); }));
 
 function renderBars(targetId, entries, colorful = false) {
   const target = document.getElementById(targetId);

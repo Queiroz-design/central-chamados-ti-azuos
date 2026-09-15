@@ -89,6 +89,12 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,"Inter","Roboto","H
 .dashmanut-alert span{color:#cbd5e1;font-size:12px}
 .dashmanut-ok{color:#22c55e;font-size:13px;margin-bottom:8px}
 .admin-body.light .dashmanut-count{color:#64748b}
+/* Mapa com abas Chamados / Manutenção */
+.mapa-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.mapa-head h3{margin:0}
+.mapa-tabs button,.mapa-manut-filter button{min-height:34px;padding:0 14px;font-size:13px}
+.mapa-manut-filter{margin-bottom:12px}
+.problem-chart-wrap.hidden{display:none}
 .card{background:#fff;padding:30px;border-radius:14px;box-shadow:0 15px 40px rgba(15,23,42,.08);margin-bottom:24px;border:1px solid rgba(214,222,234,.75)}
 h2{margin-top:0;color:var(--azul);display:flex;align-items:center;gap:12px;font-size:25px}
 .title-icon{background:var(--azul-vivo);color:white;width:34px;height:34px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:22px}
