@@ -2885,7 +2885,13 @@ function renderPlanoAgenda() {
 
   const hoje = agendaHojeStr();
   const plano = getPlanoAutomatico();
-  const feitosHoje = new Set(manutencoesNoIntervalo(hoje, endOfDay(hoje)).map((m) => normalizeText(m.computer_name)));
+  const feitasHojeRows = manutencoesNoIntervalo(hoje, endOfDay(hoje));
+  const feitoHoje = feitasHojeRows.length > 0; // qualquer manutenção feita hoje = tarefa do dia cumprida
+
+  if (!plano.length) {
+    el.innerHTML = `<div class="empty-state">Nenhuma máquina em uso para planejar. 👍</div>`;
+    return;
+  }
 
   let itens;
   if (planoPeriodo === "dia") {
@@ -2897,35 +2903,42 @@ function renderPlanoAgenda() {
     itens = plano.filter((p) => p.date.getMonth() === hoje.getMonth() && p.date.getFullYear() === hoje.getFullYear());
   }
 
-  if (!plano.length) {
-    el.innerHTML = `<div class="empty-state">Nenhuma máquina em uso para planejar. 👍</div>`;
-    return;
+  let html = "";
+  // Feita a manutenção de hoje, a recomendação de HOJE sai e vira "✓ feito" (aparece outra amanhã).
+  if (feitoHoje) {
+    html += `<div class="agenda-plan-row done today">
+      <span class="agenda-date">HOJE</span>
+      <span class="agenda-item-main"><strong>✓ Manutenção de hoje já feita</strong>
+        <span class="agenda-plan-motivo">${feitasHojeRows.map((m) => escapeHtml(manutMachineLabel(m))).join(", ")}</span></span>
+      <span class="agenda-acts"><span class="agenda-done-tag">✓ feito</span></span>
+    </div>`;
   }
-  if (!itens.length) {
-    const prox = plano.find((p) => p.date >= hoje);
+  const linhas = itens.filter((p) => !(feitoHoje && mesmoDia(p.date, hoje)));
+
+  if (!html && !linhas.length) {
+    const prox = plano.find((p) => p.date > hoje);
     el.innerHTML = `<div class="agenda-none">Nada no plano para ${planoPeriodo === "dia" ? "hoje" : "este período"} (provável fim de semana).${prox ? ` Próxima: <strong>${escapeHtml(prox.asset.display_name || prox.asset.computer_name)}</strong> em ${ddmm(prox.date)}.` : ""}</div>`;
     return;
   }
 
-  el.innerHTML = itens.map((p) => {
+  html += linhas.map((p) => {
     const a = p.asset;
-    const feito = mesmoDia(p.date, hoje) && feitosHoje.has(normalizeText(a.computer_name));
     const nome = a.display_name || a.computer_name;
     const dept = getAssetDepartment(a);
     const quando = p.dias >= 999999 ? "nunca teve manutenção" : `${p.dias} dias desde a última`;
     const ehHoje = mesmoDia(p.date, hoje);
-    return `<div class="agenda-plan-row ${feito ? "done" : ""} ${ehHoje ? "today" : ""}">
+    return `<div class="agenda-plan-row ${ehHoje ? "today" : ""}">
       <span class="agenda-date">${ehHoje ? "HOJE" : ddmm(p.date)}</span>
       <span class="agenda-item-main"><strong>${escapeHtml(nome)}</strong>${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}
         <span class="agenda-plan-motivo">${escapeHtml(quando)}</span></span>
       <span class="agenda-acts">
-        ${feito
-          ? `<span class="agenda-done-tag">✓ feito hoje</span>`
-          : `<button class="secondary small" onclick="registrarPlano('${escapeHtml(a.computer_name)}')">Registrar</button>`}
+        <button class="secondary small" onclick="registrarPlano('${escapeHtml(a.computer_name)}')">Registrar</button>
         <button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button>
       </span>
     </div>`;
   }).join("");
+
+  el.innerHTML = html;
 }
 window.registrarPlano = function registrarPlano(computerName) {
   const a = findAssetByComputerName(computerName);
@@ -2951,12 +2964,15 @@ function renderDashManutencoes() {
   // Alerta: máquina do plano de hoje que ainda não foi feita (só no filtro Dia).
   if (pendEl) {
     if (dashManutPeriodo === "dia") {
-      const feitosHoje = new Set(manutencoesNoIntervalo(hoje, endOfDay(hoje)).map((m) => normalizeText(m.computer_name)));
-      const doDia = getPlanoAutomatico().filter((p) => mesmoDia(p.date, hoje));
-      const pendentes = doDia.filter((p) => !feitosHoje.has(normalizeText(p.asset.computer_name)));
-      pendEl.innerHTML = pendentes.length
-        ? pendentes.map((p) => `<div class="dashmanut-alert">🛠️ <b>Falta fazer hoje:</b> ${escapeHtml(p.asset.display_name || p.asset.computer_name)} <span>(${escapeHtml(getAssetDepartment(p.asset))})</span> <button class="secondary small" onclick="irParaAba('manutencao')">Ver na Agenda</button></div>`).join("")
-        : (doDia.length ? `<div class="dashmanut-ok">✓ Manutenção planejada de hoje já foi feita.</div>` : `<div class="dashmanut-ok">Sem máquina no plano para hoje (fim de semana?).</div>`);
+      const feitoHoje = manutencoesNoIntervalo(hoje, endOfDay(hoje)).length > 0;
+      if (feitoHoje) {
+        pendEl.innerHTML = `<div class="dashmanut-ok">✓ Manutenção de hoje já feita.</div>`;
+      } else {
+        const doDia = getPlanoAutomatico().filter((p) => mesmoDia(p.date, hoje));
+        pendEl.innerHTML = doDia.length
+          ? doDia.map((p) => `<div class="dashmanut-alert">🛠️ <b>Falta fazer hoje:</b> ${escapeHtml(p.asset.display_name || p.asset.computer_name)} <span>(${escapeHtml(getAssetDepartment(p.asset))})</span> <button class="secondary small" onclick="irParaAba('manutencao')">Ver na Agenda</button></div>`).join("")
+          : `<div class="dashmanut-ok">Sem máquina no plano para hoje (fim de semana?).</div>`;
+      }
     } else {
       pendEl.innerHTML = "";
     }
