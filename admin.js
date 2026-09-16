@@ -517,7 +517,8 @@ function renderAlerts(alerts, machineAlerts = [], preventiva = []) {
 }
 
 // Donut genérico (usado no mapa de chamados e no de manutenções).
-function renderDonutInto(donutId, legendId, entries, centerWord, emptyMsg) {
+// onClickFn (opcional): nome de função global; deixa cada linha da legenda clicável.
+function renderDonutInto(donutId, legendId, entries, centerWord, emptyMsg, onClickFn) {
   const donut = document.getElementById(donutId);
   const legend = document.getElementById(legendId);
   if (!donut || !legend) return;
@@ -538,13 +539,16 @@ function renderDonutInto(donutId, legendId, entries, centerWord, emptyMsg) {
   });
   donut.style.background = `conic-gradient(${stops.join(", ")})`;
   donut.innerHTML = `<strong>${total}</strong><span>${centerWord}</span>`;
-  legend.innerHTML = entries.map(([label, count], index) => `
-    <div class="legend-row">
+  legend.innerHTML = entries.map(([label, count], index) => {
+    const attrs = onClickFn
+      ? ` class="legend-row clickable" onclick="${onClickFn}('${escapeHtml(String(label))}')" title="Ver as máquinas"`
+      : ` class="legend-row"`;
+    return `<div${attrs}>
       <i style="background:${chartColors[index % chartColors.length]}"></i>
       <span>${escapeHtml(label)}</span>
       <strong>${count}</strong>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 }
 function renderProblemDonut(entries) {
   renderDonutInto("problemDonut", "problemLegend", entries, "chamados", "Sem chamados neste mês.");
@@ -562,8 +566,31 @@ function renderMapaManutencao() {
   document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.classList.toggle("active", b.dataset.mm === mapaManutPeriodo));
   const feitas = manutencoesNoIntervalo(ini, fim);
   const entries = topEntries(groupCount(feitas, (m) => m.tipo || "Outro"), 8);
-  renderDonutInto("manutDonut", "manutLegend", entries, "manutenções", `Nenhuma manutenção ${palavra}.`);
+  renderDonutInto("manutDonut", "manutLegend", entries, "manutenções", `Nenhuma manutenção ${palavra}.`, "filtrarMapaManut");
+  const det = document.getElementById("manutMapaDetalhe");
+  if (det) det.innerHTML = `<div class="manut-mapa-dica">👆 Clique em <b>Preventiva</b> ou <b>Corretiva</b> para ver as máquinas.</div>`;
 }
+// Clique num tipo da legenda: lista as máquinas daquele tipo no período (cada uma abre no inventário).
+window.filtrarMapaManut = function filtrarMapaManut(tipo) {
+  const det = document.getElementById("manutMapaDetalhe");
+  if (!det) return;
+  const hoje = agendaHojeStr();
+  let ini, fim;
+  if (mapaManutPeriodo === "dia") { ini = hoje; fim = endOfDay(hoje); }
+  else if (mapaManutPeriodo === "semana") { const r = semanaRange(hoje); ini = r.ini; fim = r.fim; }
+  else { ini = startOfMonth(hoje); fim = endOfMonth(hoje); }
+  const linhas = manutencoesNoIntervalo(ini, fim)
+    .filter((m) => (m.tipo || "Outro") === tipo)
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
+  document.querySelectorAll("#manutLegend .legend-row").forEach((el) => el.classList.toggle("sel", el.querySelector("span")?.textContent === tipo));
+  if (!linhas.length) { det.innerHTML = `<div class="empty-state">Nenhuma manutenção ${escapeHtml(tipo)} no período.</div>`; return; }
+  det.innerHTML = `<h4 class="agenda-h">${escapeHtml(tipo)} — ${linhas.length} máquina(s)</h4>` + linhas.map((m) => `
+    <div class="agenda-item clickable" onclick="abrirMaquinaInventario('${escapeHtml(m.computer_name || "")}')" title="Abrir a máquina no inventário">
+      <span class="agenda-date">${new Date(m.data).toLocaleDateString("pt-BR")}</span>
+      <span class="agenda-item-main"><strong>${escapeHtml(manutMachineLabel(m))}</strong> — ${escapeHtml(m.descricao || "-")}</span>
+      <span class="muted">${escapeHtml(m.responsavel || "")}</span>
+    </div>`).join("");
+};
 function setMapaTab(tab) {
   mapaTab = tab;
   document.querySelectorAll(".mapa-tabs [data-mapa]").forEach((b) => b.classList.toggle("active", b.dataset.mapa === tab));

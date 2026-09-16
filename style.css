@@ -95,6 +95,14 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,"Inter","Roboto","H
 .mapa-tabs button,.mapa-manut-filter button{min-height:34px;padding:0 14px;font-size:13px}
 .mapa-manut-filter{margin-bottom:12px}
 .problem-chart-wrap.hidden{display:none}
+.legend-row.clickable{cursor:pointer;border-radius:8px;transition:background .12s}
+.legend-row.clickable:hover{background:rgba(56,189,248,.12)}
+.legend-row.sel{background:rgba(56,189,248,.18);outline:1px solid #38bdf8}
+.manut-mapa-detalhe{margin-top:14px}
+.manut-mapa-dica{color:#94a3b8;font-size:13px;margin-top:12px}
+.agenda-item.clickable{cursor:pointer}
+.agenda-item.clickable:hover{border-color:#38bdf8}
+.admin-body.light .manut-mapa-dica{color:#64748b}
 .card{background:#fff;padding:30px;border-radius:14px;box-shadow:0 15px 40px rgba(15,23,42,.08);margin-bottom:24px;border:1px solid rgba(214,222,234,.75)}
 h2{margin-top:0;color:var(--azul);display:flex;align-items:center;gap:12px;font-size:25px}
 .title-icon{background:var(--azul-vivo);color:white;width:34px;height:34px;border-radius:6px;display:inline-flex;align-items:center;justify-content:center;font-size:22px}
