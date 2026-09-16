@@ -557,39 +557,48 @@ function renderProblemDonut(entries) {
 // Mapa de manutenções (aba Manutenção do dashboard), por tipo, com filtro Dia/Semana/Mês.
 let mapaTab = "chamados";      // "chamados" | "manutencao"
 let mapaManutPeriodo = "mes";  // "dia" | "semana" | "mes"
-function renderMapaManutencao() {
+let mapaManutSel = "";          // tipo selecionado (persiste entre os refreshes automáticos)
+
+function periodoManutRange() {
   const hoje = agendaHojeStr();
-  let ini, fim, palavra;
-  if (mapaManutPeriodo === "dia") { ini = hoje; fim = endOfDay(hoje); palavra = "hoje"; }
-  else if (mapaManutPeriodo === "semana") { const r = semanaRange(hoje); ini = r.ini; fim = r.fim; palavra = "nesta semana"; }
-  else { ini = startOfMonth(hoje); fim = endOfMonth(hoje); palavra = "neste mês"; }
+  if (mapaManutPeriodo === "dia") return { ini: hoje, fim: endOfDay(hoje), palavra: "hoje" };
+  if (mapaManutPeriodo === "semana") { const r = semanaRange(hoje); return { ini: r.ini, fim: r.fim, palavra: "nesta semana" }; }
+  return { ini: startOfMonth(hoje), fim: endOfMonth(hoje), palavra: "neste mês" };
+}
+function renderMapaManutencao() {
+  const { ini, fim, palavra } = periodoManutRange();
   document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.classList.toggle("active", b.dataset.mm === mapaManutPeriodo));
   const feitas = manutencoesNoIntervalo(ini, fim);
   const entries = topEntries(groupCount(feitas, (m) => m.tipo || "Outro"), 8);
+  if (mapaManutSel && !entries.some((e) => e[0] === mapaManutSel)) mapaManutSel = ""; // sumiu do período
   renderDonutInto("manutDonut", "manutLegend", entries, "manutenções", `Nenhuma manutenção ${palavra}.`, "filtrarMapaManut");
-  const det = document.getElementById("manutMapaDetalhe");
-  if (det) det.innerHTML = `<div class="manut-mapa-dica">👆 Clique em <b>Preventiva</b> ou <b>Corretiva</b> para ver as máquinas.</div>`;
+  renderMapaManutDetalhe();
 }
-// Clique num tipo da legenda: lista as máquinas daquele tipo no período (cada uma abre no inventário).
-window.filtrarMapaManut = function filtrarMapaManut(tipo) {
+// Mostra a lista do tipo selecionado (ou a dica). Chamado também nos refreshes, mantendo a seleção.
+function renderMapaManutDetalhe() {
   const det = document.getElementById("manutMapaDetalhe");
   if (!det) return;
-  const hoje = agendaHojeStr();
-  let ini, fim;
-  if (mapaManutPeriodo === "dia") { ini = hoje; fim = endOfDay(hoje); }
-  else if (mapaManutPeriodo === "semana") { const r = semanaRange(hoje); ini = r.ini; fim = r.fim; }
-  else { ini = startOfMonth(hoje); fim = endOfMonth(hoje); }
+  document.querySelectorAll("#manutLegend .legend-row").forEach((el) => el.classList.toggle("sel", el.querySelector("span")?.textContent === mapaManutSel));
+  if (!mapaManutSel) {
+    det.innerHTML = `<div class="manut-mapa-dica">👆 Clique em <b>Preventiva</b> ou <b>Corretiva</b> para ver as máquinas.</div>`;
+    return;
+  }
+  const { ini, fim } = periodoManutRange();
   const linhas = manutencoesNoIntervalo(ini, fim)
-    .filter((m) => (m.tipo || "Outro") === tipo)
+    .filter((m) => (m.tipo || "Outro") === mapaManutSel)
     .sort((a, b) => new Date(b.data) - new Date(a.data));
-  document.querySelectorAll("#manutLegend .legend-row").forEach((el) => el.classList.toggle("sel", el.querySelector("span")?.textContent === tipo));
-  if (!linhas.length) { det.innerHTML = `<div class="empty-state">Nenhuma manutenção ${escapeHtml(tipo)} no período.</div>`; return; }
-  det.innerHTML = `<h4 class="agenda-h">${escapeHtml(tipo)} — ${linhas.length} máquina(s)</h4>` + linhas.map((m) => `
+  if (!linhas.length) { det.innerHTML = `<div class="empty-state">Nenhuma manutenção ${escapeHtml(mapaManutSel)} no período.</div>`; return; }
+  det.innerHTML = `<h4 class="agenda-h">${escapeHtml(mapaManutSel)} — ${linhas.length} máquina(s) <button class="secondary small" onclick="filtrarMapaManut('${escapeHtml(mapaManutSel)}')">Fechar</button></h4>` + linhas.map((m) => `
     <div class="agenda-item clickable" onclick="abrirMaquinaInventario('${escapeHtml(m.computer_name || "")}')" title="Abrir a máquina no inventário">
       <span class="agenda-date">${new Date(m.data).toLocaleDateString("pt-BR")}</span>
       <span class="agenda-item-main"><strong>${escapeHtml(manutMachineLabel(m))}</strong> — ${escapeHtml(m.descricao || "-")}</span>
       <span class="muted">${escapeHtml(m.responsavel || "")}</span>
     </div>`).join("");
+}
+// Clique num tipo da legenda: abre a lista; clicar de novo (ou no "Fechar") fecha.
+window.filtrarMapaManut = function filtrarMapaManut(tipo) {
+  mapaManutSel = (mapaManutSel === tipo) ? "" : tipo;
+  renderMapaManutDetalhe();
 };
 function setMapaTab(tab) {
   mapaTab = tab;
@@ -602,7 +611,7 @@ function setMapaTab(tab) {
   if (tab === "manutencao") renderMapaManutencao();
 }
 document.querySelectorAll(".mapa-tabs [data-mapa]").forEach((b) => b.addEventListener("click", () => setMapaTab(b.dataset.mapa)));
-document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.addEventListener("click", () => { mapaManutPeriodo = b.dataset.mm; renderMapaManutencao(); }));
+document.querySelectorAll(".mapa-manut-filter [data-mm]").forEach((b) => b.addEventListener("click", () => { mapaManutPeriodo = b.dataset.mm; mapaManutSel = ""; renderMapaManutencao(); }));
 
 function renderBars(targetId, entries, colorful = false) {
   const target = document.getElementById(targetId);
