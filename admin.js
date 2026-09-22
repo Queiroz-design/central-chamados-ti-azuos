@@ -17,6 +17,8 @@ const companyDepartments = [
 
 let allTickets = [];
 let hardwareAssets = [];
+let descarteAssets = []; // máquinas descartadas (defeito / lixo)
+function findAnyAsset(id) { return hardwareAssets.find((a) => a.id === id) || descarteAssets.find((a) => a.id === id); }
 let hardwareLoadError = "";
 let hardwareLiveStatus = [];
 let performanceAlerts = [];
@@ -83,6 +85,7 @@ document.querySelectorAll(".side-tab").forEach((button) => {
     showTab(button.dataset.tab);
     if (button.dataset.tab === "inteligencia" && typeof renderInteligencia === "function") renderInteligencia();
     if (button.dataset.tab === "orcamento" && typeof renderOrcamento === "function") renderOrcamento();
+    if (button.dataset.tab === "descarte" && typeof renderDescarte === "function") renderDescarte();
   });
 });
 
@@ -247,7 +250,11 @@ async function loadTickets() {
     hardwareAssets = [];
     hardwareLoadError = hardwareResult.error.message;
   } else {
-    hardwareAssets = (hardwareResult.data || []).filter((asset) => !asset.arquivado);
+    {
+      const ativos = (hardwareResult.data || []).filter((asset) => !asset.arquivado);
+      hardwareAssets = ativos.filter((a) => !a.descartado);   // inventário ativo
+      descarteAssets = ativos.filter((a) => a.descartado);    // descartadas (defeito/lixo)
+    }
     hardwareLoadError = "";
   }
 
@@ -281,6 +288,7 @@ async function loadTickets() {
   populateHardwareDepartmentFilter();
   renderDashboard();
   renderAssets();
+  renderDescarte();
   renderNetworkAlerts();
   renderTickets();
   // Re-renderiza a manutenção agora que o inventário está carregado, pra os rótulos
@@ -1281,8 +1289,15 @@ function renderDeviceChamados(asset) {
 }
 
 function renderHardwareDetails() {
-  const asset = hardwareAssets.find((item) => item.id === selectedHardwareId);
+  const asset = findAnyAsset(selectedHardwareId);
   if (!asset) return;
+  const descartada = !!asset.descartado;
+  // Máquina descartada = só leitura: some com editar/registrar/transferir/trocar/descartar.
+  ["btnEditMaquina", "btnManutMaquina", "btnTransferDept", "btnSwapSsd", "btnDescartar"].forEach((bid) => {
+    const b = document.getElementById(bid); if (b) b.style.display = descartada ? "none" : "";
+  });
+  document.getElementById("descarteAcoes")?.classList.toggle("hidden", !descartada);
+  document.getElementById("btnDescParaLixo")?.classList.toggle("hidden", !descartada || asset.descarte_tipo === "lixo");
   const live = getLiveStatus(asset.computer_name);
   const online = isMachineOnline(live);
   const activeAlert = performanceAlerts.find((alert) => alert.computer_name === asset.computer_name && alert.status === "Ativo");
@@ -1290,8 +1305,10 @@ function renderHardwareDetails() {
   document.getElementById("deviceDetailTitle").innerText = asset.display_name || asset.computer_name;
   document.getElementById("deviceDetailSubtitle").innerText = `${getAssetDepartment(asset)} | ${asset.manufacturer || ""} ${asset.model || ""}`;
   const liveBadge = document.getElementById("deviceLiveStatus");
-  liveBadge.className = `device-live-status ${online ? "online" : "offline"}`;
-  liveBadge.innerText = online ? "Online - atualização a cada 30 segundos" : "Offline ou sem agente ativo";
+  liveBadge.className = `device-live-status ${online && !descartada ? "online" : "offline"}`;
+  liveBadge.innerText = descartada
+    ? (asset.descarte_tipo === "lixo" ? "Descartada (Lixo) — não liga mais" : "Descartada (Defeito)")
+    : (online ? "Online - atualização a cada 30 segundos" : "Offline ou sem agente ativo");
 
   const activity = live?.activity_category || "Atividade não identificada";
   setMetricDetail("Cpu", live?.cpu_percent, live?.top_cpu?.[0] ? `Maior consumo: ${live.top_cpu[0].name}` : "Sem processo dominante");
@@ -1313,7 +1330,9 @@ function renderHardwareDetails() {
   renderSparkline("diskHistoryChart", selectedHistory, "disk_percent", "#f59e0b");
   renderDeviceProperties(asset, live);
   renderPerformanceAlerts(asset.computer_name);
-  renderDuplicateBanner(asset);
+  renderDescarteBanner(asset);
+  if (descartada) document.getElementById("deviceDuplicateBanner")?.classList.add("hidden");
+  else renderDuplicateBanner(asset);
   renderDeviceMaintenance(asset);
   renderDeviceChamados(asset);
   renderDeviceDeposit(asset);
@@ -1321,7 +1340,7 @@ function renderHardwareDetails() {
 }
 
 window.openHardwareDetails = async function openHardwareDetails(id) {
-  const asset = hardwareAssets.find((item) => item.id === id);
+  const asset = findAnyAsset(id);
   if (!asset) return;
   selectedHardwareId = id;
   selectedHistory = [];
@@ -3011,6 +3030,98 @@ window.registrarPlano = function registrarPlano(computerName) {
   if (a) abrirManutencaoPara(a.id);
 };
 
+// ============================================================
+// Descarte de computadores (Defeito / Lixo)
+// ============================================================
+function renderDescarteBanner(asset) {
+  const el = document.getElementById("deviceDescarteBanner");
+  if (!el) return;
+  if (!asset || !asset.descartado) { el.classList.add("hidden"); el.innerHTML = ""; return; }
+  const tipo = asset.descarte_tipo === "lixo" ? "🗑️ Lixo (sem conserto)" : "🔧 Com defeito";
+  const data = asset.descarte_data ? new Date(asset.descarte_data).toLocaleDateString("pt-BR") : "-";
+  el.className = `descarte-banner ${asset.descarte_tipo === "lixo" ? "lixo" : "defeito"}`;
+  el.innerHTML = `<div><strong>Máquina descartada — ${tipo}</strong><span>${escapeHtml(asset.descarte_motivo || "Sem motivo informado")} · em ${data}</span></div>`;
+}
+
+window.descartarMaquina = function descartarMaquina(id) {
+  const asset = findAnyAsset(id);
+  if (!asset) return;
+  document.getElementById("descarteAssetId").value = id;
+  document.getElementById("descarteInfo").innerText = `${asset.display_name || asset.computer_name} — ${getAssetDepartment(asset)}`;
+  document.getElementById("descarteTipo").value = "defeito";
+  document.getElementById("descarteMotivo").value = "";
+  document.getElementById("descarteModal").classList.remove("hidden");
+};
+document.getElementById("btnDescartar")?.addEventListener("click", () => { if (selectedHardwareId) descartarMaquina(selectedHardwareId); });
+document.getElementById("btnCloseDescarte")?.addEventListener("click", () => document.getElementById("descarteModal").classList.add("hidden"));
+
+document.getElementById("descarteForm")?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const id = document.getElementById("descarteAssetId").value;
+  const tipo = document.getElementById("descarteTipo").value === "lixo" ? "lixo" : "defeito";
+  const motivo = document.getElementById("descarteMotivo").value.trim() || null;
+  const { error } = await client.from("hardware_inventory")
+    .update({ descartado: true, descarte_tipo: tipo, descarte_motivo: motivo, descarte_data: new Date().toISOString() }).eq("id", id);
+  if (error) { alert("Erro ao descartar: " + error.message + "\n\nVocê rodou o SQL supabase-descarte.sql no Supabase?"); return; }
+  document.getElementById("descarteModal").classList.add("hidden");
+  closeHardwareDetails();
+  await loadTickets();
+  alert("Máquina movida para o Descarte.");
+});
+
+window.restaurarDescarte = async function restaurarDescarte(id) {
+  const asset = findAnyAsset(id);
+  if (!asset) return;
+  if (!confirm(`Restaurar "${asset.display_name || asset.computer_name}" ao inventário?`)) return;
+  const { error } = await client.from("hardware_inventory")
+    .update({ descartado: false, descarte_tipo: null, descarte_motivo: null, descarte_data: null }).eq("id", id);
+  if (error) { alert("Erro: " + error.message); return; }
+  closeHardwareDetails();
+  await loadTickets();
+};
+window.moverDescarte = async function moverDescarte(id, tipo) {
+  const { error } = await client.from("hardware_inventory").update({ descarte_tipo: tipo }).eq("id", id);
+  if (error) { alert("Erro: " + error.message); return; }
+  await loadTickets();
+  if (selectedHardwareId) renderHardwareDetails();
+};
+document.getElementById("btnDescRestaurar")?.addEventListener("click", () => { if (selectedHardwareId) restaurarDescarte(selectedHardwareId); });
+document.getElementById("btnDescParaLixo")?.addEventListener("click", () => { if (selectedHardwareId) moverDescarte(selectedHardwareId, "lixo"); });
+
+function descarteCard(asset) {
+  const tipoBadge = asset.descarte_tipo === "lixo"
+    ? `<span class="descarte-badge lixo">🗑️ Lixo</span>`
+    : `<span class="descarte-badge defeito">🔧 Defeito</span>`;
+  const data = asset.descarte_data ? new Date(asset.descarte_data).toLocaleDateString("pt-BR") : "-";
+  return `
+    <article class="hardware-card descartada" onclick="openHardwareDetails('${asset.id}')">
+      <div class="hardware-card-top">
+        <div>
+          <strong>${escapeHtml(asset.display_name || asset.computer_name)}</strong>
+          <span>${escapeHtml(getAssetDepartment(asset))} · ${escapeHtml(asset.manufacturer || "")} ${escapeHtml(asset.model || "")}</span>
+        </div>
+        ${tipoBadge}
+      </div>
+      <div class="machine-presence offline"><i></i>Descartada — não liga mais</div>
+      <div class="hardware-spec">${escapeHtml(asset.cpu_name || "-")} · ${escapeHtml(asset.serial_number || "")}</div>
+      <p class="descarte-motivo-card">Motivo: ${escapeHtml(asset.descarte_motivo || "não informado")}</p>
+      <p class="muted">Descartada em ${data}</p>
+      <button class="secondary small details-button" type="button">Ver histórico (chamados e manutenções)</button>
+    </article>`;
+}
+function renderDescarte() {
+  const defBox = document.getElementById("descarteDefeitoCards");
+  const lixoBox = document.getElementById("descarteLixoCards");
+  if (!defBox || !lixoBox) return;
+  const defeito = descarteAssets.filter((a) => a.descarte_tipo !== "lixo");
+  const lixo = descarteAssets.filter((a) => a.descarte_tipo === "lixo");
+  const badge = (elId, n) => { const b = document.getElementById(elId); if (b) { b.textContent = n; b.classList.toggle("hidden", n <= 0); } };
+  badge("descDefeitoBadge", defeito.length);
+  badge("descLixoBadge", lixo.length);
+  defBox.innerHTML = defeito.length ? defeito.map(descarteCard).join("") : '<div class="empty-state">Nenhuma máquina com defeito.</div>';
+  lixoBox.innerHTML = lixo.length ? lixo.map(descarteCard).join("") : '<div class="empty-state">Nenhuma máquina no lixo.</div>';
+}
+
 // ---- Dashboard: manutenções feitas por Dia / Semana / Mês (+ pendente do dia) ----
 let dashManutPeriodo = "dia"; // "dia" | "semana" | "mes"
 function renderDashManutencoes() {
@@ -3560,6 +3671,7 @@ document.getElementById("btnPrintOrcamento")?.addEventListener("click", () => { 
     "tab-rede": svg('<path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/>'),
     "tab-deposito": svg('<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>'),
     "tab-manutencao": svg('<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>'),
+    "tab-descarte": svg('<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/>'),
     "tab-inteligencia": svg('<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/>'),
     "tab-orcamento": svg('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'),
   };
