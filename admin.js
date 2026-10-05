@@ -815,7 +815,18 @@ function assetMatchesLive(asset, filter) {
   if (filter === "cpu") return online && Number(live.cpu_percent || 0) >= 80;
   if (filter === "memoria") return online && Number(live.memory_percent || 0) >= 80;
   if (filter === "disco") return online && Number(live.disk_percent || 0) >= 80;
+  if (filter === "manutencao") return precisaPreventiva(asset);
   return true;
+}
+// Data planejada de manutenção ao lado do badge (só para quem precisa). Prioridade do dia destacada.
+function preventivaDataBadge(asset, planoDatas) {
+  if (!precisaPreventiva(asset)) return "";
+  const p = planoDatas && planoDatas[normalizeText(asset.computer_name)];
+  if (!p) return "";
+  const ehHoje = mesmoDia(p.date, agendaHojeStr());
+  const prio = (p.picos > 0 || p.elevado);
+  const quando = ehHoje ? "HOJE" : p.date.toLocaleDateString("pt-BR");
+  return `<div class="plano-data ${ehHoje ? "hoje" : ""} ${prio ? "prio" : ""}">📅 Manutenção: <strong>${quando}</strong>${prio ? ` <span class="plano-data-prio">⭐ prioridade (uso alto)</span>` : ""}</div>`;
 }
 
 function metricLevel(value) {
@@ -872,6 +883,7 @@ function renderAssets() {
     return;
   }
 
+  const planoDatas = planoDateMap();
   hardwareCards.innerHTML = displayAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
@@ -890,6 +902,7 @@ function renderAssets() {
         </div>
         <div class="machine-presence ${online ? "online" : "offline"}"><i></i>${online ? "Online agora" : "Offline"}</div>
         ${preventivaBadge(asset)}
+        ${preventivaDataBadge(asset, planoDatas)}
         <div class="hardware-live-grid">
           ${liveMetric("CPU", live?.cpu_percent)}
           ${liveMetric("RAM", live?.memory_percent)}
@@ -1094,6 +1107,8 @@ function updateHardwareSummary(assets = getFilteredHardwareAssets()) {
   document.getElementById("hwCpuHigh").innerText = online.filter((item) => Number(item.cpu_percent) >= 80).length;
   document.getElementById("hwMemoryHigh").innerText = online.filter((item) => Number(item.memory_percent) >= 80).length;
   document.getElementById("hwDiskHigh").innerText = online.filter((item) => Number(item.disk_percent) >= 80).length;
+  const needEl = document.getElementById("hwNeedMaint");
+  if (needEl) needEl.innerText = assets.filter((a) => a.cpu_name && precisaPreventiva(a)).length;
 }
 
 function setMetricDetail(prefix, value, cause) {
@@ -2780,10 +2795,22 @@ function assetDaysSinceMaint(asset) {
 }
 // Máquinas em uso (ignora reservas/sem departamento), ordenadas da mais atrasada para a menos.
 function planoMaquinas() {
+  // Mapa de picos (CPU/memória/disco) do mês, por máquina.
+  const picosMap = {};
+  getOverloadedMachines().forEach((m) => { picosMap[normalizeText(m.computer_name)] = m.mes; });
   return hardwareAssets
     .filter((a) => a.cpu_name && !isReservaAsset(a))
-    .map((a) => ({ asset: a, dias: assetDaysSinceMaint(a) }))
-    .sort((x, y) => (y.dias - x.dias) || String(x.asset.computer_name).localeCompare(String(y.asset.computer_name)));
+    .map((a) => {
+      const dias = assetDaysSinceMaint(a);
+      const precisa = precisaPreventiva(a); // nunca ou vencida
+      const picos = picosMap[normalizeText(a.computer_name)] || 0;
+      const live = getLiveStatus(a.computer_name);
+      const elevado = !!(live && isMachineOnline(live) && (Number(live.memory_percent || 0) >= 85 || Number(live.disk_percent || 0) >= 85));
+      // Só vira prioridade se AINDA precisa de manutenção (não adianta priorizar uma recém-feita).
+      const boost = precisa ? (picos * 1000 + (elevado ? 500 : 0)) : 0;
+      return { asset: a, dias, picos, elevado, prioridade: dias + boost };
+    })
+    .sort((x, y) => (y.prioridade - x.prioridade) || String(x.asset.computer_name).localeCompare(String(y.asset.computer_name)));
 }
 // Próximos N dias ÚTEIS (seg-sex) a partir de "start" (inclui start se for dia útil).
 function businessDaysFrom(start, count) {
@@ -2800,7 +2827,13 @@ function getPlanoAutomatico() {
   const maquinas = planoMaquinas();
   if (!maquinas.length) return [];
   const dias = businessDaysFrom(new Date(), maquinas.length);
-  return maquinas.map((m, i) => ({ asset: m.asset, dias: m.dias, date: dias[i] }));
+  return maquinas.map((m, i) => ({ ...m, date: dias[i] }));
+}
+// Mapa computer_name(normalizado) -> data planejada de manutenção.
+function planoDateMap() {
+  const map = {};
+  getPlanoAutomatico().forEach((p) => { map[normalizeText(p.asset.computer_name)] = p; });
+  return map;
 }
 // computer_name (normalizado) das máquinas que tiveram manutenção num intervalo.
 function manutencoesNoIntervalo(ini, fim) {
@@ -3012,10 +3045,12 @@ function renderPlanoAgenda() {
     const dept = getAssetDepartment(a);
     const quando = p.dias >= 999999 ? "nunca teve manutenção" : `${p.dias} dias desde a última`;
     const ehHoje = mesmoDia(p.date, hoje);
-    return `<div class="agenda-plan-row ${ehHoje ? "today" : ""}">
+    const prio = (p.picos > 0 || p.elevado);
+    const prioTxt = prio ? ` <span class="plano-prio">⭐ prioridade${p.picos > 0 ? ` — ${p.picos} pico(s) de uso no mês` : (p.elevado ? " — uso alto agora" : "")}</span>` : "";
+    return `<div class="agenda-plan-row ${ehHoje ? "today" : ""} ${prio ? "prio" : ""}">
       <span class="agenda-date">${ehHoje ? "HOJE" : ddmm(p.date)}</span>
       <span class="agenda-item-main"><strong>${escapeHtml(nome)}</strong>${dept ? ` <em>${escapeHtml(dept)}</em>` : ""}
-        <span class="agenda-plan-motivo">${escapeHtml(quando)}</span></span>
+        <span class="agenda-plan-motivo">${escapeHtml(quando)}${prioTxt}</span></span>
       <span class="agenda-acts">
         <button class="secondary small" onclick="registrarPlano('${escapeHtml(a.computer_name)}')">Registrar</button>
         <button class="secondary small" onclick="openHardwareDetails('${a.id}')">Ver máquina</button>
