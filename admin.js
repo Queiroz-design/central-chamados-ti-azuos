@@ -12,7 +12,7 @@ const ticketDetailModal = document.getElementById("ticketDetailModal");
 const chartColors = ["#f59e0b", "#10b981", "#a855f7", "#ec4899", "#ef4444", "#eab308", "#14b8a6"];
 const companyDepartments = [
   "ANALYZE", "CERTIFICADO", "COMERCIAL", "CONT\u00c1BIL", "CS", "FINANCEIRO",
-  "FISCAL", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH",
+  "FISCAL", "PARALEGAL", "PESSOAL", "RECEP\u00c7\u00c3O", "RH", "TI",
 ];
 
 let allTickets = [];
@@ -1806,7 +1806,7 @@ function ticketDetailRow(label, value) {
   return `<div class="ticket-detail-row"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value ?? "-")}</strong></div>`;
 }
 
-const TICKET_TIPOS = ["Internet / Rede", "Computador lento", "Impressora", "E-mail", "Sistema interno", "Certificado digital", "Instalação de programa", "AnyDesk / Acesso remoto", "Outro"];
+const TICKET_TIPOS = ["Internet / Rede", "Computador lento", "Impressora", "Drive", "E-mail", "Sistema interno", "Certificado digital", "Instalação de programa", "AnyDesk / Acesso remoto", "Outro"];
 
 // Opções do seletor de máquina no chamado (para vincular o chamado a uma máquina do inventário).
 function ticketMachineOptions(selected) {
