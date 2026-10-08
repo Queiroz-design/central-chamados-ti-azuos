@@ -867,6 +867,15 @@ function renderAssets() {
     displayAssets = filteredAssets.filter((asset) => assetMatchesLive(asset, hardwareLiveFilter));
   }
   if (orcMachineFilter) displayAssets = displayAssets.filter((asset) => assetNeedsOrc(asset, orcMachineFilter));
+  const planoDatas = planoDateMap();
+  // No filtro "precisa manutenção", ordena pela data planejada (hoje primeiro, depois 07/10, 08/10...).
+  if (hardwareLiveFilter === "manutencao") {
+    displayAssets = [...displayAssets].sort((a, b) => {
+      const pa = planoDatas[normalizeText(a.computer_name)], pb = planoDatas[normalizeText(b.computer_name)];
+      const ta = pa ? pa.date.getTime() : Infinity, tb = pb ? pb.date.getTime() : Infinity;
+      return ta - tb;
+    });
+  }
   updateOrcFilterNotice();
   renderReservaMaquinas();
 
@@ -883,7 +892,6 @@ function renderAssets() {
     return;
   }
 
-  const planoDatas = planoDateMap();
   hardwareCards.innerHTML = displayAssets.map((asset) => {
     const signals = getAssetSignals(asset);
     const health = suggestedHealth(asset, signals.monthCount);
