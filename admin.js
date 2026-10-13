@@ -2844,7 +2844,13 @@ function businessDaysFrom(start, count) {
 function getPlanoAutomatico() {
   const maquinas = planoMaquinas();
   if (!maquinas.length) return [];
-  const dias = businessDaysFrom(new Date(), maquinas.length);
+  // Se a manutenção de hoje já foi feita, o plano começa AMANHÃ (1 por dia —
+  // não puxa outra máquina pra hoje; as demais só deslizam a partir de amanhã).
+  const hoje = agendaHojeStr();
+  const feitoHoje = manutencoesNoIntervalo(hoje, endOfDay(hoje)).length > 0;
+  const inicio = new Date(hoje);
+  if (feitoHoje) inicio.setDate(inicio.getDate() + 1);
+  const dias = businessDaysFrom(inicio, maquinas.length);
   return maquinas.map((m, i) => ({ ...m, date: dias[i] }));
 }
 // Mapa computer_name(normalizado) -> data planejada de manutenção.
