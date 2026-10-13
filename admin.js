@@ -1319,7 +1319,7 @@ function renderHardwareDetails() {
   if (!asset) return;
   const descartada = !!asset.descartado;
   // Máquina descartada = só leitura: some com editar/registrar/transferir/trocar/descartar.
-  ["btnEditMaquina", "btnManutMaquina", "btnTransferDept", "btnSwapSsd", "btnDescartar"].forEach((bid) => {
+  ["btnEditMaquina", "btnManutMaquina", "btnTransferDept", "btnAgendarMaq", "btnDescartar"].forEach((bid) => {
     const b = document.getElementById(bid); if (b) b.style.display = descartada ? "none" : "";
   });
   document.getElementById("descarteAcoes")?.classList.toggle("hidden", !descartada);
@@ -2658,6 +2658,7 @@ window.abrirManutencaoPara = function abrirManutencaoPara(id) {
 };
 document.getElementById("btnEditMaquina")?.addEventListener("click", () => { if (selectedHardwareId) editHardware(selectedHardwareId); });
 document.getElementById("btnManutMaquina")?.addEventListener("click", () => { if (selectedHardwareId) abrirManutencaoPara(selectedHardwareId); });
+document.getElementById("btnAgendarMaq")?.addEventListener("click", () => { const a = findAnyAsset(selectedHardwareId); if (a) abrirAgendarModal(a.computer_name); });
 document.getElementById("manutencaoComputador")?.addEventListener("change", toggleManutencaoOutro);
 document.getElementById("btnCloseManutencao")?.addEventListener("click", () => document.getElementById("manutencaoModal").classList.add("hidden"));
 document.getElementById("manutencaoFilter")?.addEventListener("change", () => { manutPage = 1; renderManutencoes(); });
