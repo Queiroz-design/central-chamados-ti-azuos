@@ -824,9 +824,12 @@ function preventivaDataBadge(asset, planoDatas) {
   const p = planoDatas && planoDatas[normalizeText(asset.computer_name)];
   if (!p) return "";
   const ehHoje = mesmoDia(p.date, agendaHojeStr());
-  const prio = (p.picos > 0 || p.elevado);
+  const prio = (p.picos > 0 || p.elevado) && !p.manual;
   const quando = ehHoje ? "HOJE" : p.date.toLocaleDateString("pt-BR");
-  return `<div class="plano-data ${ehHoje ? "hoje" : ""} ${prio ? "prio" : ""}">📅 Manutenção: <strong>${quando}</strong>${prio ? ` <span class="plano-data-prio">⭐ prioridade (uso alto)</span>` : ""}</div>`;
+  const tag = p.manual
+    ? ` <span class="plano-data-prio">📌 agendado</span>`
+    : (prio ? ` <span class="plano-data-prio">⭐ prioridade (uso alto)</span>` : "");
+  return `<div class="plano-data ${ehHoje ? "hoje" : ""} ${prio ? "prio" : ""}">📅 Manutenção: <strong>${quando}</strong>${tag}</div>`;
 }
 
 function metricLevel(value) {
@@ -2707,6 +2710,8 @@ async function loadAgenda() {
   if (error) { agendaLoadError = error.message; manutencaoAgenda = []; }
   else { agendaLoadError = ""; manutencaoAgenda = data || []; }
   renderAgenda();
+  // Atualiza o inventário: máquinas com lembrete manual saem do rodízio e mostram a data agendada.
+  if (document.getElementById("hardwareCards") && !hardwareLoadError) renderAssets();
 }
 
 function fillAgendaComputers() {
@@ -2802,12 +2807,17 @@ function assetDaysSinceMaint(asset) {
   return Math.floor((Date.now() - info.ultima.getTime()) / 86400000);
 }
 // Máquinas em uso (ignora reservas/sem departamento), ordenadas da mais atrasada para a menos.
+// Máquinas que já têm lembrete manual pendente (ficam fora do rodízio automático).
+function maquinasComLembreteManual() {
+  return new Set((manutencaoAgenda || []).filter((r) => r.status === "pendente").map((r) => normalizeText(r.computer_name)));
+}
 function planoMaquinas() {
   // Mapa de picos (CPU/memória/disco) do mês, por máquina.
   const picosMap = {};
   getOverloadedMachines().forEach((m) => { picosMap[normalizeText(m.computer_name)] = m.mes; });
+  const comLembrete = maquinasComLembreteManual();
   return hardwareAssets
-    .filter((a) => a.cpu_name && !isReservaAsset(a))
+    .filter((a) => a.cpu_name && !isReservaAsset(a) && !comLembrete.has(normalizeText(a.computer_name)))
     .map((a) => {
       const dias = assetDaysSinceMaint(a);
       const precisa = precisaPreventiva(a); // nunca ou vencida
@@ -2838,9 +2848,14 @@ function getPlanoAutomatico() {
   return maquinas.map((m, i) => ({ ...m, date: dias[i] }));
 }
 // Mapa computer_name(normalizado) -> data planejada de manutenção.
+// Lembrete manual (data escolhida pelo usuário) tem prioridade sobre o plano automático.
 function planoDateMap() {
   const map = {};
   getPlanoAutomatico().forEach((p) => { map[normalizeText(p.asset.computer_name)] = p; });
+  (manutencaoAgenda || []).filter((r) => r.status === "pendente").forEach((r) => {
+    const key = normalizeText(r.computer_name);
+    map[key] = { asset: findAssetByComputerName(r.computer_name) || { computer_name: r.computer_name }, date: agendaDataObj(r), dias: 0, picos: 0, elevado: false, manual: true };
+  });
   return map;
 }
 // computer_name (normalizado) das máquinas que tiveram manutenção num intervalo.
