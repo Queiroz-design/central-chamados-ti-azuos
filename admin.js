@@ -2569,6 +2569,42 @@ function renderManutencoes() {
   `).join("") : '<tr><td colspan="6">Nenhuma manutenção para este filtro.</td></tr>';
   renderPager("manutencaoPager", allRows.length, totalPagesM, manutPage, "changeManutPage", "manutenções", MANUT_PER_PAGE);
   if (typeof renderAgenda === "function") renderAgenda();
+  renderProximoCiclo();
+}
+// Próximo ciclo: máquinas que já tiveram manutenção, ordenadas pela próxima (última + 3 meses).
+function renderProximoCiclo() {
+  const body = document.getElementById("proximoCicloBody");
+  if (!body) return;
+  const hoje = agendaHojeStr();
+  const lista = hardwareAssets
+    .filter((a) => a.cpu_name && !isReservaAsset(a))
+    .map((a) => ({ asset: a, info: preventivaInfo(a) }))
+    .filter((x) => x.info.status !== "nunca" && x.info.ultima) // já teve pelo menos 1 manutenção
+    .map((x) => {
+      const prox = new Date(x.info.ultima); prox.setMonth(prox.getMonth() + PREVENTIVA_MESES);
+      const dias = Math.round((startOfDay(prox) - hoje) / 86400000);
+      return { asset: x.asset, ultima: x.info.ultima, prox, dias };
+    })
+    .sort((a, b) => a.prox - b.prox);
+  if (!lista.length) {
+    body.innerHTML = '<tr><td colspan="4">Nenhuma máquina teve manutenção ainda (todas estão no 1º ciclo).</td></tr>';
+    return;
+  }
+  body.innerHTML = lista.map((x) => {
+    const nome = x.asset.display_name || x.asset.computer_name;
+    const dept = getAssetDepartment(x.asset);
+    let sit;
+    if (x.dias < 0) sit = `<span class="estoque-badge zero">Vencida há ${Math.abs(x.dias)} dia(s)</span>`;
+    else if (x.dias === 0) sit = `<span class="estoque-badge zero">Vence hoje</span>`;
+    else if (x.dias <= 15) sit = `<span class="cond-badge usado">Faltam ${x.dias} dia(s)</span>`;
+    else sit = `<span class="muted">Faltam ${x.dias} dia(s)</span>`;
+    return `<tr class="rank-row clickable" onclick="verMaquinaLembrete('${escapeHtml(x.asset.computer_name)}')" title="Ver esta máquina">
+      <td><strong>${escapeHtml(nome)}</strong> <span class="muted">${escapeHtml(dept)}</span></td>
+      <td>${x.ultima.toLocaleDateString("pt-BR")}</td>
+      <td>${x.prox.toLocaleDateString("pt-BR")}</td>
+      <td>${sit}</td>
+    </tr>`;
+  }).join("");
 }
 // Painel de manutenção preventiva pendente (na aba Manutenção).
 function renderPreventivaPanel() {
