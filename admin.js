@@ -2610,6 +2610,12 @@ window.abrirMaquinaInventario = function abrirMaquinaInventario(computerName) {
   window.irParaAba("inventario");
   openHardwareDetails(asset.id);
 };
+// Abre a máquina de um lembrete (sem trocar de aba — o detalhe abre por cima).
+window.verMaquinaLembrete = function verMaquinaLembrete(computerName) {
+  const asset = findAssetByComputerName(computerName) || descarteAssets.find((a) => normalizeText(a.computer_name) === normalizeText(computerName));
+  if (!asset) { alert("Máquina não encontrada no inventário ativo."); return; }
+  openHardwareDetails(asset.id);
+};
 
 window.filtrarManutencao = function filtrarManutencao(key) {
   const sel = document.getElementById("manutencaoFilter");
@@ -3004,7 +3010,7 @@ function renderAgenda() {
       const atrasado = agendaDataObj(r) < hoje;
       return `<div class="agenda-alert ${atrasado ? "late" : ""}">
         <div class="agenda-alert-main">
-          <strong>${escapeHtml(r.computer_label || r.computer_name)}</strong>
+          <strong class="agenda-maq-link" onclick="verMaquinaLembrete('${escapeHtml(r.computer_name)}')" title="Ver esta máquina">${escapeHtml(r.computer_label || r.computer_name)}</strong>
           ${atrasado ? `<span class="agenda-late-tag">atrasado desde ${agendaFmt(r)}</span>` : `<span class="agenda-today-tag">hoje</span>`}
           <div class="agenda-desc">${escapeHtml(r.descricao || "Manutenção programada")}</div>
         </div>
@@ -3027,7 +3033,7 @@ function renderAgenda() {
       ? `<h4 class="agenda-h">Próximos lembretes</h4>` + futuros.map((r) => `
         <div class="agenda-item">
           <span class="agenda-date">${agendaFmt(r)}</span>
-          <span class="agenda-item-main"><strong>${escapeHtml(r.computer_label || r.computer_name)}</strong> — ${escapeHtml(r.descricao || "manutenção")}</span>
+          <span class="agenda-item-main"><strong class="agenda-maq-link" onclick="verMaquinaLembrete('${escapeHtml(r.computer_name)}')" title="Ver esta máquina">${escapeHtml(r.computer_label || r.computer_name)}</strong> — ${escapeHtml(r.descricao || "manutenção")}</span>
           <span class="agenda-acts">
             <button class="secondary small" onclick="agendaEditar('${r.id}')">Editar</button>
             <button class="secondary small remove-hw" onclick="agendaExcluir('${r.id}')">Excluir</button>
