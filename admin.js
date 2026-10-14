@@ -2842,16 +2842,31 @@ function businessDaysFrom(start, count) {
   return out;
 }
 // Cada máquina ganha um dia útil, na ordem de urgência: [{asset, dias, date}]
+function dateKey(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; }
+// Dias úteis a partir de "start", pulando fim de semana E dias já ocupados por lembrete manual.
+function diasUteisDisponiveis(start, count, ocupados) {
+  const out = []; const d = startOfDay(start);
+  while (out.length < count) {
+    const wd = d.getDay();
+    if (wd !== 0 && wd !== 6 && !ocupados.has(dateKey(d))) out.push(new Date(d));
+    d.setDate(d.getDate() + 1);
+  }
+  return out;
+}
 function getPlanoAutomatico() {
   const maquinas = planoMaquinas();
   if (!maquinas.length) return [];
-  // Se a manutenção de hoje já foi feita, o plano começa AMANHÃ (1 por dia —
-  // não puxa outra máquina pra hoje; as demais só deslizam a partir de amanhã).
   const hoje = agendaHojeStr();
+  // 1 por dia: se já foi feita a de hoje, começa amanhã.
   const feitoHoje = manutencoesNoIntervalo(hoje, endOfDay(hoje)).length > 0;
+  // Dias já reservados por lembretes manuais (já contam como "a máquina do dia").
+  const ocupados = new Set(
+    (manutencaoAgenda || []).filter((r) => r.status === "pendente")
+      .map((r) => agendaDataObj(r)).filter((d) => d >= hoje).map(dateKey)
+  );
   const inicio = new Date(hoje);
   if (feitoHoje) inicio.setDate(inicio.getDate() + 1);
-  const dias = businessDaysFrom(inicio, maquinas.length);
+  const dias = diasUteisDisponiveis(inicio, maquinas.length, ocupados);
   return maquinas.map((m, i) => ({ ...m, date: dias[i] }));
 }
 // Mapa computer_name(normalizado) -> data planejada de manutenção.
